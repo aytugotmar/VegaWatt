@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: vegawatt-telemetry-sensors
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      retries: 5
+      properties:
+        request.timeout.ms: 5000
+        delivery.timeout.ms: 20000
+        retry.backoff.ms: 500
+    consumer:
+      group-id: vegawatt-sensors-registration
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+vegawatt:
+  kafka:
+    registration-topic: ${KAFKA_REGISTRATION_TOPIC:vegawatt.asset-registration.v1}
+    telemetry-topic: ${KAFKA_TELEMETRY_TOPIC:vegawatt.telemetry.v1}
+  simulation:
+    telemetry-interval-seconds: ${TELEMETRY_INTERVAL:5}
