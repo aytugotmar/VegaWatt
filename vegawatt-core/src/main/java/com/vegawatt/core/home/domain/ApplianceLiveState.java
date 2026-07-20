@@ -14,7 +14,7 @@ public record ApplianceLiveState(
         Instant lastUpdatedAt) {
 
     public static ApplianceLiveState zero(UUID homeId, UUID applianceId, Instant now) {
-        return new ApplianceLiveState(homeId, applianceId, BigDecimal.ZERO, BigDecimal.ZERO.setScale(4), 0, false,
+        return new ApplianceLiveState(homeId, applianceId, BigDecimal.ZERO, BigDecimal.ZERO.setScale(9), 0, false,
                 now);
     }
 }

@@ -18,7 +18,7 @@ class EnergyCalculatorTest {
     void convertsFractionalIntervalCorrectly() {
         BigDecimal result = EnergyCalculator.incrementKwh(new BigDecimal("1450.5"), 5);
 
-        assertThat(result).isEqualByComparingTo("0.0020");
+        assertThat(result).isEqualByComparingTo("0.002014583");
     }
 
     @Test

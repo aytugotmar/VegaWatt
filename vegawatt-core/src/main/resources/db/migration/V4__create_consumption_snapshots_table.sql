@@ -2,8 +2,8 @@ CREATE TABLE consumption_snapshots (
     id                     UUID PRIMARY KEY,
     home_id                UUID NOT NULL REFERENCES homes (id) ON DELETE CASCADE,
     snapshot_time          TIMESTAMPTZ NOT NULL,
-    accumulated_energy_kwh NUMERIC(12, 4) NOT NULL,
-    accumulated_cost       NUMERIC(12, 2) NOT NULL,
+    accumulated_energy_kwh NUMERIC(18, 9) NOT NULL,
+    accumulated_cost       NUMERIC(18, 6) NOT NULL,
     tariff_state           VARCHAR(20) NOT NULL,
     CONSTRAINT chk_consumption_snapshots_tariff_state CHECK (tariff_state IN ('BASE', 'PENALTY'))
 );

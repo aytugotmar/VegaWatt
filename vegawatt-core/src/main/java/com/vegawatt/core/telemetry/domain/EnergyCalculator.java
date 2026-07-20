@@ -5,7 +5,7 @@ import java.math.RoundingMode;
 
 public final class EnergyCalculator {
 
-    private static final int ENERGY_SCALE = 4;
+    private static final int ENERGY_SCALE = 9;
     private static final BigDecimal WATT_SECONDS_PER_KWH = new BigDecimal("3600000");
 
     private EnergyCalculator() {

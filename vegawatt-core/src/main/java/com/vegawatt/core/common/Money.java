@@ -5,7 +5,8 @@ import java.math.RoundingMode;
 
 public record Money(BigDecimal amount) {
 
-    private static final int SCALE = 2;
+    private static final int SCALE = 6;
+    private static final int DISPLAY_SCALE = 2;
     private static final RoundingMode ROUNDING = RoundingMode.HALF_UP;
 
     public Money {
@@ -26,5 +27,9 @@ public record Money(BigDecimal amount) {
 
     public boolean isGreaterThanOrEqualTo(Money other) {
         return amount.compareTo(other.amount) >= 0;
+    }
+
+    public BigDecimal rounded() {
+        return amount.setScale(DISPLAY_SCALE, ROUNDING);
     }
 }

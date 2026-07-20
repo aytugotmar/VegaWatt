@@ -28,11 +28,25 @@ class EvaluateTariffPolicyTest {
     }
 
     @Test
-    void roundsToTwoDecimalPlacesHalfUp() {
-        Money cost = EvaluateTariffPolicy.cost(new BigDecimal("0.001"), TariffState.BASE, BASE_TARIFF,
+    void preservesSubKurusPrecisionForSmallEnergyIncrements() {
+        Money cost = EvaluateTariffPolicy.cost(new BigDecimal("0.002"), TariffState.BASE, BASE_TARIFF,
                 PENALTY_TARIFF);
 
-        assertThat(cost.amount()).isEqualByComparingTo("0.00");
-        assertThat(cost.amount().scale()).isEqualTo(2);
+        assertThat(cost.amount()).isEqualByComparingTo("0.0042");
+        assertThat(cost.amount().scale()).isEqualTo(6);
+        assertThat(cost.rounded()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    void accumulatingManySubKurusCostsProducesCorrectRoundedTotal() {
+        Money total = Money.zero();
+        Money perEventCost = EvaluateTariffPolicy.cost(new BigDecimal("0.002"), TariffState.BASE, BASE_TARIFF,
+                PENALTY_TARIFF);
+
+        for (int i = 0; i < 500; i++) {
+            total = total.plus(perEventCost);
+        }
+
+        assertThat(total.rounded()).isEqualByComparingTo("2.10");
     }
 }

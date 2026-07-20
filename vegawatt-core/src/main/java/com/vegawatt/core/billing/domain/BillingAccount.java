@@ -41,7 +41,7 @@ public final class BillingAccount {
     }
 
     public static BillingAccount open(UUID homeId, String billingPeriod, Instant now) {
-        return new BillingAccount(UUID.randomUUID(), homeId, billingPeriod, BigDecimal.ZERO.setScale(4),
+        return new BillingAccount(UUID.randomUUID(), homeId, billingPeriod, BigDecimal.ZERO.setScale(9),
                 Money.zero(), false, false, false, false, false, 0L, now, now);
     }
 

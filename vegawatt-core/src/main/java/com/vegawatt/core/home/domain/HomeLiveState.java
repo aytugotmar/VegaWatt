@@ -17,7 +17,7 @@ public record HomeLiveState(
         Instant lastUpdatedAt) {
 
     public static HomeLiveState zero(UUID homeId, Instant now) {
-        return new HomeLiveState(homeId, BigDecimal.ZERO.setScale(4), Money.zero(), BigDecimal.ZERO,
+        return new HomeLiveState(homeId, BigDecimal.ZERO.setScale(9), Money.zero(), BigDecimal.ZERO,
                 BigDecimal.ZERO, TariffState.BASE, false, now);
     }
 }
