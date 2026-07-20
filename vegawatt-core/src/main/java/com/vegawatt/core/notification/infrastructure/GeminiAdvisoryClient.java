@@ -110,7 +110,7 @@ class GeminiAdvisoryClient implements EnergyAdvisoryPort {
                 .append("Bildirim nedeni: ").append(describeTrigger(context.triggerType())).append('\n')
                 .append("Enerji kotası kullanım oranı: %").append(context.energyQuotaPercentage()).append('\n')
                 .append("Bütçe kotası kullanım oranı: %").append(context.budgetQuotaPercentage()).append('\n')
-                .append("Güncel fatura tutarı: ").append(context.currentCost().amount()).append(" TRY\n")
+                .append("Güncel fatura tutarı: ").append(context.currentCost().rounded()).append(" TRY\n")
                 .append("Aktif tarife: ")
                 .append(context.tariffState() == TariffState.PENALTY ? "ceza tarifesi" : "normal tarife")
                 .append('\n');
