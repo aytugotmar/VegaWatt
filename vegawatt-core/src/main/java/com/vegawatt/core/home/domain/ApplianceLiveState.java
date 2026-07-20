@@ -1,0 +1,20 @@
+package com.vegawatt.core.home.domain;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+
+public record ApplianceLiveState(
+        UUID homeId,
+        UUID applianceId,
+        BigDecimal currentPowerWatt,
+        BigDecimal accumulatedEnergyKwh,
+        int consecutiveBreachCount,
+        boolean anomalous,
+        Instant lastUpdatedAt) {
+
+    public static ApplianceLiveState zero(UUID homeId, UUID applianceId, Instant now) {
+        return new ApplianceLiveState(homeId, applianceId, BigDecimal.ZERO, BigDecimal.ZERO.setScale(4), 0, false,
+                now);
+    }
+}
