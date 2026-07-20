@@ -2,7 +2,7 @@ spring:
   application:
     name: vegawatt-core
   datasource:
-    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:vegawatt}
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:vegawatt}
     username: ${POSTGRES_USER:vegawatt}
     password: ${POSTGRES_PASSWORD:change-me}
   jpa:
@@ -50,6 +50,8 @@ vegawatt:
     read-timeout-ms: ${GEMINI_READ_TIMEOUT_MS:8000}
   mail:
     from: ${MAIL_FROM:no-reply@vegawatt.local}
+  web:
+    allowed-origin: ${FRONTEND_DEV_ORIGIN:http://localhost:5173}
   outbox:
     relay-interval-ms: 2000
   scheduling:
