@@ -66,13 +66,13 @@ class IgniteTelemetryLiveStateAdapter implements TelemetryLiveStatePort {
     private static HomeLiveStateCacheValue toHomeCacheValue(HomeLiveState state) {
         return new HomeLiveStateCacheValue(state.homeName(), state.currentEnergyKwh(), state.currentCost().amount(),
                 state.energyQuotaPercentage(), state.budgetQuotaPercentage(), state.tariffState(),
-                state.penaltyActive(), state.lastUpdatedAt());
+                state.penaltyActive(), state.billingPeriod(), state.lastUpdatedAt());
     }
 
     private static HomeLiveState toHomeDomain(UUID homeId, HomeLiveStateCacheValue value) {
         return new HomeLiveState(homeId, value.getHomeName(), value.getCurrentEnergyKwh(),
                 Money.of(value.getCurrentCost()), value.getEnergyQuotaPercentage(), value.getBudgetQuotaPercentage(),
-                value.getTariffState(), value.isPenaltyActive(), value.getLastUpdatedAt());
+                value.getTariffState(), value.isPenaltyActive(), value.getBillingPeriod(), value.getLastUpdatedAt());
     }
 
     private static ApplianceLiveStateCacheValue toApplianceCacheValue(ApplianceLiveState state) {

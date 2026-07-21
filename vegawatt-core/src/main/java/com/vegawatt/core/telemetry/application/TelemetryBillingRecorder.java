@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-class TelemetryBillingRecorder {
+public class TelemetryBillingRecorder {
 
     private final BillingAccountRepository billingAccountRepository;
     private final OperationalEventRepository operationalEventRepository;

@@ -34,7 +34,13 @@ public class EvaluateHomeBillingUseCase {
 
     public HomeBillingEvaluation evaluate(Home home, HomeLiveState current, BigDecimal energyIncrementKwh,
                                            Instant now) {
-        HomeLiveState existing = current != null ? current : recoverFromLedger(home, now);
+        String currentPeriod = BillingPeriodResolver.currentPeriod(now);
+        HomeLiveState existing;
+        if (current == null || current.billingPeriod() == null || !currentPeriod.equals(current.billingPeriod())) {
+            existing = recoverFromLedger(home, now);
+        } else {
+            existing = current;
+        }
 
         Money costIncrement = EvaluateTariffPolicy.cost(energyIncrementKwh, existing.tariffState(),
                 home.baseTariffPerKwh(), home.penaltyTariffPerKwh());
@@ -54,7 +60,8 @@ public class EvaluateHomeBillingUseCase {
                 : TariffState.BASE;
 
         HomeLiveState newState = new HomeLiveState(home.id(), home.name(), newEnergyKwh, newCost,
-                newEnergyPercentage, newBudgetPercentage, newTariffState, newTariffState == TariffState.PENALTY, now);
+                newEnergyPercentage, newBudgetPercentage, newTariffState, newTariffState == TariffState.PENALTY,
+                currentPeriod, now);
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(energyIncrementKwh, costIncrement.amount(),
                 energyTransition, budgetTransition);
 
@@ -77,9 +84,9 @@ public class EvaluateHomeBillingUseCase {
                             home.budgetQuotaTry());
                     return new HomeLiveState(home.id(), home.name(), billingAccount.accumulatedEnergyKwh(),
                             billingAccount.accumulatedCost(), energyPercentage, budgetPercentage, tariffState,
-                            billingAccount.penaltyActive(), now);
+                            billingAccount.penaltyActive(), currentPeriod, now);
                 })
-                .orElseGet(() -> HomeLiveState.zero(home.id(), home.name(), now));
+                .orElseGet(() -> HomeLiveState.zero(home.id(), home.name(), currentPeriod, now));
     }
 
     private static BigDecimal percentage(BigDecimal value, BigDecimal quota) {

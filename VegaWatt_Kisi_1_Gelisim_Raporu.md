@@ -30,7 +30,7 @@ Ekip içi dosya ve modül çakışmalarını (merge conflict) engellemek amacıy
 
 | # | Görev Adı | İlgili Paket / Dizin | Durum |
 |---|---|---|:---:|
-| **G1** | **Aylık Fatura & Kota Sıfırlama (Billing Period Rollover)** | `billing`, `home/infrastructure` | ⏳ Bekliyor |
+| **G1** | **Aylık Fatura & Kota Sıfırlama (Billing Period Rollover)** | `billing`, `home/infrastructure` | ✅ Tamamlandı |
 | **G2** | **İkili Ignite State Rollback Compensation (Hata Dayanıklılığı)** | `telemetry/application`, `home/infrastructure` | ⏳ Bekliyor |
 | **G3** | **Idempotency & Concurrency Güçlendirme (Mükerrer Telemetri)** | `telemetry/application` | ⏳ Bekliyor |
 | **G4** | **`occurredAt` vs `processedAt` Zaman Ayrımı** | `telemetry`, `history` | ⏳ Bekliyor |
@@ -42,12 +42,13 @@ Ekip içi dosya ve modül çakışmalarını (merge conflict) engellemek amacıy
 
 ## 3. Adım Adım Detaylı Uygulama Planı
 
-### 🔹 Aşama 1: Aylık Fatura & Kota Sıfırlama (Billing Period Rollover)
+### 🔹 Aşama 1: Aylık Fatura & Kota Sıfırlama (Billing Period Rollover) [✅ TAMAMLANDI]
 * **Problem:** Uygulama kesintisiz çalışırken yeni aya geçildiğinde Ignite state eski ayın harcama ve ceza durumunu taşımaya devam edebilir.
-* **Yapılacaklar:**
-  1. `HomeLiveState` ve `HomeLiveStateEntity` içine `billingPeriod` (Örn: `"2026-07"`) alanı eklenecek.
-  2. Telemetri işlenirken gelen event'in ayı ile `HomeLiveState` içindeki ay karşılaştırılacak.
-  3. Ay değişimi tespit edildiğinde ev harcama toplamı, maliyeti ve ceza tarifesi sıfırlanıp yeni ayın `BillingAccount` kaydıyla senkronize edilecek.
+* **Yapılanlar:**
+  1. `HomeLiveState` ve `HomeLiveStateCacheValue` içine `billingPeriod` (örn: `"2026-07"`) eklendi.
+  2. `IgniteHomeLiveStateAdapter` ve `IgniteTelemetryLiveStateAdapter` serileştiricileri `billingPeriod` alanı ile güncellendi.
+  3. `EvaluateHomeBillingUseCase` içinde gelen telemetri tarihi ile Ignite dönemi karşılaştırılıp ay geçişi otomatik algılandı. Yeni aya geçildiğinde harcama, maliyet, kota oranları ve ceza tarifesi sıfırlanıp yeni dönemin `BillingAccount` verisine bağlandı.
+  4. `EvaluateHomeBillingUseCaseTest` yazılarak 69 birim testinin tamamı yeşile geçirildi (`mvn test` BUILD SUCCESS).
 
 ### 🔹 Aşama 2: İkili Ignite State Rollback Compensation
 * **Problem:** Telemetri işlenirken PostgreSQL yazımı çökerse ev state'i geri yükleniyor fakat cihazın ihlal sayacı Ignite'ta yüksek kalıyor.
@@ -92,7 +93,7 @@ Ekip içi dosya ve modül çakışmalarını (merge conflict) engellemek amacıy
 
 > Diğer ekip üyelerinin (Kişi 2 ve Kişi 3) kendi kodlarını uyarlayabilmeleri için burada güncellenen DTO ve Endpoint değişiklikleri duyurulacaktır.
 
-* *(Henüz değişiklik yapılmadı - İlk geliştirme başladığında burası güncellenecektir.)*
+* **[2026-07-22 - G1]:** `HomeLiveState` record yapısına `billingPeriod` ("yyyy-MM") eklendi. Frontend ve Sensör DTO'ları etkilenmedi.
 
 ---
 
