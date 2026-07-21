@@ -45,7 +45,7 @@ public class NotificationOrchestrator {
     }
 
     @Async
-    public void triggerAdvisory(UUID homeId, AdvisoryTriggerType triggerType) {
+    public void triggerAdvisory(UUID homeId, AdvisoryTriggerType triggerType, UUID triggerEventId) {
         try {
             Home home = homeRepository.findById(homeId).orElse(null);
             HomeLiveState liveState = homeLiveStatePort.get(homeId).orElse(null);
@@ -61,7 +61,7 @@ public class NotificationOrchestrator {
 
             AdvisoryContext context = new AdvisoryContext(homeId, home.name(), triggerType,
                     liveState.energyQuotaPercentage(), liveState.budgetQuotaPercentage(), liveState.currentCost(),
-                    liveState.tariffState(), anomalousApplianceNames);
+                    liveState.tariffState(), anomalousApplianceNames, triggerEventId);
 
             AiRecommendation recommendation = generateEnergyAdvisoryUseCase.execute(context);
             dispatchAdvisoryEmailUseCase.execute(recommendation, home.contactEmail());

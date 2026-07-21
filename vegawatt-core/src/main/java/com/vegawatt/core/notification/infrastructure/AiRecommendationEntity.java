@@ -32,11 +32,14 @@ class AiRecommendationEntity {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    @Column(name = "trigger_event_id")
+    private UUID triggerEventId;
+
     protected AiRecommendationEntity() {
     }
 
     AiRecommendationEntity(UUID id, UUID homeId, String triggerType, String content, boolean fallbackUsed,
-                            String emailStatus, Instant createdAt) {
+                            String emailStatus, Instant createdAt, UUID triggerEventId) {
         this.id = id;
         this.homeId = homeId;
         this.triggerType = triggerType;
@@ -44,6 +47,7 @@ class AiRecommendationEntity {
         this.fallbackUsed = fallbackUsed;
         this.emailStatus = emailStatus;
         this.createdAt = createdAt;
+        this.triggerEventId = triggerEventId;
     }
 
     UUID getId() {
@@ -72,5 +76,9 @@ class AiRecommendationEntity {
 
     Instant getCreatedAt() {
         return createdAt;
+    }
+
+    UUID getTriggerEventId() {
+        return triggerEventId;
     }
 }

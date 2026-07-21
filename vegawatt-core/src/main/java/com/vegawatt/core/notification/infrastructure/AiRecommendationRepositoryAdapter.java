@@ -21,7 +21,7 @@ class AiRecommendationRepositoryAdapter implements AiRecommendationRepository {
     public AiRecommendation save(AiRecommendation recommendation) {
         AiRecommendationEntity entity = new AiRecommendationEntity(recommendation.id(), recommendation.homeId(),
                 recommendation.triggerType().name(), recommendation.content(), recommendation.fallbackUsed(),
-                recommendation.emailStatus().name(), recommendation.createdAt());
+                recommendation.emailStatus().name(), recommendation.createdAt(), recommendation.triggerEventId());
         jpaRepository.save(entity);
         return recommendation;
     }
@@ -36,6 +36,6 @@ class AiRecommendationRepositoryAdapter implements AiRecommendationRepository {
     private static AiRecommendation toDomain(AiRecommendationEntity entity) {
         return new AiRecommendation(entity.getId(), entity.getHomeId(),
                 AdvisoryTriggerType.valueOf(entity.getTriggerType()), entity.getContent(), entity.isFallbackUsed(),
-                EmailStatus.valueOf(entity.getEmailStatus()), entity.getCreatedAt());
+                EmailStatus.valueOf(entity.getEmailStatus()), entity.getCreatedAt(), entity.getTriggerEventId());
     }
 }

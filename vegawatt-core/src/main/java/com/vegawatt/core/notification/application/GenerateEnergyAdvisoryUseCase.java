@@ -26,7 +26,7 @@ public class GenerateEnergyAdvisoryUseCase {
     public AiRecommendation execute(AdvisoryContext context) {
         AdvisoryResult result = energyAdvisoryPort.generateAdvisory(context);
         AiRecommendation recommendation = AiRecommendation.create(context.homeId(), context.triggerType(),
-                result.content(), result.fallbackUsed(), clockProvider.now());
+                result.content(), result.fallbackUsed(), clockProvider.now(), context.triggerEventId());
         return aiRecommendationRepository.save(recommendation);
     }
 }

@@ -31,7 +31,7 @@ class DispatchAdvisoryEmailUseCaseTest {
     @Test
     void marksRecommendationFailedButKeepsItWhenSmtpFails() {
         AiRecommendation recommendation = AiRecommendation.create(UUID.randomUUID(), AdvisoryTriggerType.QUOTA_80,
-                "Tasarruf öneriniz", false, Instant.parse("2026-07-20T10:00:00Z"));
+                "Tasarruf öneriniz", false, Instant.parse("2026-07-20T10:00:00Z"), UUID.randomUUID());
         doThrow(new EmailDeliveryException("smtp down", new RuntimeException()))
                 .when(emailSenderPort).send(any(), any(), any());
 
@@ -48,7 +48,7 @@ class DispatchAdvisoryEmailUseCaseTest {
     @Test
     void marksRecommendationSentWhenEmailSucceeds() {
         AiRecommendation recommendation = AiRecommendation.create(UUID.randomUUID(), AdvisoryTriggerType.ANOMALY,
-                "Cihaz uyarısı", false, Instant.parse("2026-07-20T10:00:00Z"));
+                "Cihaz uyarısı", false, Instant.parse("2026-07-20T10:00:00Z"), UUID.randomUUID());
 
         DispatchAdvisoryEmailUseCase useCase = new DispatchAdvisoryEmailUseCase(emailSenderPort,
                 aiRecommendationRepository);

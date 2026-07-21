@@ -40,7 +40,8 @@ class GeminiAdvisoryClientTest {
 
     private static final AdvisoryContext CONTEXT = new AdvisoryContext(
             UUID.randomUUID(), "Test Ev", AdvisoryTriggerType.QUOTA_80, new BigDecimal("85"),
-            new BigDecimal("40"), Money.of(new BigDecimal("120.00")), TariffState.BASE, List.of());
+            new BigDecimal("40"), Money.of(new BigDecimal("120.00")), TariffState.BASE, List.of(),
+            UUID.randomUUID());
 
     @Test
     void returnsFallbackWhenNoApiKeyConfigured() {

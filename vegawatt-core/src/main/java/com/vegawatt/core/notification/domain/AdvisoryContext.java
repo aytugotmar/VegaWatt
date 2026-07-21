@@ -14,5 +14,6 @@ public record AdvisoryContext(
         BigDecimal budgetQuotaPercentage,
         Money currentCost,
         TariffState tariffState,
-        List<String> anomalousApplianceNames) {
+        List<String> anomalousApplianceNames,
+        UUID triggerEventId) {
 }
