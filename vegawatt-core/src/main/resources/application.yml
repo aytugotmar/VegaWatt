@@ -14,6 +14,8 @@ spring:
     locations: classpath:db/migration
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    admin:
+      modify-topic-configs: true
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -56,6 +58,8 @@ vegawatt:
     allowed-origin: ${FRONTEND_DEV_ORIGIN:http://localhost:5173}
   outbox:
     relay-interval-ms: 2000
+  notification:
+    worker-interval-ms: ${NOTIFICATION_WORKER_INTERVAL_MS:2000}
   scheduling:
     snapshot-interval-seconds: ${SNAPSHOT_INTERVAL:60}
     telemetry-interval-seconds: ${TELEMETRY_INTERVAL:5}
