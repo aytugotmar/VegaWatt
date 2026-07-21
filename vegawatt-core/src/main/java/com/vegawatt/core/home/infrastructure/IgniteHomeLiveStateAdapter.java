@@ -4,10 +4,14 @@ import com.vegawatt.core.common.Money;
 import com.vegawatt.core.home.domain.HomeLiveState;
 import com.vegawatt.core.home.domain.HomeLiveStatePort;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 import org.apache.ignite.cache.CacheAtomicityMode;
 import org.apache.ignite.cache.query.ScanQuery;
 import org.apache.ignite.client.ClientCache;
@@ -49,6 +53,20 @@ class IgniteHomeLiveStateAdapter implements HomeLiveStatePort {
             for (var entry : cursor) {
                 result.add(toDomain(UUID.fromString(entry.getKey()), entry.getValue()));
             }
+        }
+        return result;
+    }
+
+    @Override
+    public List<HomeLiveState> getAll(Collection<UUID> homeIds) {
+        if (homeIds.isEmpty()) {
+            return List.of();
+        }
+        Set<String> keys = homeIds.stream().map(UUID::toString).collect(Collectors.toSet());
+        Map<String, HomeLiveStateCacheValue> values = cache.getAll(keys);
+        List<HomeLiveState> result = new ArrayList<>();
+        for (Map.Entry<String, HomeLiveStateCacheValue> entry : values.entrySet()) {
+            result.add(toDomain(UUID.fromString(entry.getKey()), entry.getValue()));
         }
         return result;
     }
