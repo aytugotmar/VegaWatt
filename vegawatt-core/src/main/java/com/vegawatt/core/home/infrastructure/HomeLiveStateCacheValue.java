@@ -6,6 +6,7 @@ import java.time.Instant;
 
 class HomeLiveStateCacheValue {
 
+    private String homeName;
     private BigDecimal currentEnergyKwh;
     private BigDecimal currentCost;
     private BigDecimal energyQuotaPercentage;
@@ -17,9 +18,10 @@ class HomeLiveStateCacheValue {
     HomeLiveStateCacheValue() {
     }
 
-    HomeLiveStateCacheValue(BigDecimal currentEnergyKwh, BigDecimal currentCost, BigDecimal energyQuotaPercentage,
-                             BigDecimal budgetQuotaPercentage, TariffState tariffState, boolean penaltyActive,
-                             Instant lastUpdatedAt) {
+    HomeLiveStateCacheValue(String homeName, BigDecimal currentEnergyKwh, BigDecimal currentCost,
+                             BigDecimal energyQuotaPercentage, BigDecimal budgetQuotaPercentage,
+                             TariffState tariffState, boolean penaltyActive, Instant lastUpdatedAt) {
+        this.homeName = homeName;
         this.currentEnergyKwh = currentEnergyKwh;
         this.currentCost = currentCost;
         this.energyQuotaPercentage = energyQuotaPercentage;
@@ -27,6 +29,10 @@ class HomeLiveStateCacheValue {
         this.tariffState = tariffState;
         this.penaltyActive = penaltyActive;
         this.lastUpdatedAt = lastUpdatedAt;
+    }
+
+    String getHomeName() {
+        return homeName;
     }
 
     BigDecimal getCurrentEnergyKwh() {

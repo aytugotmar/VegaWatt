@@ -8,6 +8,7 @@ import java.util.UUID;
 
 public record HomeLiveState(
         UUID homeId,
+        String homeName,
         BigDecimal currentEnergyKwh,
         Money currentCost,
         BigDecimal energyQuotaPercentage,
@@ -16,8 +17,8 @@ public record HomeLiveState(
         boolean penaltyActive,
         Instant lastUpdatedAt) {
 
-    public static HomeLiveState zero(UUID homeId, Instant now) {
-        return new HomeLiveState(homeId, BigDecimal.ZERO.setScale(9), Money.zero(), BigDecimal.ZERO,
+    public static HomeLiveState zero(UUID homeId, String homeName, Instant now) {
+        return new HomeLiveState(homeId, homeName, BigDecimal.ZERO.setScale(9), Money.zero(), BigDecimal.ZERO,
                 BigDecimal.ZERO, TariffState.BASE, false, now);
     }
 }
