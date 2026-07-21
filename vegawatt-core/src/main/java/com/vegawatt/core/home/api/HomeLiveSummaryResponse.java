@@ -18,7 +18,7 @@ public record HomeLiveSummaryResponse(
 
     public static HomeLiveSummaryResponse from(HomeLiveSummary summary) {
         var state = summary.liveState();
-        return new HomeLiveSummaryResponse(state.homeId(), summary.home().name(), state.currentEnergyKwh(),
+        return new HomeLiveSummaryResponse(state.homeId(), state.homeName(), state.currentEnergyKwh(),
                 state.currentCost().rounded(), state.energyQuotaPercentage(), state.budgetQuotaPercentage(),
                 state.tariffState().name(), state.penaltyActive(), state.lastUpdatedAt());
     }

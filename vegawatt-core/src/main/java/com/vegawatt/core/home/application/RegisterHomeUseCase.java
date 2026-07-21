@@ -66,9 +66,10 @@ public class RegisterHomeUseCase {
     }
 
     private void initializeLiveState(Home home, Instant now) {
-        homeLiveStatePort.initialize(HomeLiveState.zero(home.id(), now));
+        homeLiveStatePort.initialize(HomeLiveState.zero(home.id(), home.name(), now));
         for (Appliance appliance : home.appliances()) {
-            applianceLiveStatePort.initialize(ApplianceLiveState.zero(home.id(), appliance.id(), now));
+            applianceLiveStatePort.initialize(ApplianceLiveState.zero(home.id(), appliance.id(), appliance.name(),
+                    appliance.type(), appliance.safePowerLimitWatt(), now));
         }
     }
 }

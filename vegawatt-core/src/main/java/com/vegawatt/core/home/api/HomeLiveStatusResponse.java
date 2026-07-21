@@ -1,9 +1,7 @@
 package com.vegawatt.core.home.api;
 
 import com.vegawatt.core.home.application.HomeLiveStatus;
-import com.vegawatt.core.home.domain.Appliance;
 import com.vegawatt.core.home.domain.ApplianceLiveState;
-import com.vegawatt.core.home.domain.Home;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -32,17 +30,10 @@ public record HomeLiveStatusResponse(
             boolean anomalous,
             Instant lastUpdatedAt) {
 
-        static ApplianceLiveStatusResponse from(ApplianceLiveState state, Home home) {
-            Appliance appliance = home.appliances().stream()
-                    .filter(candidate -> candidate.id().equals(state.applianceId()))
-                    .findFirst()
-                    .orElse(null);
-            String name = appliance != null ? appliance.name() : "Unknown";
-            String type = appliance != null ? appliance.type() : "UNKNOWN";
-            BigDecimal safePowerLimitWatt = appliance != null ? appliance.safePowerLimitWatt() : null;
-            return new ApplianceLiveStatusResponse(state.applianceId(), name, type, safePowerLimitWatt,
-                    state.currentPowerWatt(), state.accumulatedEnergyKwh(), state.consecutiveBreachCount(),
-                    state.anomalous(), state.lastUpdatedAt());
+        static ApplianceLiveStatusResponse from(ApplianceLiveState state) {
+            return new ApplianceLiveStatusResponse(state.applianceId(), state.applianceName(), state.applianceType(),
+                    state.safePowerLimitWatt(), state.currentPowerWatt(), state.accumulatedEnergyKwh(),
+                    state.consecutiveBreachCount(), state.anomalous(), state.lastUpdatedAt());
         }
     }
 
@@ -50,7 +41,7 @@ public record HomeLiveStatusResponse(
         var state = status.liveState();
         return new HomeLiveStatusResponse(
                 state.homeId(),
-                status.home().name(),
+                state.homeName(),
                 state.currentEnergyKwh(),
                 state.currentCost().rounded(),
                 state.energyQuotaPercentage(),
@@ -59,7 +50,7 @@ public record HomeLiveStatusResponse(
                 state.penaltyActive(),
                 state.lastUpdatedAt(),
                 status.appliances().stream()
-                        .map(applianceState -> ApplianceLiveStatusResponse.from(applianceState, status.home()))
+                        .map(ApplianceLiveStatusResponse::from)
                         .toList());
     }
 }
