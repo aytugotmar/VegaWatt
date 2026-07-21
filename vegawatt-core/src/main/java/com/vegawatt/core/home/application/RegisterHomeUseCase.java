@@ -1,5 +1,6 @@
 package com.vegawatt.core.home.application;
 
+import com.vegawatt.core.access.domain.HomeAccessService;
 import com.vegawatt.core.billing.domain.BillingAccount;
 import com.vegawatt.core.billing.domain.BillingAccountRepository;
 import com.vegawatt.core.common.time.BillingPeriodResolver;
@@ -24,16 +25,19 @@ public class RegisterHomeUseCase {
     private final HomeLiveStatePort homeLiveStatePort;
     private final ApplianceLiveStatePort applianceLiveStatePort;
     private final AssetRegistrationPublisher assetRegistrationPublisher;
+    private final HomeAccessService homeAccessService;
     private final ClockProvider clockProvider;
 
     public RegisterHomeUseCase(HomeRepository homeRepository, BillingAccountRepository billingAccountRepository,
                                 HomeLiveStatePort homeLiveStatePort, ApplianceLiveStatePort applianceLiveStatePort,
-                                AssetRegistrationPublisher assetRegistrationPublisher, ClockProvider clockProvider) {
+                                AssetRegistrationPublisher assetRegistrationPublisher,
+                                HomeAccessService homeAccessService, ClockProvider clockProvider) {
         this.homeRepository = homeRepository;
         this.billingAccountRepository = billingAccountRepository;
         this.homeLiveStatePort = homeLiveStatePort;
         this.applianceLiveStatePort = applianceLiveStatePort;
         this.assetRegistrationPublisher = assetRegistrationPublisher;
+        this.homeAccessService = homeAccessService;
         this.clockProvider = clockProvider;
     }
 
@@ -53,6 +57,8 @@ public class RegisterHomeUseCase {
 
         String billingPeriod = BillingPeriodResolver.currentPeriod(now);
         billingAccountRepository.save(BillingAccount.open(home.id(), billingPeriod, now));
+
+        homeAccessService.grantOwnership(home.id(), command.ownerUserId(), now);
 
         assetRegistrationPublisher.publish(home);
 

@@ -1,5 +1,6 @@
 package com.vegawatt.core.home.domain;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -12,6 +13,8 @@ public interface HomeLiveStatePort {
     Optional<HomeLiveState> get(UUID homeId);
 
     List<HomeLiveState> getAll();
+
+    List<HomeLiveState> getAll(Collection<UUID> homeIds);
 
     HomeLiveState update(UUID homeId, UnaryOperator<HomeLiveState> mutator);
 }

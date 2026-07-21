@@ -2,6 +2,7 @@ package com.vegawatt.core.home.application;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 public record RegisterHomeCommand(
         String name,
@@ -10,7 +11,8 @@ public record RegisterHomeCommand(
         BigDecimal budgetQuotaTry,
         BigDecimal baseTariffPerKwh,
         BigDecimal penaltyTariffPerKwh,
-        List<ApplianceCommand> appliances) {
+        List<ApplianceCommand> appliances,
+        UUID ownerUserId) {
 
     public record ApplianceCommand(
             String name,

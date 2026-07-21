@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.vegawatt.core.access.domain.HomeAccessService;
 import com.vegawatt.core.billing.domain.BillingAccount;
 import com.vegawatt.core.billing.domain.BillingAccountRepository;
 import com.vegawatt.core.common.time.ClockProvider;
@@ -16,6 +17,7 @@ import com.vegawatt.core.home.domain.HomeRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -40,6 +42,9 @@ class RegisterHomeUseCaseTest {
     private AssetRegistrationPublisher assetRegistrationPublisher;
 
     @Mock
+    private HomeAccessService homeAccessService;
+
+    @Mock
     private ClockProvider clockProvider;
 
     @Test
@@ -50,13 +55,16 @@ class RegisterHomeUseCaseTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         RegisterHomeUseCase useCase = new RegisterHomeUseCase(homeRepository, billingAccountRepository,
-                homeLiveStatePort, applianceLiveStatePort, assetRegistrationPublisher, clockProvider);
+                homeLiveStatePort, applianceLiveStatePort, assetRegistrationPublisher, homeAccessService,
+                clockProvider);
 
+        UUID ownerUserId = UUID.randomUUID();
         RegisterHomeCommand command = new RegisterHomeCommand(
                 "Ayşe'nin Evi", "ayse@example.com", new BigDecimal("500"), new BigDecimal("2500"),
                 new BigDecimal("2.10"), new BigDecimal("3.50"),
                 List.of(new RegisterHomeCommand.ApplianceCommand("Buzdolabı", "REFRIGERATOR",
-                        new BigDecimal("2200"), new BigDecimal("100"), new BigDecimal("2000"))));
+                        new BigDecimal("2200"), new BigDecimal("100"), new BigDecimal("2000"))),
+                ownerUserId);
 
         Home result = useCase.execute(command);
 
@@ -66,5 +74,6 @@ class RegisterHomeUseCaseTest {
         verify(assetRegistrationPublisher).publish(result);
         verify(homeLiveStatePort).initialize(any());
         verify(applianceLiveStatePort).initialize(any());
+        verify(homeAccessService).grantOwnership(result.id(), ownerUserId, Instant.parse("2026-07-20T10:00:00Z"));
     }
 }

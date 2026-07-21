@@ -56,6 +56,13 @@ vegawatt:
     from: ${MAIL_FROM:no-reply@vegawatt.local}
   web:
     allowed-origin: ${FRONTEND_DEV_ORIGIN:http://localhost:5173}
+  jwt:
+    secret: ${JWT_SIGNING_SECRET}
+    access-token-ttl-minutes: ${JWT_ACCESS_TOKEN_TTL_MINUTES:15}
+    refresh-token-ttl-days: ${JWT_REFRESH_TOKEN_TTL_DAYS:30}
+  bootstrap-admin:
+    email: ${BOOTSTRAP_ADMIN_EMAIL:}
+    password: ${BOOTSTRAP_ADMIN_PASSWORD:}
   outbox:
     relay-interval-ms: 2000
   notification:
