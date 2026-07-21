@@ -37,7 +37,8 @@ class RegistrationEventConsumer {
 
         for (AssetRegistrationEventPayload.AppliancePayload appliance : payload.appliances()) {
             ApplianceConfig config = new ApplianceConfig(appliance.applianceId(), payload.home().homeId(),
-                    appliance.safePowerLimitWatt(), appliance.simulationMinWatt(), appliance.simulationMaxWatt());
+                    appliance.type(), appliance.safePowerLimitWatt(), appliance.simulationMinWatt(),
+                    appliance.simulationMaxWatt());
             homeRegistry.upsert(config);
             simulationScheduler.ensureScheduled(config.applianceId());
         }

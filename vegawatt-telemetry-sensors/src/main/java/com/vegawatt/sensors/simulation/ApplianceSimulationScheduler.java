@@ -4,6 +4,8 @@ import com.vegawatt.sensors.publishing.TelemetryEventPublisher;
 import com.vegawatt.sensors.registration.HomeRegistry;
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,6 +21,8 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class ApplianceSimulationScheduler {
+
+    private static final ZoneId SIMULATION_ZONE = ZoneId.of("Europe/Istanbul");
 
     private final Map<UUID, ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>();
 
@@ -45,7 +49,8 @@ public class ApplianceSimulationScheduler {
 
     private void tick(UUID applianceId) {
         homeRegistry.find(applianceId).ifPresent(config -> {
-            BigDecimal powerWatt = TelemetryGenerator.generatePowerWatt(config, randomSource);
+            ZonedDateTime now = ZonedDateTime.now(SIMULATION_ZONE);
+            BigDecimal powerWatt = TelemetryGenerator.generatePowerWatt(config, randomSource, now);
             telemetryEventPublisher.publish(config.homeId(), applianceId, powerWatt,
                     (int) interval.toSeconds());
         });

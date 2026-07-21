@@ -6,6 +6,7 @@ import java.util.UUID;
 public record ApplianceConfig(
         UUID applianceId,
         UUID homeId,
+        String type,
         BigDecimal safePowerLimitWatt,
         BigDecimal simulationMinWatt,
         BigDecimal simulationMaxWatt) {
