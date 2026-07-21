@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.vegawatt.core.anomaly.domain.AnomalyEvaluationResult;
+import com.vegawatt.core.billing.application.HomeUpdateOutcome;
 import com.vegawatt.core.billing.domain.BillingAccount;
 import com.vegawatt.core.billing.domain.BillingAccountRepository;
 import com.vegawatt.core.billing.domain.QuotaTransition;
@@ -18,6 +19,7 @@ import com.vegawatt.core.common.events.OperationalEventRepository;
 import com.vegawatt.core.common.events.OperationalEventType;
 import com.vegawatt.core.home.domain.Appliance;
 import com.vegawatt.core.home.domain.Home;
+import com.vegawatt.core.notification.domain.AdvisoryTrigger;
 import com.vegawatt.core.notification.domain.AdvisoryTriggerType;
 import com.vegawatt.core.telemetry.domain.ProcessedTelemetryEventRepository;
 import java.math.BigDecimal;
@@ -39,6 +41,7 @@ class TelemetryBillingRecorderTest {
     private static final UUID HOME_ID = UUID.randomUUID();
     private static final UUID APPLIANCE_ID = UUID.randomUUID();
     private static final QuotaTransition NO_TRANSITION = new QuotaTransition(false, false);
+    private static final int BREACH_THRESHOLD = 3;
 
     @Mock
     private BillingAccountRepository billingAccountRepository;
@@ -64,6 +67,8 @@ class TelemetryBillingRecorderTest {
 
         lenient().when(billingAccountRepository.findByHomeId(HOME_ID))
                 .thenAnswer(invocation -> Optional.of(BillingAccount.open(HOME_ID, "2026-01", NOW)));
+        lenient().when(operationalEventRepository.save(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
@@ -72,7 +77,7 @@ class TelemetryBillingRecorderTest {
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("0.002"), new BigDecimal("0.0042"),
                 NO_TRANSITION, NO_TRANSITION);
 
-        recorder.persist(eventId, home, outcome, appliance, noAnomalyChange, NOW);
+        recorder.persist(eventId, home, outcome, appliance, noAnomalyChange, NOW, BREACH_THRESHOLD);
 
         verify(processedTelemetryEventRepository).markProcessed(eventId, HOME_ID, APPLIANCE_ID, NOW);
     }
@@ -82,10 +87,11 @@ class TelemetryBillingRecorderTest {
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("400"), new BigDecimal("840"),
                 new QuotaTransition(true, false), NO_TRANSITION);
 
-        List<AdvisoryTriggerType> triggers = recorder.persist(UUID.randomUUID(), home, outcome, appliance,
-                noAnomalyChange, NOW);
+        List<AdvisoryTrigger> triggers = recorder.persist(UUID.randomUUID(), home, outcome, appliance,
+                noAnomalyChange, NOW, BREACH_THRESHOLD);
 
-        assertThat(triggers).containsExactly(AdvisoryTriggerType.QUOTA_80);
+        assertThat(triggers).extracting(AdvisoryTrigger::type).containsExactly(AdvisoryTriggerType.QUOTA_80);
+        assertThat(triggers).allMatch(trigger -> trigger.operationalEventId() != null);
         verify(operationalEventRepository).save(argThatEventType(OperationalEventType.QUOTA_80_REACHED));
 
         ArgumentCaptor<BillingAccount> captor = ArgumentCaptor.forClass(BillingAccount.class);
@@ -102,8 +108,8 @@ class TelemetryBillingRecorderTest {
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("1"), new BigDecimal("2.1"),
                 new QuotaTransition(true, false), NO_TRANSITION);
 
-        List<AdvisoryTriggerType> triggers = recorder.persist(UUID.randomUUID(), home, outcome, appliance,
-                noAnomalyChange, NOW);
+        List<AdvisoryTrigger> triggers = recorder.persist(UUID.randomUUID(), home, outcome, appliance,
+                noAnomalyChange, NOW, BREACH_THRESHOLD);
 
         assertThat(triggers).isEmpty();
         verify(operationalEventRepository, never()).save(any());
@@ -114,10 +120,11 @@ class TelemetryBillingRecorderTest {
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("500"), new BigDecimal("1050"),
                 NO_TRANSITION, new QuotaTransition(true, true));
 
-        List<AdvisoryTriggerType> triggers = recorder.persist(UUID.randomUUID(), home, outcome, appliance,
-                noAnomalyChange, NOW);
+        List<AdvisoryTrigger> triggers = recorder.persist(UUID.randomUUID(), home, outcome, appliance,
+                noAnomalyChange, NOW, BREACH_THRESHOLD);
 
-        assertThat(triggers).contains(AdvisoryTriggerType.QUOTA_80, AdvisoryTriggerType.QUOTA_100);
+        assertThat(triggers).extracting(AdvisoryTrigger::type)
+                .contains(AdvisoryTriggerType.QUOTA_80, AdvisoryTriggerType.QUOTA_100);
         verify(operationalEventRepository).save(argThatEventType(OperationalEventType.PENALTY_TARIFF_ACTIVATED));
 
         ArgumentCaptor<BillingAccount> captor = ArgumentCaptor.forClass(BillingAccount.class);
@@ -131,10 +138,10 @@ class TelemetryBillingRecorderTest {
                 NO_TRANSITION);
         AnomalyEvaluationResult transitioned = new AnomalyEvaluationResult(3, true, true, false);
 
-        List<AdvisoryTriggerType> triggers = recorder.persist(UUID.randomUUID(), home, outcome, appliance,
-                transitioned, NOW);
+        List<AdvisoryTrigger> triggers = recorder.persist(UUID.randomUUID(), home, outcome, appliance,
+                transitioned, NOW, BREACH_THRESHOLD);
 
-        assertThat(triggers).containsExactly(AdvisoryTriggerType.ANOMALY);
+        assertThat(triggers).extracting(AdvisoryTrigger::type).containsExactly(AdvisoryTriggerType.ANOMALY);
         verify(operationalEventRepository).save(argThatEventType(OperationalEventType.APPLIANCE_ANOMALY_DETECTED));
     }
 
@@ -144,8 +151,8 @@ class TelemetryBillingRecorderTest {
                 NO_TRANSITION);
         AnomalyEvaluationResult recovered = new AnomalyEvaluationResult(0, false, false, true);
 
-        List<AdvisoryTriggerType> triggers = recorder.persist(UUID.randomUUID(), home, outcome, appliance, recovered,
-                NOW);
+        List<AdvisoryTrigger> triggers = recorder.persist(UUID.randomUUID(), home, outcome, appliance, recovered,
+                NOW, BREACH_THRESHOLD);
 
         assertThat(triggers).isEmpty();
         verify(operationalEventRepository).save(argThatEventType(OperationalEventType.APPLIANCE_ANOMALY_RECOVERED));

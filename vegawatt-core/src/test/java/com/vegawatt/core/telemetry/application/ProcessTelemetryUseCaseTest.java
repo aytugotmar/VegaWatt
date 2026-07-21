@@ -3,6 +3,7 @@ package com.vegawatt.core.telemetry.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -10,10 +11,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.vegawatt.core.anomaly.application.EvaluateApplianceAnomalyUseCase;
+import com.vegawatt.core.billing.application.EvaluateHomeBillingUseCase;
 import com.vegawatt.core.billing.domain.BillingAccount;
 import com.vegawatt.core.billing.domain.BillingAccountRepository;
 import com.vegawatt.core.common.Money;
 import com.vegawatt.core.common.TariffState;
+import com.vegawatt.core.common.config.AnomalyProperties;
 import com.vegawatt.core.common.time.ClockProvider;
 import com.vegawatt.core.home.domain.Appliance;
 import com.vegawatt.core.home.domain.ApplianceLiveState;
@@ -24,6 +28,7 @@ import com.vegawatt.core.home.domain.HomeLiveState;
 import com.vegawatt.core.home.domain.HomeLiveStatePort;
 import com.vegawatt.core.home.domain.HomeRepository;
 import com.vegawatt.core.notification.application.NotificationOrchestrator;
+import com.vegawatt.core.notification.domain.AdvisoryTrigger;
 import com.vegawatt.core.notification.domain.AdvisoryTriggerType;
 import com.vegawatt.core.telemetry.domain.InvalidTelemetryReadingException;
 import com.vegawatt.core.telemetry.domain.ProcessedTelemetryEventRepository;
@@ -74,9 +79,14 @@ class ProcessTelemetryUseCaseTest {
 
     @BeforeEach
     void setUp() {
+        EvaluateHomeBillingUseCase evaluateHomeBillingUseCase = new EvaluateHomeBillingUseCase(
+                billingAccountRepository);
+        EvaluateApplianceAnomalyUseCase evaluateApplianceAnomalyUseCase = new EvaluateApplianceAnomalyUseCase(
+                new AnomalyProperties(3));
+
         useCase = new ProcessTelemetryUseCase(homeRepository, applianceRepository, homeLiveStatePort,
-                applianceLiveStatePort, billingAccountRepository, processedTelemetryEventRepository,
-                telemetryBillingRecorder, notificationOrchestrator, clockProvider);
+                applianceLiveStatePort, evaluateHomeBillingUseCase, evaluateApplianceAnomalyUseCase,
+                processedTelemetryEventRepository, telemetryBillingRecorder, notificationOrchestrator, clockProvider);
 
         lenient().when(clockProvider.now()).thenReturn(NOW);
         lenient().when(homeRepository.findById(HOME_ID)).thenReturn(Optional.of(testHome()));
@@ -92,7 +102,7 @@ class ProcessTelemetryUseCaseTest {
             applianceLiveStateSlot = mutator.apply(applianceLiveStateSlot);
             return applianceLiveStateSlot;
         });
-        lenient().when(telemetryBillingRecorder.persist(any(), any(), any(), any(), any(), any()))
+        lenient().when(telemetryBillingRecorder.persist(any(), any(), any(), any(), any(), any(), anyInt()))
                 .thenReturn(List.of());
     }
 
@@ -148,21 +158,23 @@ class ProcessTelemetryUseCaseTest {
 
     @Test
     void firesAdvisoryOnlyAfterBillingPersistReturns() {
-        when(telemetryBillingRecorder.persist(any(), any(), any(), any(), any(), any()))
-                .thenReturn(List.of(AdvisoryTriggerType.QUOTA_80));
+        UUID operationalEventId = UUID.randomUUID();
+        when(telemetryBillingRecorder.persist(any(), any(), any(), any(), any(), any(), anyInt()))
+                .thenReturn(List.of(new AdvisoryTrigger(AdvisoryTriggerType.QUOTA_80, operationalEventId)));
 
         useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
 
         InOrder inOrder = Mockito.inOrder(telemetryBillingRecorder, notificationOrchestrator);
-        inOrder.verify(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any());
-        inOrder.verify(notificationOrchestrator).triggerAdvisory(HOME_ID, AdvisoryTriggerType.QUOTA_80);
+        inOrder.verify(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), anyInt());
+        inOrder.verify(notificationOrchestrator).triggerAdvisory(HOME_ID, AdvisoryTriggerType.QUOTA_80,
+                operationalEventId);
     }
 
     @Test
     void doesNotFireAdvisoryWhenNoTriggersReturned() {
         useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
 
-        verify(notificationOrchestrator, never()).triggerAdvisory(any(), any());
+        verify(notificationOrchestrator, never()).triggerAdvisory(any(), any(), any());
     }
 
     @Test

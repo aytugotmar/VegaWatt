@@ -1,6 +1,7 @@
 package com.vegawatt.core.telemetry.application;
 
 import com.vegawatt.core.anomaly.domain.AnomalyEvaluationResult;
+import com.vegawatt.core.billing.application.HomeUpdateOutcome;
 import com.vegawatt.core.billing.domain.BillingAccount;
 import com.vegawatt.core.billing.domain.BillingAccountRepository;
 import com.vegawatt.core.common.Money;
@@ -10,6 +11,7 @@ import com.vegawatt.core.common.events.OperationalEventType;
 import com.vegawatt.core.home.domain.Appliance;
 import com.vegawatt.core.home.domain.Home;
 import com.vegawatt.core.home.domain.HomeNotFoundException;
+import com.vegawatt.core.notification.domain.AdvisoryTrigger;
 import com.vegawatt.core.notification.domain.AdvisoryTriggerType;
 import com.vegawatt.core.telemetry.domain.ProcessedTelemetryEventRepository;
 import java.time.Instant;
@@ -35,8 +37,8 @@ class TelemetryBillingRecorder {
     }
 
     @Transactional
-    List<AdvisoryTriggerType> persist(UUID eventId, Home home, HomeUpdateOutcome homeOutcome, Appliance appliance,
-                                       AnomalyEvaluationResult anomalyResult, Instant now) {
+    List<AdvisoryTrigger> persist(UUID eventId, Home home, HomeUpdateOutcome homeOutcome, Appliance appliance,
+                                   AnomalyEvaluationResult anomalyResult, Instant now, int anomalyBreachThreshold) {
         processedTelemetryEventRepository.markProcessed(eventId, home.id(), appliance.id(), now);
 
         BillingAccount billingAccount = billingAccountRepository.findByHomeId(home.id())
@@ -44,31 +46,31 @@ class TelemetryBillingRecorder {
 
         billingAccount.applyTelemetry(homeOutcome.energyIncrementKwh(), Money.of(homeOutcome.costIncrement()), now);
 
-        List<AdvisoryTriggerType> advisoryTriggers = new ArrayList<>();
+        List<AdvisoryTrigger> advisoryTriggers = new ArrayList<>();
 
         if (homeOutcome.energyTransition().crossed80() && !billingAccount.energyQuota80Notified()) {
             billingAccount.markEnergyQuota80Notified();
-            operationalEventRepository.save(OperationalEvent.create(home.id(), null,
+            OperationalEvent saved = operationalEventRepository.save(OperationalEvent.create(home.id(), null,
                     OperationalEventType.QUOTA_80_REACHED, now, "energy quota reached 80%"));
-            advisoryTriggers.add(AdvisoryTriggerType.QUOTA_80);
+            advisoryTriggers.add(new AdvisoryTrigger(AdvisoryTriggerType.QUOTA_80, saved.id()));
         }
         if (homeOutcome.energyTransition().crossed100() && !billingAccount.energyQuota100Notified()) {
             billingAccount.markEnergyQuota100Notified();
-            operationalEventRepository.save(OperationalEvent.create(home.id(), null,
+            OperationalEvent saved = operationalEventRepository.save(OperationalEvent.create(home.id(), null,
                     OperationalEventType.QUOTA_100_REACHED, now, "energy quota reached 100%"));
-            advisoryTriggers.add(AdvisoryTriggerType.QUOTA_100);
+            advisoryTriggers.add(new AdvisoryTrigger(AdvisoryTriggerType.QUOTA_100, saved.id()));
         }
         if (homeOutcome.budgetTransition().crossed80() && !billingAccount.budgetQuota80Notified()) {
             billingAccount.markBudgetQuota80Notified();
-            operationalEventRepository.save(OperationalEvent.create(home.id(), null,
+            OperationalEvent saved = operationalEventRepository.save(OperationalEvent.create(home.id(), null,
                     OperationalEventType.QUOTA_80_REACHED, now, "budget quota reached 80%"));
-            advisoryTriggers.add(AdvisoryTriggerType.QUOTA_80);
+            advisoryTriggers.add(new AdvisoryTrigger(AdvisoryTriggerType.QUOTA_80, saved.id()));
         }
         if (homeOutcome.budgetTransition().crossed100() && !billingAccount.budgetQuota100Notified()) {
             billingAccount.markBudgetQuota100Notified();
-            operationalEventRepository.save(OperationalEvent.create(home.id(), null,
+            OperationalEvent saved = operationalEventRepository.save(OperationalEvent.create(home.id(), null,
                     OperationalEventType.QUOTA_100_REACHED, now, "budget quota reached 100%"));
-            advisoryTriggers.add(AdvisoryTriggerType.QUOTA_100);
+            advisoryTriggers.add(new AdvisoryTrigger(AdvisoryTriggerType.QUOTA_100, saved.id()));
         }
         if (homeOutcome.budgetTransition().crossed100() && !billingAccount.penaltyActive()) {
             billingAccount.activatePenalty();
@@ -77,10 +79,10 @@ class TelemetryBillingRecorder {
         }
 
         if (anomalyResult.transitionedToAnomalous()) {
-            operationalEventRepository.save(OperationalEvent.create(home.id(), appliance.id(),
-                    OperationalEventType.APPLIANCE_ANOMALY_DETECTED, now,
-                    "appliance exceeded safe power limit for 3 consecutive readings"));
-            advisoryTriggers.add(AdvisoryTriggerType.ANOMALY);
+            OperationalEvent saved = operationalEventRepository.save(OperationalEvent.create(home.id(),
+                    appliance.id(), OperationalEventType.APPLIANCE_ANOMALY_DETECTED, now,
+                    "appliance exceeded safe power limit for " + anomalyBreachThreshold + " consecutive readings"));
+            advisoryTriggers.add(new AdvisoryTrigger(AdvisoryTriggerType.ANOMALY, saved.id()));
         }
         if (anomalyResult.transitionedToRecovered()) {
             operationalEventRepository.save(OperationalEvent.create(home.id(), appliance.id(),
