@@ -8,22 +8,19 @@ import com.vegawatt.core.billing.application.HomeUpdateOutcome;
 import com.vegawatt.core.common.time.ClockProvider;
 import com.vegawatt.core.home.domain.Appliance;
 import com.vegawatt.core.home.domain.ApplianceLiveState;
-import com.vegawatt.core.home.domain.ApplianceLiveStatePort;
 import com.vegawatt.core.home.domain.ApplianceNotFoundException;
 import com.vegawatt.core.home.domain.ApplianceRepository;
 import com.vegawatt.core.home.domain.Home;
 import com.vegawatt.core.home.domain.HomeLiveStatePort;
 import com.vegawatt.core.home.domain.HomeNotFoundException;
 import com.vegawatt.core.home.domain.HomeRepository;
-import com.vegawatt.core.notification.application.NotificationOrchestrator;
-import com.vegawatt.core.notification.domain.AdvisoryTrigger;
+import com.vegawatt.core.home.domain.TelemetryLiveStatePort;
 import com.vegawatt.core.telemetry.domain.EnergyCalculator;
 import com.vegawatt.core.telemetry.domain.InvalidTelemetryReadingException;
 import com.vegawatt.core.telemetry.domain.ProcessedTelemetryEventRepository;
 import com.vegawatt.core.telemetry.domain.TelemetryReading;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,30 +34,27 @@ public class ProcessTelemetryUseCase {
     private final HomeRepository homeRepository;
     private final ApplianceRepository applianceRepository;
     private final HomeLiveStatePort homeLiveStatePort;
-    private final ApplianceLiveStatePort applianceLiveStatePort;
+    private final TelemetryLiveStatePort telemetryLiveStatePort;
     private final EvaluateHomeBillingUseCase evaluateHomeBillingUseCase;
     private final EvaluateApplianceAnomalyUseCase evaluateApplianceAnomalyUseCase;
     private final ProcessedTelemetryEventRepository processedTelemetryEventRepository;
     private final TelemetryBillingRecorder telemetryBillingRecorder;
-    private final NotificationOrchestrator notificationOrchestrator;
     private final ClockProvider clockProvider;
 
     public ProcessTelemetryUseCase(HomeRepository homeRepository, ApplianceRepository applianceRepository,
-                                    HomeLiveStatePort homeLiveStatePort, ApplianceLiveStatePort applianceLiveStatePort,
+                                    HomeLiveStatePort homeLiveStatePort, TelemetryLiveStatePort telemetryLiveStatePort,
                                     EvaluateHomeBillingUseCase evaluateHomeBillingUseCase,
                                     EvaluateApplianceAnomalyUseCase evaluateApplianceAnomalyUseCase,
                                     ProcessedTelemetryEventRepository processedTelemetryEventRepository,
-                                    TelemetryBillingRecorder telemetryBillingRecorder,
-                                    NotificationOrchestrator notificationOrchestrator, ClockProvider clockProvider) {
+                                    TelemetryBillingRecorder telemetryBillingRecorder, ClockProvider clockProvider) {
         this.homeRepository = homeRepository;
         this.applianceRepository = applianceRepository;
         this.homeLiveStatePort = homeLiveStatePort;
-        this.applianceLiveStatePort = applianceLiveStatePort;
+        this.telemetryLiveStatePort = telemetryLiveStatePort;
         this.evaluateHomeBillingUseCase = evaluateHomeBillingUseCase;
         this.evaluateApplianceAnomalyUseCase = evaluateApplianceAnomalyUseCase;
         this.processedTelemetryEventRepository = processedTelemetryEventRepository;
         this.telemetryBillingRecorder = telemetryBillingRecorder;
-        this.notificationOrchestrator = notificationOrchestrator;
         this.clockProvider = clockProvider;
     }
 
@@ -88,59 +82,64 @@ public class ProcessTelemetryUseCase {
         BigDecimal energyIncrementKwh = EnergyCalculator.incrementKwh(reading.powerWatt(),
                 reading.measurementIntervalSeconds());
 
-        // Ignite (the volatile execution tier) is always updated first; historical logging in
-        // Postgres follows and is explicitly guarded below so a logging failure is never silent.
-        HomeUpdateOutcome homeOutcome = updateHomeLiveState(home, energyIncrementKwh, now);
-        AnomalyEvaluationResult anomalyResult = updateApplianceLiveState(reading, appliance, energyIncrementKwh, now);
+        // Home and appliance Ignite state are updated together in one transaction (see
+        // IgniteTelemetryLiveStateAdapter) so a partial write is never observable; historical
+        // logging in PostgreSQL follows and is explicitly guarded below so a logging failure is
+        // never silent, and Ignite is compensated back to Postgres's truth if it fails.
+        AtomicReference<HomeUpdateOutcome> homeOutcomeRef = new AtomicReference<>();
+        AtomicReference<AnomalyEvaluationResult> anomalyResultRef = new AtomicReference<>();
 
-        List<AdvisoryTrigger> advisoryTriggers;
+        telemetryLiveStatePort.update(home.id(), appliance.id(),
+                current -> {
+                    HomeBillingEvaluation evaluation = evaluateHomeBillingUseCase.evaluate(home, current,
+                            energyIncrementKwh, now);
+                    homeOutcomeRef.set(evaluation.outcome());
+                    return evaluation.newState();
+                },
+                current -> {
+                    ApplianceLiveState existing = current != null ? current
+                            : ApplianceLiveState.zero(reading.homeId(), reading.applianceId(), appliance.name(),
+                                    appliance.type(), appliance.safePowerLimitWatt(), now);
+
+                    AnomalyEvaluationResult result = evaluateApplianceAnomalyUseCase.evaluate(
+                            existing.consecutiveBreachCount(), existing.anomalous(), reading.powerWatt(),
+                            appliance.safePowerLimitWatt());
+                    anomalyResultRef.set(result);
+
+                    BigDecimal newAccumulatedEnergyKwh = existing.accumulatedEnergyKwh().add(energyIncrementKwh);
+                    return new ApplianceLiveState(reading.homeId(), reading.applianceId(), existing.applianceName(),
+                            existing.applianceType(), existing.safePowerLimitWatt(), reading.powerWatt(),
+                            newAccumulatedEnergyKwh, result.consecutiveBreachCount(), result.anomalous(), now);
+                });
+
+        HomeUpdateOutcome homeOutcome = homeOutcomeRef.get();
+        AnomalyEvaluationResult anomalyResult = anomalyResultRef.get();
+
         try {
-            advisoryTriggers = telemetryBillingRecorder.persist(reading.eventId(), home, homeOutcome, appliance,
-                    anomalyResult, now, evaluateApplianceAnomalyUseCase.breachThreshold());
+            telemetryBillingRecorder.persist(reading.eventId(), home, homeOutcome, appliance, anomalyResult, now,
+                    evaluateApplianceAnomalyUseCase.breachThreshold());
         } catch (RuntimeException e) {
             log.error("Failed to persist billing/event log for telemetry event {} (home={}, appliance={}) after " +
-                            "Ignite update; rethrowing for dead-letter routing", reading.eventId(), home.id(),
-                    appliance.id(), e);
+                            "Ignite update; compensating Ignite from the PostgreSQL ledger and rethrowing for " +
+                            "dead-letter routing", reading.eventId(), home.id(), appliance.id(), e);
+            compensateHomeState(home, now);
             throw e;
         }
-
-        advisoryTriggers.forEach(trigger -> notificationOrchestrator.triggerAdvisory(home.id(), trigger.type(),
-                trigger.operationalEventId()));
     }
 
-    private HomeUpdateOutcome updateHomeLiveState(Home home, BigDecimal energyIncrementKwh, Instant now) {
-        AtomicReference<HomeUpdateOutcome> outcome = new AtomicReference<>();
-
-        homeLiveStatePort.update(home.id(), current -> {
-            HomeBillingEvaluation evaluation = evaluateHomeBillingUseCase.evaluate(home, current, energyIncrementKwh,
-                    now);
-            outcome.set(evaluation.outcome());
-            return evaluation.newState();
-        });
-
-        return outcome.get();
-    }
-
-    private AnomalyEvaluationResult updateApplianceLiveState(TelemetryReading reading, Appliance appliance,
-                                                               BigDecimal energyIncrementKwh, Instant now) {
-        AtomicReference<AnomalyEvaluationResult> outcome = new AtomicReference<>();
-
-        applianceLiveStatePort.update(reading.homeId(), reading.applianceId(), current -> {
-            ApplianceLiveState existing = current != null ? current
-                    : ApplianceLiveState.zero(reading.homeId(), reading.applianceId(), appliance.name(),
-                            appliance.type(), appliance.safePowerLimitWatt(), now);
-
-            AnomalyEvaluationResult result = evaluateApplianceAnomalyUseCase.evaluate(
-                    existing.consecutiveBreachCount(), existing.anomalous(), reading.powerWatt(),
-                    appliance.safePowerLimitWatt());
-            outcome.set(result);
-
-            BigDecimal newAccumulatedEnergyKwh = existing.accumulatedEnergyKwh().add(energyIncrementKwh);
-            return new ApplianceLiveState(reading.homeId(), reading.applianceId(), existing.applianceName(),
-                    existing.applianceType(), existing.safePowerLimitWatt(), reading.powerWatt(),
-                    newAccumulatedEnergyKwh, result.consecutiveBreachCount(), result.anomalous(), now);
-        });
-
-        return outcome.get();
+    /**
+     * A failed PostgreSQL persist leaves Ignite's home state ahead of the permanent ledger (the
+     * energy/cost increment was already applied in Ignite but never durably recorded). Rebuilding
+     * the home's live state from PostgreSQL's last-committed billing account undoes that drift.
+     * Appliance anomaly state is not compensated: it is an ephemeral operational flag with no
+     * PostgreSQL source of truth, per the spec's volatile-state-isolation NFR.
+     */
+    private void compensateHomeState(Home home, Instant now) {
+        try {
+            homeLiveStatePort.update(home.id(), current -> evaluateHomeBillingUseCase.recoverFromLedger(home, now));
+        } catch (RuntimeException compensationFailure) {
+            log.error("Failed to compensate Ignite home state for home {} after a persist failure", home.id(),
+                    compensationFailure);
+        }
     }
 }

@@ -5,8 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -18,18 +18,17 @@ import com.vegawatt.core.billing.domain.BillingAccountRepository;
 import com.vegawatt.core.common.Money;
 import com.vegawatt.core.common.TariffState;
 import com.vegawatt.core.common.config.AnomalyProperties;
+import com.vegawatt.core.common.time.BillingPeriodResolver;
 import com.vegawatt.core.common.time.ClockProvider;
 import com.vegawatt.core.home.domain.Appliance;
 import com.vegawatt.core.home.domain.ApplianceLiveState;
-import com.vegawatt.core.home.domain.ApplianceLiveStatePort;
 import com.vegawatt.core.home.domain.ApplianceRepository;
 import com.vegawatt.core.home.domain.Home;
 import com.vegawatt.core.home.domain.HomeLiveState;
 import com.vegawatt.core.home.domain.HomeLiveStatePort;
 import com.vegawatt.core.home.domain.HomeRepository;
-import com.vegawatt.core.notification.application.NotificationOrchestrator;
-import com.vegawatt.core.notification.domain.AdvisoryTrigger;
-import com.vegawatt.core.notification.domain.AdvisoryTriggerType;
+import com.vegawatt.core.home.domain.TelemetryLiveStatePort;
+import com.vegawatt.core.home.domain.TelemetryLiveStateUpdate;
 import com.vegawatt.core.telemetry.domain.InvalidTelemetryReadingException;
 import com.vegawatt.core.telemetry.domain.ProcessedTelemetryEventRepository;
 import com.vegawatt.core.telemetry.domain.TelemetryReading;
@@ -42,9 +41,7 @@ import java.util.function.UnaryOperator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InOrder;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -61,15 +58,13 @@ class ProcessTelemetryUseCaseTest {
     @Mock
     private HomeLiveStatePort homeLiveStatePort;
     @Mock
-    private ApplianceLiveStatePort applianceLiveStatePort;
+    private TelemetryLiveStatePort telemetryLiveStatePort;
     @Mock
     private BillingAccountRepository billingAccountRepository;
     @Mock
     private ProcessedTelemetryEventRepository processedTelemetryEventRepository;
     @Mock
     private TelemetryBillingRecorder telemetryBillingRecorder;
-    @Mock
-    private NotificationOrchestrator notificationOrchestrator;
     @Mock
     private ClockProvider clockProvider;
 
@@ -85,25 +80,22 @@ class ProcessTelemetryUseCaseTest {
                 new AnomalyProperties(3));
 
         useCase = new ProcessTelemetryUseCase(homeRepository, applianceRepository, homeLiveStatePort,
-                applianceLiveStatePort, evaluateHomeBillingUseCase, evaluateApplianceAnomalyUseCase,
-                processedTelemetryEventRepository, telemetryBillingRecorder, notificationOrchestrator, clockProvider);
+                telemetryLiveStatePort, evaluateHomeBillingUseCase, evaluateApplianceAnomalyUseCase,
+                processedTelemetryEventRepository, telemetryBillingRecorder, clockProvider);
 
         lenient().when(clockProvider.now()).thenReturn(NOW);
         lenient().when(homeRepository.findById(HOME_ID)).thenReturn(Optional.of(testHome()));
-        lenient().when(billingAccountRepository.findByHomeId(HOME_ID)).thenReturn(Optional.empty());
+        lenient().when(billingAccountRepository.findByHomeIdAndBillingPeriod(HOME_ID, BillingPeriodResolver.currentPeriod(NOW)))
+                .thenReturn(Optional.empty());
         lenient().when(applianceRepository.findById(APPLIANCE_ID)).thenReturn(Optional.of(testAppliance(true)));
-        lenient().when(homeLiveStatePort.update(eq(HOME_ID), any())).thenAnswer(invocation -> {
-            UnaryOperator<HomeLiveState> mutator = invocation.getArgument(1);
-            homeLiveStateSlot = mutator.apply(homeLiveStateSlot);
-            return homeLiveStateSlot;
-        });
-        lenient().when(applianceLiveStatePort.update(eq(HOME_ID), eq(APPLIANCE_ID), any())).thenAnswer(invocation -> {
-            UnaryOperator<ApplianceLiveState> mutator = invocation.getArgument(2);
-            applianceLiveStateSlot = mutator.apply(applianceLiveStateSlot);
-            return applianceLiveStateSlot;
-        });
-        lenient().when(telemetryBillingRecorder.persist(any(), any(), any(), any(), any(), any(), anyInt()))
-                .thenReturn(List.of());
+        lenient().when(telemetryLiveStatePort.update(eq(HOME_ID), eq(APPLIANCE_ID), any(), any()))
+                .thenAnswer(invocation -> {
+                    UnaryOperator<HomeLiveState> homeMutator = invocation.getArgument(2);
+                    UnaryOperator<ApplianceLiveState> applianceMutator = invocation.getArgument(3);
+                    homeLiveStateSlot = homeMutator.apply(homeLiveStateSlot);
+                    applianceLiveStateSlot = applianceMutator.apply(applianceLiveStateSlot);
+                    return new TelemetryLiveStateUpdate(homeLiveStateSlot, applianceLiveStateSlot);
+                });
     }
 
     private static Home testHome() {
@@ -127,8 +119,7 @@ class ProcessTelemetryUseCaseTest {
 
         useCase.execute(reading(eventId, new BigDecimal("1000")));
 
-        verifyNoInteractions(homeLiveStatePort, applianceLiveStatePort, telemetryBillingRecorder,
-                notificationOrchestrator);
+        verifyNoInteractions(homeLiveStatePort, telemetryLiveStatePort, telemetryBillingRecorder);
     }
 
     @Test
@@ -143,7 +134,7 @@ class ProcessTelemetryUseCaseTest {
         assertThatThrownBy(() -> useCase.execute(mismatched))
                 .isInstanceOf(InvalidTelemetryReadingException.class);
 
-        verifyNoInteractions(homeLiveStatePort, applianceLiveStatePort, telemetryBillingRecorder);
+        verifyNoInteractions(homeLiveStatePort, telemetryLiveStatePort, telemetryBillingRecorder);
     }
 
     @Test
@@ -152,29 +143,14 @@ class ProcessTelemetryUseCaseTest {
 
         useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
 
-        verifyNoInteractions(homeLiveStatePort, applianceLiveStatePort, telemetryBillingRecorder,
-                notificationOrchestrator);
+        verifyNoInteractions(homeLiveStatePort, telemetryLiveStatePort, telemetryBillingRecorder);
     }
 
     @Test
-    void firesAdvisoryOnlyAfterBillingPersistReturns() {
-        UUID operationalEventId = UUID.randomUUID();
-        when(telemetryBillingRecorder.persist(any(), any(), any(), any(), any(), any(), anyInt()))
-                .thenReturn(List.of(new AdvisoryTrigger(AdvisoryTriggerType.QUOTA_80, operationalEventId)));
-
+    void persistsBillingAfterLiveStateUpdate() {
         useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
 
-        InOrder inOrder = Mockito.inOrder(telemetryBillingRecorder, notificationOrchestrator);
-        inOrder.verify(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), anyInt());
-        inOrder.verify(notificationOrchestrator).triggerAdvisory(HOME_ID, AdvisoryTriggerType.QUOTA_80,
-                operationalEventId);
-    }
-
-    @Test
-    void doesNotFireAdvisoryWhenNoTriggersReturned() {
-        useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
-
-        verify(notificationOrchestrator, never()).triggerAdvisory(any(), any(), any());
+        verify(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), anyInt());
     }
 
     @Test
@@ -182,7 +158,8 @@ class ProcessTelemetryUseCaseTest {
         BillingAccount billingAccount = BillingAccount.reconstitute(UUID.randomUUID(), HOME_ID, "2026-01",
                 new BigDecimal("400.5").setScale(9), Money.of(new BigDecimal("900.00")), true, true, false, true,
                 false, 0L, NOW, NOW);
-        when(billingAccountRepository.findByHomeId(HOME_ID)).thenReturn(Optional.of(billingAccount));
+        when(billingAccountRepository.findByHomeIdAndBillingPeriod(HOME_ID, BillingPeriodResolver.currentPeriod(NOW)))
+                .thenReturn(Optional.of(billingAccount));
 
         useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
 
@@ -198,5 +175,25 @@ class ProcessTelemetryUseCaseTest {
         }
 
         assertThat(homeLiveStateSlot.currentCost().rounded()).isNotEqualByComparingTo("0.00");
+    }
+
+    @Test
+    void compensatesHomeStateFromLedgerWhenPersistFails() {
+        BillingAccount billingAccount = BillingAccount.reconstitute(UUID.randomUUID(), HOME_ID, "2026-01",
+                new BigDecimal("10").setScale(9), Money.of(new BigDecimal("21.00")), false, false, false, false,
+                false, 0L, NOW, NOW);
+        when(billingAccountRepository.findByHomeIdAndBillingPeriod(HOME_ID, BillingPeriodResolver.currentPeriod(NOW)))
+                .thenReturn(Optional.of(billingAccount));
+        doThrow(new RuntimeException("postgres unavailable"))
+                .when(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), anyInt());
+        when(homeLiveStatePort.update(eq(HOME_ID), any())).thenAnswer(invocation -> {
+            UnaryOperator<HomeLiveState> mutator = invocation.getArgument(1);
+            return mutator.apply(null);
+        });
+
+        assertThatThrownBy(() -> useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000"))))
+                .isInstanceOf(RuntimeException.class);
+
+        verify(homeLiveStatePort).update(eq(HOME_ID), any());
     }
 }
