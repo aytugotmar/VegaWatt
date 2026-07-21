@@ -2,6 +2,7 @@ package com.vegawatt.core.home.application;
 
 import com.vegawatt.core.billing.domain.BillingAccount;
 import com.vegawatt.core.billing.domain.BillingAccountRepository;
+import com.vegawatt.core.common.time.BillingPeriodResolver;
 import com.vegawatt.core.common.time.ClockProvider;
 import com.vegawatt.core.home.domain.Appliance;
 import com.vegawatt.core.home.domain.ApplianceLiveState;
@@ -12,16 +13,11 @@ import com.vegawatt.core.home.domain.HomeLiveState;
 import com.vegawatt.core.home.domain.HomeLiveStatePort;
 import com.vegawatt.core.home.domain.HomeRepository;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class RegisterHomeUseCase {
-
-    private static final DateTimeFormatter BILLING_PERIOD_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM")
-            .withZone(ZoneOffset.UTC);
 
     private final HomeRepository homeRepository;
     private final BillingAccountRepository billingAccountRepository;
@@ -55,7 +51,7 @@ public class RegisterHomeUseCase {
 
         homeRepository.save(home);
 
-        String billingPeriod = BILLING_PERIOD_FORMAT.format(now);
+        String billingPeriod = BillingPeriodResolver.currentPeriod(now);
         billingAccountRepository.save(BillingAccount.open(home.id(), billingPeriod, now));
 
         assetRegistrationPublisher.publish(home);

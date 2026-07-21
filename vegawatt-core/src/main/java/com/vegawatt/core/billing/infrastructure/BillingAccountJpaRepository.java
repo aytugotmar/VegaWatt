@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 interface BillingAccountJpaRepository extends JpaRepository<BillingAccountEntity, UUID> {
 
-    Optional<BillingAccountEntity> findByHomeId(UUID homeId);
+    Optional<BillingAccountEntity> findByHomeIdAndBillingPeriod(UUID homeId, String billingPeriod);
 }

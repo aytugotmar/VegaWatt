@@ -7,5 +7,5 @@ public interface BillingAccountRepository {
 
     BillingAccount save(BillingAccount billingAccount);
 
-    Optional<BillingAccount> findByHomeId(UUID homeId);
+    Optional<BillingAccount> findByHomeIdAndBillingPeriod(UUID homeId, String billingPeriod);
 }

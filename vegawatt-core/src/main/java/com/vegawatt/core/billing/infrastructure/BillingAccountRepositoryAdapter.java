@@ -23,8 +23,9 @@ class BillingAccountRepositoryAdapter implements BillingAccountRepository {
     }
 
     @Override
-    public Optional<BillingAccount> findByHomeId(UUID homeId) {
-        return jpaRepository.findByHomeId(homeId).map(BillingAccountRepositoryAdapter::toDomain);
+    public Optional<BillingAccount> findByHomeIdAndBillingPeriod(UUID homeId, String billingPeriod) {
+        return jpaRepository.findByHomeIdAndBillingPeriod(homeId, billingPeriod)
+                .map(BillingAccountRepositoryAdapter::toDomain);
     }
 
     private static BillingAccountEntity toEntity(BillingAccount account) {

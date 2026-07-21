@@ -6,6 +6,7 @@ import com.vegawatt.core.billing.domain.EvaluateTariffPolicy;
 import com.vegawatt.core.billing.domain.QuotaTransition;
 import com.vegawatt.core.common.Money;
 import com.vegawatt.core.common.TariffState;
+import com.vegawatt.core.common.time.BillingPeriodResolver;
 import com.vegawatt.core.home.domain.Home;
 import com.vegawatt.core.home.domain.HomeLiveState;
 import java.math.BigDecimal;
@@ -33,7 +34,7 @@ public class EvaluateHomeBillingUseCase {
 
     public HomeBillingEvaluation evaluate(Home home, HomeLiveState current, BigDecimal energyIncrementKwh,
                                            Instant now) {
-        HomeLiveState existing = current != null ? current : recover(home, now);
+        HomeLiveState existing = current != null ? current : recoverFromLedger(home, now);
 
         Money costIncrement = EvaluateTariffPolicy.cost(energyIncrementKwh, existing.tariffState(),
                 home.baseTariffPerKwh(), home.penaltyTariffPerKwh());
@@ -60,8 +61,14 @@ public class EvaluateHomeBillingUseCase {
         return new HomeBillingEvaluation(newState, outcome);
     }
 
-    private HomeLiveState recover(Home home, Instant now) {
-        return billingAccountRepository.findByHomeId(home.id())
+    /**
+     * Rebuilds a home's live state from Postgres's permanent billing ledger — used both when
+     * Ignite's cache entry is cold, and to compensate Ignite back to Postgres's last-committed
+     * truth after a failed persist (see ProcessTelemetryUseCase).
+     */
+    public HomeLiveState recoverFromLedger(Home home, Instant now) {
+        String currentPeriod = BillingPeriodResolver.currentPeriod(now);
+        return billingAccountRepository.findByHomeIdAndBillingPeriod(home.id(), currentPeriod)
                 .map(billingAccount -> {
                     TariffState tariffState = billingAccount.penaltyActive() ? TariffState.PENALTY : TariffState.BASE;
                     BigDecimal energyPercentage = percentage(billingAccount.accumulatedEnergyKwh(),

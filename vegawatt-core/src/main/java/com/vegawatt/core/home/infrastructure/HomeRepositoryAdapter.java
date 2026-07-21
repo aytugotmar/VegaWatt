@@ -37,15 +37,25 @@ class HomeRepositoryAdapter implements HomeRepository {
 
     @Override
     public Optional<Home> findById(UUID id) {
-        return homeJpaRepository.findById(id).map(homeEntity -> {
-            List<Appliance> appliances = applianceJpaRepository.findByHomeId(id).stream()
-                    .map(HomeRepositoryAdapter::toDomainAppliance)
-                    .toList();
-            return Home.reconstitute(homeEntity.getId(), homeEntity.getName(), homeEntity.getContactEmail(),
-                    homeEntity.getEnergyQuotaKwh(), homeEntity.getBudgetQuotaTry(), homeEntity.getBaseTariffPerKwh(),
-                    homeEntity.getPenaltyTariffPerKwh(), homeEntity.getCreatedAt(), homeEntity.getUpdatedAt(),
-                    appliances);
-        });
+        return homeJpaRepository.findById(id).map(homeEntity -> toDomain(homeEntity,
+                applianceJpaRepository.findByHomeId(id)));
+    }
+
+    @Override
+    public List<Home> findAll() {
+        return homeJpaRepository.findAll().stream()
+                .map(homeEntity -> toDomain(homeEntity, applianceJpaRepository.findByHomeId(homeEntity.getId())))
+                .toList();
+    }
+
+    private static Home toDomain(HomeEntity homeEntity, List<ApplianceEntity> applianceEntities) {
+        List<Appliance> appliances = applianceEntities.stream()
+                .map(HomeRepositoryAdapter::toDomainAppliance)
+                .toList();
+        return Home.reconstitute(homeEntity.getId(), homeEntity.getName(), homeEntity.getContactEmail(),
+                homeEntity.getEnergyQuotaKwh(), homeEntity.getBudgetQuotaTry(), homeEntity.getBaseTariffPerKwh(),
+                homeEntity.getPenaltyTariffPerKwh(), homeEntity.getCreatedAt(), homeEntity.getUpdatedAt(),
+                appliances);
     }
 
     private static Appliance toDomainAppliance(ApplianceEntity entity) {
