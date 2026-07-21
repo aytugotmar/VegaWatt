@@ -17,10 +17,12 @@ import com.vegawatt.core.common.Money;
 import com.vegawatt.core.common.events.OperationalEvent;
 import com.vegawatt.core.common.events.OperationalEventRepository;
 import com.vegawatt.core.common.events.OperationalEventType;
+import com.vegawatt.core.common.time.BillingPeriodResolver;
 import com.vegawatt.core.home.domain.Appliance;
 import com.vegawatt.core.home.domain.Home;
-import com.vegawatt.core.notification.domain.AdvisoryTrigger;
 import com.vegawatt.core.notification.domain.AdvisoryTriggerType;
+import com.vegawatt.core.notification.domain.NotificationJob;
+import com.vegawatt.core.notification.domain.NotificationJobRepository;
 import com.vegawatt.core.telemetry.domain.ProcessedTelemetryEventRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -38,6 +40,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class TelemetryBillingRecorderTest {
 
     private static final Instant NOW = Instant.parse("2026-01-01T00:00:00Z");
+    private static final String PERIOD = BillingPeriodResolver.currentPeriod(NOW);
     private static final UUID HOME_ID = UUID.randomUUID();
     private static final UUID APPLIANCE_ID = UUID.randomUUID();
     private static final QuotaTransition NO_TRANSITION = new QuotaTransition(false, false);
@@ -49,6 +52,8 @@ class TelemetryBillingRecorderTest {
     private OperationalEventRepository operationalEventRepository;
     @Mock
     private ProcessedTelemetryEventRepository processedTelemetryEventRepository;
+    @Mock
+    private NotificationJobRepository notificationJobRepository;
 
     private TelemetryBillingRecorder recorder;
     private Home home;
@@ -58,15 +63,15 @@ class TelemetryBillingRecorderTest {
     @BeforeEach
     void setUp() {
         recorder = new TelemetryBillingRecorder(billingAccountRepository, operationalEventRepository,
-                processedTelemetryEventRepository);
+                processedTelemetryEventRepository, notificationJobRepository);
         home = Home.reconstitute(HOME_ID, "Test Ev", "test@example.com", new BigDecimal("500"),
                 new BigDecimal("1000"), new BigDecimal("2.10"), new BigDecimal("3.50"), NOW, NOW, List.of());
         appliance = new Appliance(APPLIANCE_ID, HOME_ID, "Fridge", "REFRIGERATOR", new BigDecimal("200"),
                 new BigDecimal("50"), new BigDecimal("150"), true);
         noAnomalyChange = new AnomalyEvaluationResult(0, false, false, false);
 
-        lenient().when(billingAccountRepository.findByHomeId(HOME_ID))
-                .thenAnswer(invocation -> Optional.of(BillingAccount.open(HOME_ID, "2026-01", NOW)));
+        lenient().when(billingAccountRepository.findByHomeIdAndBillingPeriod(HOME_ID, PERIOD))
+                .thenAnswer(invocation -> Optional.of(BillingAccount.open(HOME_ID, PERIOD, NOW)));
         lenient().when(operationalEventRepository.save(any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -83,80 +88,87 @@ class TelemetryBillingRecorderTest {
     }
 
     @Test
-    void firesQuota80TriggerAndMarksAccountNotifiedOnFirstCrossing() {
+    void createsQuota80NotificationJobAndMarksAccountNotifiedOnFirstCrossing() {
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("400"), new BigDecimal("840"),
                 new QuotaTransition(true, false), NO_TRANSITION);
 
-        List<AdvisoryTrigger> triggers = recorder.persist(UUID.randomUUID(), home, outcome, appliance,
-                noAnomalyChange, NOW, BREACH_THRESHOLD);
+        recorder.persist(UUID.randomUUID(), home, outcome, appliance, noAnomalyChange, NOW, BREACH_THRESHOLD);
 
-        assertThat(triggers).extracting(AdvisoryTrigger::type).containsExactly(AdvisoryTriggerType.QUOTA_80);
-        assertThat(triggers).allMatch(trigger -> trigger.operationalEventId() != null);
-        verify(operationalEventRepository).save(argThatEventType(OperationalEventType.QUOTA_80_REACHED));
+        verify(operationalEventRepository).save(argThatEventType(OperationalEventType.ENERGY_QUOTA_80_REACHED));
+        ArgumentCaptor<NotificationJob> jobCaptor = ArgumentCaptor.forClass(NotificationJob.class);
+        verify(notificationJobRepository).save(jobCaptor.capture());
+        assertThat(jobCaptor.getValue().triggerType()).isEqualTo(AdvisoryTriggerType.QUOTA_80);
+        assertThat(jobCaptor.getValue().triggerEventId()).isNotNull();
 
-        ArgumentCaptor<BillingAccount> captor = ArgumentCaptor.forClass(BillingAccount.class);
-        verify(billingAccountRepository).save(captor.capture());
-        assertThat(captor.getValue().energyQuota80Notified()).isTrue();
+        ArgumentCaptor<BillingAccount> accountCaptor = ArgumentCaptor.forClass(BillingAccount.class);
+        verify(billingAccountRepository).save(accountCaptor.capture());
+        assertThat(accountCaptor.getValue().energyQuota80Notified()).isTrue();
     }
 
     @Test
     void doesNotDuplicateQuota80NotificationWhenAlreadyNotified() {
-        BillingAccount alreadyNotified = BillingAccount.reconstitute(UUID.randomUUID(), HOME_ID, "2026-01",
+        BillingAccount alreadyNotified = BillingAccount.reconstitute(UUID.randomUUID(), HOME_ID, PERIOD,
                 new BigDecimal("400").setScale(9), Money.zero(), false, true, false, false,
                 false, 0L, NOW, NOW);
-        when(billingAccountRepository.findByHomeId(HOME_ID)).thenReturn(Optional.of(alreadyNotified));
+        when(billingAccountRepository.findByHomeIdAndBillingPeriod(HOME_ID, PERIOD))
+                .thenReturn(Optional.of(alreadyNotified));
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("1"), new BigDecimal("2.1"),
                 new QuotaTransition(true, false), NO_TRANSITION);
 
-        List<AdvisoryTrigger> triggers = recorder.persist(UUID.randomUUID(), home, outcome, appliance,
-                noAnomalyChange, NOW, BREACH_THRESHOLD);
+        recorder.persist(UUID.randomUUID(), home, outcome, appliance, noAnomalyChange, NOW, BREACH_THRESHOLD);
 
-        assertThat(triggers).isEmpty();
         verify(operationalEventRepository, never()).save(any());
+        verify(notificationJobRepository, never()).save(any());
     }
 
     @Test
-    void activatesPenaltyAndFiresQuota100TriggerOnBudgetCrossing() {
+    void suppresses80NotificationAndActivatesPenaltyWhenBudgetJumpsPastBothThresholds() {
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("500"), new BigDecimal("1050"),
                 NO_TRANSITION, new QuotaTransition(true, true));
 
-        List<AdvisoryTrigger> triggers = recorder.persist(UUID.randomUUID(), home, outcome, appliance,
-                noAnomalyChange, NOW, BREACH_THRESHOLD);
+        recorder.persist(UUID.randomUUID(), home, outcome, appliance, noAnomalyChange, NOW, BREACH_THRESHOLD);
 
-        assertThat(triggers).extracting(AdvisoryTrigger::type)
-                .contains(AdvisoryTriggerType.QUOTA_80, AdvisoryTriggerType.QUOTA_100);
+        // 100% supersedes 80% for the same quota dimension within one event - only one job, not two.
+        verify(operationalEventRepository).save(argThatEventType(OperationalEventType.BUDGET_QUOTA_100_REACHED));
+        verify(operationalEventRepository, never()).save(argThatEventType(OperationalEventType.BUDGET_QUOTA_80_REACHED));
         verify(operationalEventRepository).save(argThatEventType(OperationalEventType.PENALTY_TARIFF_ACTIVATED));
 
-        ArgumentCaptor<BillingAccount> captor = ArgumentCaptor.forClass(BillingAccount.class);
-        verify(billingAccountRepository).save(captor.capture());
-        assertThat(captor.getValue().penaltyActive()).isTrue();
+        ArgumentCaptor<NotificationJob> jobCaptor = ArgumentCaptor.forClass(NotificationJob.class);
+        verify(notificationJobRepository, times(1)).save(jobCaptor.capture());
+        assertThat(jobCaptor.getValue().triggerType()).isEqualTo(AdvisoryTriggerType.QUOTA_100);
+
+        ArgumentCaptor<BillingAccount> accountCaptor = ArgumentCaptor.forClass(BillingAccount.class);
+        verify(billingAccountRepository).save(accountCaptor.capture());
+        assertThat(accountCaptor.getValue().penaltyActive()).isTrue();
+        assertThat(accountCaptor.getValue().budgetQuota80Notified()).isTrue();
+        assertThat(accountCaptor.getValue().budgetQuota100Notified()).isTrue();
     }
 
     @Test
-    void firesAnomalyTriggerOnTransitionToAnomalous() {
+    void createsAnomalyNotificationJobOnTransitionToAnomalous() {
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("1"), new BigDecimal("2.1"), NO_TRANSITION,
                 NO_TRANSITION);
         AnomalyEvaluationResult transitioned = new AnomalyEvaluationResult(3, true, true, false);
 
-        List<AdvisoryTrigger> triggers = recorder.persist(UUID.randomUUID(), home, outcome, appliance,
-                transitioned, NOW, BREACH_THRESHOLD);
+        recorder.persist(UUID.randomUUID(), home, outcome, appliance, transitioned, NOW, BREACH_THRESHOLD);
 
-        assertThat(triggers).extracting(AdvisoryTrigger::type).containsExactly(AdvisoryTriggerType.ANOMALY);
         verify(operationalEventRepository).save(argThatEventType(OperationalEventType.APPLIANCE_ANOMALY_DETECTED));
+        ArgumentCaptor<NotificationJob> jobCaptor = ArgumentCaptor.forClass(NotificationJob.class);
+        verify(notificationJobRepository).save(jobCaptor.capture());
+        assertThat(jobCaptor.getValue().triggerType()).isEqualTo(AdvisoryTriggerType.ANOMALY);
     }
 
     @Test
-    void savesRecoveryEventWithoutTriggeringAdvisory() {
+    void savesRecoveryEventWithoutCreatingNotificationJob() {
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("1"), new BigDecimal("2.1"), NO_TRANSITION,
                 NO_TRANSITION);
         AnomalyEvaluationResult recovered = new AnomalyEvaluationResult(0, false, false, true);
 
-        List<AdvisoryTrigger> triggers = recorder.persist(UUID.randomUUID(), home, outcome, appliance, recovered,
-                NOW, BREACH_THRESHOLD);
+        recorder.persist(UUID.randomUUID(), home, outcome, appliance, recovered, NOW, BREACH_THRESHOLD);
 
-        assertThat(triggers).isEmpty();
         verify(operationalEventRepository).save(argThatEventType(OperationalEventType.APPLIANCE_ANOMALY_RECOVERED));
         verify(operationalEventRepository, times(1)).save(any());
+        verify(notificationJobRepository, never()).save(any());
     }
 
     private static OperationalEvent argThatEventType(OperationalEventType type) {
