@@ -1,9 +1,9 @@
-package com.vegawatt.core.telemetry.application;
+package com.vegawatt.core.billing.application;
 
 import com.vegawatt.core.billing.domain.QuotaTransition;
 import java.math.BigDecimal;
 
-record HomeUpdateOutcome(
+public record HomeUpdateOutcome(
         BigDecimal energyIncrementKwh,
         BigDecimal costIncrement,
         QuotaTransition energyTransition,
