@@ -43,6 +43,8 @@ vegawatt:
     telemetry-topic: ${KAFKA_TELEMETRY_TOPIC:vegawatt.telemetry.v1}
   ignite:
     addresses: ${IGNITE_ADDRESSES:localhost:10800}
+  anomaly:
+    breach-threshold: ${ANOMALY_BREACH_THRESHOLD:3}
   gemini:
     api-key: ${GEMINI_API_KEY:}
     model: ${GEMINI_MODEL:gemini-2.0-flash}
