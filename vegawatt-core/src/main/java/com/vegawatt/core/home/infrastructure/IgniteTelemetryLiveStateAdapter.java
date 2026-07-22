@@ -63,6 +63,28 @@ class IgniteTelemetryLiveStateAdapter implements TelemetryLiveStatePort {
         }
     }
 
+    @Override
+    public void restore(UUID homeId, UUID applianceId, HomeLiveState previousHome, ApplianceLiveState previousAppliance) {
+        String homeKey = homeId.toString();
+        String applianceKey = homeId + ":" + applianceId;
+
+        try (ClientTransaction transaction = igniteClient.transactions().txStart()) {
+            if (previousHome != null) {
+                homeCache.put(homeKey, toHomeCacheValue(previousHome));
+            } else {
+                homeCache.remove(homeKey);
+            }
+
+            if (previousAppliance != null) {
+                applianceCache.put(applianceKey, toApplianceCacheValue(previousAppliance));
+            } else {
+                applianceCache.remove(applianceKey);
+            }
+
+            transaction.commit();
+        }
+    }
+
     private static HomeLiveStateCacheValue toHomeCacheValue(HomeLiveState state) {
         return new HomeLiveStateCacheValue(state.homeName(), state.currentEnergyKwh(), state.currentCost().amount(),
                 state.energyQuotaPercentage(), state.budgetQuotaPercentage(), state.tariffState(),

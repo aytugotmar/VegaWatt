@@ -178,22 +178,24 @@ class ProcessTelemetryUseCaseTest {
     }
 
     @Test
-    void compensatesHomeStateFromLedgerWhenPersistFails() {
-        BillingAccount billingAccount = BillingAccount.reconstitute(UUID.randomUUID(), HOME_ID, "2026-01",
-                new BigDecimal("10").setScale(9), Money.of(new BigDecimal("21.00")), false, false, false, false,
-                false, 0L, NOW, NOW);
-        when(billingAccountRepository.findByHomeIdAndBillingPeriod(HOME_ID, BillingPeriodResolver.currentPeriod(NOW)))
-                .thenReturn(Optional.of(billingAccount));
+    void compensatesBothHomeAndApplianceStateWhenPersistFails() {
         doThrow(new RuntimeException("postgres unavailable"))
                 .when(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), anyInt());
-        when(homeLiveStatePort.update(eq(HOME_ID), any())).thenAnswer(invocation -> {
-            UnaryOperator<HomeLiveState> mutator = invocation.getArgument(1);
-            return mutator.apply(null);
-        });
 
         assertThatThrownBy(() -> useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000"))))
                 .isInstanceOf(RuntimeException.class);
 
-        verify(homeLiveStatePort).update(eq(HOME_ID), any());
+        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), any(), any());
+    }
+
+    @Test
+    void handlesConcurrentDuplicateEventGracefully() {
+        doThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate key value violates unique constraint"))
+                .when(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), anyInt());
+
+        // Should not throw, but restore Ignite state and skip duplicate gracefully
+        useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
+
+        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), any(), any());
     }
 }
