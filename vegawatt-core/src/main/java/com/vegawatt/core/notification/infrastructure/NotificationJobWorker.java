@@ -24,7 +24,8 @@ public class NotificationJobWorker {
         this.clockProvider = clockProvider;
     }
 
-    @Scheduled(fixedDelayString = "${vegawatt.notification.worker-interval-ms}")
+    @Scheduled(fixedDelayString = "${vegawatt.notification.worker-interval-ms}",
+            scheduler = "notificationTaskScheduler")
     public void processDueJobs() {
         List<NotificationJob> dueJobs = notificationJobRepository.findDue(clockProvider.now(), BATCH_SIZE);
         for (NotificationJob job : dueJobs) {

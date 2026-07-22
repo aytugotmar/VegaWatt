@@ -65,6 +65,7 @@ vegawatt:
     password: ${BOOTSTRAP_ADMIN_PASSWORD:}
   outbox:
     relay-interval-ms: 2000
+    send-timeout-ms: ${OUTBOX_SEND_TIMEOUT_MS:10000}
   notification:
     worker-interval-ms: ${NOTIFICATION_WORKER_INTERVAL_MS:2000}
   scheduling:
