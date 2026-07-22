@@ -5,6 +5,7 @@ import com.vegawatt.core.notification.domain.AiRecommendation;
 import com.vegawatt.core.notification.domain.AiRecommendationRepository;
 import com.vegawatt.core.notification.domain.EmailStatus;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 
@@ -31,6 +32,12 @@ class AiRecommendationRepositoryAdapter implements AiRecommendationRepository {
         return jpaRepository.findByHomeIdOrderByCreatedAtDesc(homeId).stream()
                 .map(AiRecommendationRepositoryAdapter::toDomain)
                 .toList();
+    }
+
+    @Override
+    public Optional<AiRecommendation> findByTriggerEventId(UUID triggerEventId) {
+        return jpaRepository.findByTriggerEventId(triggerEventId)
+                .map(AiRecommendationRepositoryAdapter::toDomain);
     }
 
     private static AiRecommendation toDomain(AiRecommendationEntity entity) {
