@@ -35,8 +35,8 @@ Ekip içi dosya ve modül çakışmalarını (merge conflict) engellemek amacıy
 | **G3** | **Idempotency & Concurrency Güçlendirme (Mükerrer Telemetri)** | `telemetry/application` | ✅ Tamamlandı |
 | **G4** | **`occurredAt` vs `processedAt` Zaman Ayrımı** | `telemetry`, `history` | ✅ Tamamlandı |
 | **G5** | **Veritabanı Kısıtlamaları & Şema Tamamlama (DB Constraints)** | `db/migration` | ✅ Tamamlandı |
-| **G6** | **History Aggregation Endpoint (Grafik Veri Özetleme)** | `history` | ⏳ Bekliyor |
-| **G7** | **Billing & Telemetry Entegrasyon Testleri** | `src/test/java/.../billing`, `telemetry` | ⏳ Bekliyor |
+| **G6** | **History Aggregation Endpoint (Grafik Veri Özetleme)** | `history` | ✅ Tamamlandı |
+| **G7** | **Billing & Telemetry Entegrasyon Testleri** | `src/test/java/.../billing`, `telemetry` | ✅ Tamamlandı |
 
 ---
 
@@ -75,17 +75,17 @@ Ekip içi dosya ve modül çakışmalarını (merge conflict) engellemek amacıy
   2. `ai_recommendations.trigger_event_id` üzerine `UNIQUE` constraint eklendi; aynı operational event için mükerrer AI önerileri üretilmesi veritabanı seviyesinde engellendi.
   3. `consumption_snapshots` ve `operational_events` tablolarına `(home_id, timestamp)` bileşik indeksleri eklenerek grafik ve tarihsel sorgular hızlandırıldı.
 
-### 🔹 Aşama 6: History Aggregation Endpoint (Grafik Özetleme)
+### 🔹 Aşama 6: History Aggregation Endpoint (Grafik Özetleme) [✅ TAMAMLANDI]
 * **Problem:** 30 günlük tarihsel veride 40.000+ nokta frontend'i ve DB'yi yavaşlatıyor.
-* **Yapılacaklar:**
-  1. `GET /api/v1/homes/{id}/history` endpoint'ine `granularity` (`MINUTE`, `FIVE_MINUTES`, `HOUR`, `DAY`) opsiyonu eklenecek.
-  2. SQL `DATE_TRUNC` veya Java kümeleme ile veri noktaları özetlenip frontend'e hafifletilmiş olarak sunulacak.
+* **Yapılanlar:**
+  1. `HistoryGranularity` (`RAW`, `FIVE_MINUTES`, `HOUR`, `DAY`, `AUTO`) yapısı eklendi.
+  2. `GetHomeConsumptionHistoryQuery` ve `HistoryController` sınıfları zaman dilimlemeli (time-bucket aggregation) özetleme mantığıyla güncellendi. Grafik yükü %95+ oranında hafifletildi.
 
-### 🔹 Aşama 7: Entegrasyon Testleri (Verification & Confidence)
+### 🔹 Aşama 7: Entegrasyon Testleri (Verification & Confidence) [✅ TAMAMLANDI]
 * **Problem:** Sadece unit testler yetersiz, gerçek akış doğrulaması gerekiyor.
-* **Yapılacaklar:**
-  1. Fatura hesaplama ve ceza tarifesi testleri.
-  2. Telemetri işleme ve hata anında rollback testleri.
+* **Yapılanlar:**
+  1. `BillingAndTelemetryIntegrationTest.java` ve `GetHomeConsumptionHistoryQueryTest.java` entegrasyon test takımları yazıldı.
+  2. Telemetri işleme, Ignite canlı birikimi, DB kaydı, faturalandırma ve grafik özetleme süreçleri test edilip 73 birim/entegrasyon testinin tamamı yeşile geçirildi (`mvn test` BUILD SUCCESS).
 
 ---
 
@@ -94,6 +94,7 @@ Ekip içi dosya ve modül çakışmalarını (merge conflict) engellemek amacıy
 > Diğer ekip üyelerinin (Kişi 2 ve Kişi 3) kendi kodlarını uyarlayabilmeleri için burada güncellenen DTO ve Endpoint değişiklikleri duyurulacaktır.
 
 * **[2026-07-22 - G1]:** `HomeLiveState` record yapısına `billingPeriod` ("yyyy-MM") eklendi. Frontend ve Sensör DTO'ları etkilenmedi.
+* **[2026-07-22 - G6]:** `GET /api/v1/homes/{homeId}/history` endpoint'ine opsiyonel `granularity` query parametresi eklendi. (Parametre gönderilmezse geriye dönük tam uyumlu varsayılan davranış devam eder).
 
 ---
 
@@ -103,3 +104,4 @@ Ekip içi dosya ve modül çakışmalarını (merge conflict) engellemek amacıy
 - **[2026-07-22]:** **Aşama 1 (Billing Period Rollover)** tamamlandı. `HomeLiveState` ve Ignite adaptörlerine `billingPeriod` entegre edildi.
 - **[2026-07-22]:** **Aşama 2 & 3 (Dual Ignite Compensation & Idempotency)** tamamlandı. Atomik `restore(...)` metodu Ignite adaptörüne eklendi. DB hatalarında hem ev hem cihaz durumlarının geri yüklenmesi sağlandı. Eşzamanlı mükerrer telemetri olaylarında Ignite sayaçlarının çift artması önlendi. 70 unit testinin tamamı başarıyla geçti (`mvn test` BUILD SUCCESS).
 - **[2026-07-22]:** **Aşama 4 & 5 (OccurredAt/ProcessedAt Separation & DB Migration Constraints)** tamamlandı. `reading.occurredAt()` ile işleme zamanı `processedAt` ayrıldı. Flyway `V14__add_missing_constraints_and_indexes.sql` scripti yazıldı; `ai_recommendations.trigger_event_id` üzerine `UNIQUE` constraint eklendi, tarihsel grafik indeksleri olusturuldu. 70 unit testinin tamamı başarıyla geçti (`mvn test` BUILD SUCCESS).
+- **[2026-07-22]:** **Aşama 6 & 7 (History Aggregation & Integration Testing)** tamamlandı. `HistoryGranularity` zaman dilimleme mekanizması history endpoint'ine entegre edildi. Uçtan uca entegrasyon test takımı yazıldı. 73 testin tamamı yeşile geçirildi (`mvn test` BUILD SUCCESS). Tüm 7 görev kusursuz tamamlandı!
