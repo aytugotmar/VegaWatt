@@ -40,34 +40,35 @@ public class TelemetryBillingRecorder {
     }
 
     @Transactional
-    void persist(UUID eventId, Home home, HomeUpdateOutcome homeOutcome, Appliance appliance,
-                 AnomalyEvaluationResult anomalyResult, Instant now, int anomalyBreachThreshold) {
-        processedTelemetryEventRepository.markProcessed(eventId, home.id(), appliance.id(), now);
+    public void persist(UUID eventId, Home home, HomeUpdateOutcome homeOutcome, Appliance appliance,
+                 AnomalyEvaluationResult anomalyResult, Instant occurredAt, Instant processedAt,
+                 int anomalyBreachThreshold) {
+        processedTelemetryEventRepository.markProcessed(eventId, home.id(), appliance.id(), processedAt);
 
-        String currentPeriod = BillingPeriodResolver.currentPeriod(now);
+        String currentPeriod = BillingPeriodResolver.currentPeriod(occurredAt);
         BillingAccount billingAccount = billingAccountRepository.findByHomeIdAndBillingPeriod(home.id(), currentPeriod)
-                .orElseGet(() -> BillingAccount.open(home.id(), currentPeriod, now));
+                .orElseGet(() -> BillingAccount.open(home.id(), currentPeriod, occurredAt));
 
-        billingAccount.applyTelemetry(homeOutcome.energyIncrementKwh(), Money.of(homeOutcome.costIncrement()), now);
+        billingAccount.applyTelemetry(homeOutcome.energyIncrementKwh(), Money.of(homeOutcome.costIncrement()), occurredAt);
 
-        recordEnergyQuotaEvent(home, homeOutcome.energyTransition(), billingAccount, now);
-        recordBudgetQuotaEvent(home, homeOutcome.budgetTransition(), billingAccount, now);
+        recordEnergyQuotaEvent(home, homeOutcome.energyTransition(), billingAccount, occurredAt);
+        recordBudgetQuotaEvent(home, homeOutcome.budgetTransition(), billingAccount, occurredAt);
 
         if (homeOutcome.budgetTransition().crossed100() && !billingAccount.penaltyActive()) {
             billingAccount.activatePenalty();
             operationalEventRepository.save(OperationalEvent.create(home.id(), null,
-                    OperationalEventType.PENALTY_TARIFF_ACTIVATED, now, "penalty tariff activated"));
+                    OperationalEventType.PENALTY_TARIFF_ACTIVATED, occurredAt, "penalty tariff activated"));
         }
 
         if (anomalyResult.transitionedToAnomalous()) {
             OperationalEvent saved = operationalEventRepository.save(OperationalEvent.create(home.id(),
-                    appliance.id(), OperationalEventType.APPLIANCE_ANOMALY_DETECTED, now,
+                    appliance.id(), OperationalEventType.APPLIANCE_ANOMALY_DETECTED, occurredAt,
                     "appliance exceeded safe power limit for " + anomalyBreachThreshold + " consecutive readings"));
-            createNotificationJob(saved, home.id(), AdvisoryTriggerType.ANOMALY, now);
+            createNotificationJob(saved, home.id(), AdvisoryTriggerType.ANOMALY, occurredAt);
         }
         if (anomalyResult.transitionedToRecovered()) {
             operationalEventRepository.save(OperationalEvent.create(home.id(), appliance.id(),
-                    OperationalEventType.APPLIANCE_ANOMALY_RECOVERED, now, "appliance power draw back to normal"));
+                    OperationalEventType.APPLIANCE_ANOMALY_RECOVERED, occurredAt, "appliance power draw back to normal"));
         }
 
         billingAccountRepository.save(billingAccount);

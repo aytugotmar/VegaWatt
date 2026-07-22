@@ -80,7 +80,9 @@ public class ProcessTelemetryUseCase {
             return;
         }
 
-        Instant now = clockProvider.now();
+        Instant processedAt = clockProvider.now();
+        Instant occurredAt = reading.occurredAt() != null ? reading.occurredAt() : processedAt;
+
         BigDecimal energyIncrementKwh = EnergyCalculator.incrementKwh(reading.powerWatt(),
                 reading.measurementIntervalSeconds());
 
@@ -97,7 +99,7 @@ public class ProcessTelemetryUseCase {
                 current -> {
                     previousHomeRef.set(current);
                     HomeBillingEvaluation evaluation = evaluateHomeBillingUseCase.evaluate(home, current,
-                            energyIncrementKwh, now);
+                            energyIncrementKwh, occurredAt);
                     homeOutcomeRef.set(evaluation.outcome());
                     return evaluation.newState();
                 },
@@ -105,7 +107,7 @@ public class ProcessTelemetryUseCase {
                     previousApplianceRef.set(current);
                     ApplianceLiveState existing = current != null ? current
                             : ApplianceLiveState.zero(reading.homeId(), reading.applianceId(), appliance.name(),
-                                    appliance.type(), appliance.safePowerLimitWatt(), now);
+                                    appliance.type(), appliance.safePowerLimitWatt(), occurredAt);
 
                     AnomalyEvaluationResult result = evaluateApplianceAnomalyUseCase.evaluate(
                             existing.consecutiveBreachCount(), existing.anomalous(), reading.powerWatt(),
@@ -115,15 +117,15 @@ public class ProcessTelemetryUseCase {
                     BigDecimal newAccumulatedEnergyKwh = existing.accumulatedEnergyKwh().add(energyIncrementKwh);
                     return new ApplianceLiveState(reading.homeId(), reading.applianceId(), existing.applianceName(),
                             existing.applianceType(), existing.safePowerLimitWatt(), reading.powerWatt(),
-                            newAccumulatedEnergyKwh, result.consecutiveBreachCount(), result.anomalous(), now);
+                            newAccumulatedEnergyKwh, result.consecutiveBreachCount(), result.anomalous(), occurredAt);
                 });
 
         HomeUpdateOutcome homeOutcome = homeOutcomeRef.get();
         AnomalyEvaluationResult anomalyResult = anomalyResultRef.get();
 
         try {
-            telemetryBillingRecorder.persist(reading.eventId(), home, homeOutcome, appliance, anomalyResult, now,
-                    evaluateApplianceAnomalyUseCase.breachThreshold());
+            telemetryBillingRecorder.persist(reading.eventId(), home, homeOutcome, appliance, anomalyResult,
+                    occurredAt, processedAt, evaluateApplianceAnomalyUseCase.breachThreshold());
         } catch (org.springframework.dao.DataIntegrityViolationException duplicateEx) {
             log.warn("Duplicate telemetry event {} detected during DB persist; restoring Ignite state and skipping",
                     reading.eventId());

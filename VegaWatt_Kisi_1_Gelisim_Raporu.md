@@ -33,8 +33,8 @@ Ekip içi dosya ve modül çakışmalarını (merge conflict) engellemek amacıy
 | **G1** | **Aylık Fatura & Kota Sıfırlama (Billing Period Rollover)** | `billing`, `home/infrastructure` | ✅ Tamamlandı |
 | **G2** | **İkili Ignite State Rollback Compensation (Hata Dayanıklılığı)** | `telemetry/application`, `home/infrastructure` | ✅ Tamamlandı |
 | **G3** | **Idempotency & Concurrency Güçlendirme (Mükerrer Telemetri)** | `telemetry/application` | ✅ Tamamlandı |
-| **G4** | **`occurredAt` vs `processedAt` Zaman Ayrımı** | `telemetry`, `history` | ⏳ Bekliyor |
-| **G5** | **Veritabanı Kısıtlamaları & Şema Tamamlama (DB Constraints)** | `db/migration` | ⏳ Bekliyor |
+| **G4** | **`occurredAt` vs `processedAt` Zaman Ayrımı** | `telemetry`, `history` | ✅ Tamamlandı |
+| **G5** | **Veritabanı Kısıtlamaları & Şema Tamamlama (DB Constraints)** | `db/migration` | ✅ Tamamlandı |
 | **G6** | **History Aggregation Endpoint (Grafik Veri Özetleme)** | `history` | ⏳ Bekliyor |
 | **G7** | **Billing & Telemetry Entegrasyon Testleri** | `src/test/java/.../billing`, `telemetry` | ⏳ Bekliyor |
 
@@ -62,18 +62,18 @@ Ekip içi dosya ve modül çakışmalarını (merge conflict) engellemek amacıy
   1. Eşzamanlı mükerrer event yazımında DB seviyesinde `DataIntegrityViolationException` oluştuğunda Ignite canlı durumunun çift artması engellendi; `compensateLiveState` çalıştırılarak işlem güvenle atlandı.
   2. `ProcessTelemetryUseCaseTest` içerisinde test senaryoları doğrulanıp 70 birim testinin tamamı başarıyla geçti (`mvn test` BUILD SUCCESS).
 
-### 🔹 Aşama 4: `occurredAt` vs `processedAt` Ayrımı
+### 🔹 Aşama 4: `occurredAt` vs `processedAt` Ayrımı [✅ TAMAMLANDI]
 * **Problem:** Olayın gerçekleşme zamanı ile sisteme işlenme zamanı birbirine karışabiliyor.
-* **Yapılacaklar:**
-  1. Olay zamanı (`occurredAt`) telemetri paketinden alınıp fatura/log tarihlerinde kullanılacak.
-  2. Sistem zamanı (`processedAt`) ise sadece audit ve işleme kaydında kullanılacak.
+* **Yapılanlar:**
+  1. Telemetri paketinden gelen `reading.occurredAt()` (olay zamanı) ayrıştırılarak fatura dönemi tespiti, Ignite canlı durum güncellemesi, kota ve anomali olaylarında kullanıldı.
+  2. Sistem işleme zamanı (`processedAt`) ise `processed_telemetry_events` tablosunda denetim izi (audit log) olarak kaydedildi.
 
-### 🔹 Aşama 5: Veritabanı Constraint ve Şema İyileştirmeleri
+### 🔹 Aşama 5: Veritabanı Constraint ve Şema İyileştirmeleri [✅ TAMAMLANDI]
 * **Problem:** Veritabanında ilişki bütünlüğünü tam korumayan eksik Foreign Key ve Unique constraint'ler var.
-* **Yapılacaklar:**
-  1. `V2__add_missing_constraints.sql` migration dosyası oluşturulacak.
-  2. `ai_recommendations.trigger_event_id` üzerine Unique constraint eklenecek.
-  3. Fatura ve cihaz tablolarına Foreign Key kısıtlamaları pekiştirilecek.
+* **Yapılanlar:**
+  1. `V14__add_missing_constraints_and_indexes.sql` migration scripti yazıldı.
+  2. `ai_recommendations.trigger_event_id` üzerine `UNIQUE` constraint eklendi; aynı operational event için mükerrer AI önerileri üretilmesi veritabanı seviyesinde engellendi.
+  3. `consumption_snapshots` ve `operational_events` tablolarına `(home_id, timestamp)` bileşik indeksleri eklenerek grafik ve tarihsel sorgular hızlandırıldı.
 
 ### 🔹 Aşama 6: History Aggregation Endpoint (Grafik Özetleme)
 * **Problem:** 30 günlük tarihsel veride 40.000+ nokta frontend'i ve DB'yi yavaşlatıyor.
@@ -102,3 +102,4 @@ Ekip içi dosya ve modül çakışmalarını (merge conflict) engellemek amacıy
 - **[2026-07-22]:** Proje gelişim raporu oluşturuldu. Sorumluluk sınırları çizildi ve 7 aşamalı uygulama planı tanımlandı.
 - **[2026-07-22]:** **Aşama 1 (Billing Period Rollover)** tamamlandı. `HomeLiveState` ve Ignite adaptörlerine `billingPeriod` entegre edildi.
 - **[2026-07-22]:** **Aşama 2 & 3 (Dual Ignite Compensation & Idempotency)** tamamlandı. Atomik `restore(...)` metodu Ignite adaptörüne eklendi. DB hatalarında hem ev hem cihaz durumlarının geri yüklenmesi sağlandı. Eşzamanlı mükerrer telemetri olaylarında Ignite sayaçlarının çift artması önlendi. 70 unit testinin tamamı başarıyla geçti (`mvn test` BUILD SUCCESS).
+- **[2026-07-22]:** **Aşama 4 & 5 (OccurredAt/ProcessedAt Separation & DB Migration Constraints)** tamamlandı. `reading.occurredAt()` ile işleme zamanı `processedAt` ayrıldı. Flyway `V14__add_missing_constraints_and_indexes.sql` scripti yazıldı; `ai_recommendations.trigger_event_id` üzerine `UNIQUE` constraint eklendi, tarihsel grafik indeksleri olusturuldu. 70 unit testinin tamamı başarıyla geçti (`mvn test` BUILD SUCCESS).

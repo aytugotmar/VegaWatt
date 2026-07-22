@@ -150,7 +150,7 @@ class ProcessTelemetryUseCaseTest {
     void persistsBillingAfterLiveStateUpdate() {
         useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
 
-        verify(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), anyInt());
+        verify(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), anyInt());
     }
 
     @Test
@@ -180,7 +180,7 @@ class ProcessTelemetryUseCaseTest {
     @Test
     void compensatesBothHomeAndApplianceStateWhenPersistFails() {
         doThrow(new RuntimeException("postgres unavailable"))
-                .when(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), anyInt());
+                .when(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), anyInt());
 
         assertThatThrownBy(() -> useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000"))))
                 .isInstanceOf(RuntimeException.class);
@@ -191,7 +191,7 @@ class ProcessTelemetryUseCaseTest {
     @Test
     void handlesConcurrentDuplicateEventGracefully() {
         doThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate key value violates unique constraint"))
-                .when(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), anyInt());
+                .when(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), anyInt());
 
         // Should not throw, but restore Ignite state and skip duplicate gracefully
         useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
