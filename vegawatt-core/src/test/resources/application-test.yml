@@ -1,15 +1,18 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/vegawatt_test
-    username: postgres
-    password: postgres
+    url: jdbc:postgresql://localhost:5432/vegawatt
+    username: vegawatt
+    password: vegawatt
+    driver-class-name: org.postgresql.Driver
     hikari:
-      connection-timeout: 120000
-      idle-timeout: 900000
-      maximum-pool-size: 15
+      connection-timeout: 180000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      maximum-pool-size: 10
   jpa:
     hibernate:
       ddl-auto: validate
+    open-in-view: false
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
