@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/vegawatt
+    username: vegawatt
+    password: vegawatt
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 180000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      maximum-pool-size: 10
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: test-group
+      auto-offset-reset: earliest
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+logging:
+  level:
+    com.zaxxer.hikari: DEBUG
+    org.postgresql: INFO
