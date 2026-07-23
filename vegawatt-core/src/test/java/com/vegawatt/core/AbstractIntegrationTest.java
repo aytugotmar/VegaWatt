@@ -5,10 +5,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.redpanda.RedpandaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /**
@@ -25,13 +25,16 @@ abstract class AbstractIntegrationTest {
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
 
-    // Redpanda speaks the Kafka protocol and ships a native arm64 image, so it is up in a couple of
-    // seconds where the emulated Confluent image takes most of a minute on this hardware. The relay
-    // under test uses only the standard producer API, which Redpanda serves faithfully, so this buys
-    // speed without changing what is verified. Swap in a Kafka image here if that ever stops holding.
+    // I first reached for Redpanda here because its arm64 image starts fast on this machine, but the
+    // whole class skips on this machine (its Docker is too new for the Testcontainers probe), so that
+    // only ever mattered on CI, where the runner is amd64 anyway. On the runner Redpanda's advertised
+    // listener did not line up with the mapped port and every Kafka client failed to connect, so I
+    // moved to the Confluent image, whose Testcontainers listener wiring is the most exercised one in
+    // the Spring ecosystem. The relay uses only the standard producer API, so the broker is
+    // interchangeable as far as this test is concerned.
     @Container
-    static final RedpandaContainer KAFKA =
-            new RedpandaContainer(DockerImageName.parse("redpandadata/redpanda:v24.1.2"));
+    static final KafkaContainer KAFKA =
+            new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1"));
 
     // I mock the Ignite thin client rather than stand up a node. The live-state path it drives was
     // verified end to end against the real stack, and what these tests add is context wiring and the
