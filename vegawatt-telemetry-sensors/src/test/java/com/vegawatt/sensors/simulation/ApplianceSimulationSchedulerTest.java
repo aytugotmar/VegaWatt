@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -48,7 +49,7 @@ class ApplianceSimulationSchedulerTest {
 
     private ApplianceSimulationScheduler scheduler() {
         return new ApplianceSimulationScheduler(taskScheduler, homeRegistry, randomSource, telemetryEventPublisher,
-                behaviorModelRegistry, runtimeStateStore, new SimulationProperties(5, 0.0));
+                behaviorModelRegistry, runtimeStateStore, new SimulationProperties(5, 0.0, 1800, 1800));
     }
 
     @Test
@@ -68,7 +69,6 @@ class ApplianceSimulationSchedulerTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void usesRegisteredBehaviorModelWhenAvailable() {
         UUID applianceId = UUID.randomUUID();
         UUID homeId = UUID.randomUUID();
@@ -77,7 +77,7 @@ class ApplianceSimulationSchedulerTest {
         when(homeRegistry.find(applianceId)).thenReturn(Optional.of(config));
 
         ApplianceRuntimeState fixedState = new ApplianceRuntimeState(ApplianceOperatingState.ACTIVE, "NORMAL",
-                Instant.now(), null, null, null, null, Instant.now(), null);
+                Instant.now(), null, null, null, null, Instant.now(), null, null, null);
         ApplianceBehaviorModel model = mock(ApplianceBehaviorModel.class);
         when(model.generate(eq(config), any(), any(), any(), eq(randomSource)))
                 .thenReturn(new ApplianceBehaviorModel.GeneratedReading(new BigDecimal("12345.00"), fixedState));
@@ -97,7 +97,6 @@ class ApplianceSimulationSchedulerTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void fallsBackToLegacyGeneratorWhenNoBehaviorModelIsRegistered() {
         UUID applianceId = UUID.randomUUID();
         UUID homeId = UUID.randomUUID();
@@ -118,5 +117,32 @@ class ApplianceSimulationSchedulerTest {
                 eq(null), eq(5));
         verify(runtimeStateStore, never()).put(any(), any());
         verify(runtimeStateStore, never()).get(any());
+    }
+
+    @Test
+    void reportsTheConfiguredIntervalOnlyOnTheFirstTickThenFloorsSubsequentGapsAtOneSecond() {
+        UUID applianceId = UUID.randomUUID();
+        UUID homeId = UUID.randomUUID();
+        ApplianceConfig config = new ApplianceConfig(applianceId, homeId, "REFRIGERATOR", new BigDecimal("220"),
+                new BigDecimal("80"), new BigDecimal("180"), null, null, null, null);
+        when(homeRegistry.find(applianceId)).thenReturn(Optional.of(config));
+        when(behaviorModelRegistry.forConfig(config)).thenReturn(Optional.empty());
+        when(randomSource.nextDouble()).thenReturn(0.5);
+
+        ArgumentCaptor<Runnable> runnableCaptor = ArgumentCaptor.forClass(Runnable.class);
+        doReturn(mock(ScheduledFuture.class)).when(taskScheduler)
+                .scheduleWithFixedDelay(runnableCaptor.capture(), any(Duration.class));
+
+        scheduler().ensureScheduled(applianceId);
+        // Two ticks back to back (no real 5s wait) — the second must report the real ~0s gap,
+        // floored to 1, not silently re-report the configured 5s interval.
+        runnableCaptor.getValue().run();
+        runnableCaptor.getValue().run();
+
+        ArgumentCaptor<Integer> elapsedCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(telemetryEventPublisher, times(2)).publish(eq(homeId), eq(applianceId),
+                any(BigDecimal.class), eq(null), eq(null), elapsedCaptor.capture());
+
+        assertThat(elapsedCaptor.getAllValues()).containsExactly(5, 1);
     }
 }

@@ -5,6 +5,7 @@ import com.vegawatt.sensors.registration.ApplianceConfig;
 import com.vegawatt.sensors.registration.HomeRegistry;
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Map;
@@ -26,6 +27,11 @@ public class ApplianceSimulationScheduler {
     private static final ZoneId SIMULATION_ZONE = ZoneId.of("Europe/Istanbul");
 
     private final Map<UUID, ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>();
+    /** Wall-clock time of each appliance's previous published measurement, independent of whether
+     * it has a native {@link ApplianceRuntimeState} — used to report the real elapsed interval to
+     * Kafka instead of the configured one, since scheduler load/GC pauses can push a tick out past
+     * its nominal delay. */
+    private final Map<UUID, Instant> lastMeasurementAt = new ConcurrentHashMap<>();
 
     private final TaskScheduler taskScheduler;
     private final HomeRegistry homeRegistry;
@@ -59,9 +65,21 @@ public class ApplianceSimulationScheduler {
             ZonedDateTime now = ZonedDateTime.now(SIMULATION_ZONE);
             GeneratedTelemetry telemetry = generateTelemetry(applianceId, config, now);
             String operatingState = telemetry.operatingState() == null ? null : telemetry.operatingState().name();
+            int elapsedSeconds = elapsedSecondsSincePreviousMeasurement(applianceId, now.toInstant());
             telemetryEventPublisher.publish(config.homeId(), applianceId, telemetry.powerWatt(), operatingState,
-                    telemetry.operatingMode(), (int) interval.toSeconds());
+                    telemetry.operatingMode(), elapsedSeconds);
         });
+    }
+
+    /** First measurement for an appliance reports the configured interval (no prior tick to
+     * measure from); every later one reports the real gap, floored at 1 second so a clock
+     * anomaly or near-zero gap never publishes a zero-or-negative interval. */
+    private int elapsedSecondsSincePreviousMeasurement(UUID applianceId, Instant now) {
+        Instant previous = lastMeasurementAt.put(applianceId, now);
+        if (previous == null) {
+            return (int) interval.toSeconds();
+        }
+        return (int) Math.max(1, Duration.between(previous, now).toSeconds());
     }
 
     /** Dispatches to a stateful {@link ApplianceBehaviorModel} when one is registered for the

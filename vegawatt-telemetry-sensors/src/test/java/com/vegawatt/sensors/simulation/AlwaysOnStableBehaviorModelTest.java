@@ -27,7 +27,7 @@ class AlwaysOnStableBehaviorModelTest {
 
     @Test
     void powerStaysWithinTheSimulationRangeAndStateIsAlwaysActive() {
-        AlwaysOnStableBehaviorModel model = new AlwaysOnStableBehaviorModel(new SimulationProperties(5, 0.0));
+        AlwaysOnStableBehaviorModel model = new AlwaysOnStableBehaviorModel(new SimulationProperties(5, 0.0, 1800, 1800));
         ApplianceConfig config = routerConfig();
 
         var reading = model.generate(config, null, NOON, Duration.ofSeconds(5), MID_RANGE);
@@ -39,7 +39,7 @@ class AlwaysOnStableBehaviorModelTest {
 
     @Test
     void preservesStateStartedAtAcrossTicks() {
-        AlwaysOnStableBehaviorModel model = new AlwaysOnStableBehaviorModel(new SimulationProperties(5, 0.0));
+        AlwaysOnStableBehaviorModel model = new AlwaysOnStableBehaviorModel(new SimulationProperties(5, 0.0, 1800, 1800));
         ApplianceConfig config = routerConfig();
 
         var first = model.generate(config, null, NOON, Duration.ofSeconds(5), MID_RANGE);
@@ -51,7 +51,7 @@ class AlwaysOnStableBehaviorModelTest {
 
     @Test
     void forcedFaultProducesPowerAboveTheSafeLimit() {
-        AlwaysOnStableBehaviorModel model = new AlwaysOnStableBehaviorModel(new SimulationProperties(5, 1.0));
+        AlwaysOnStableBehaviorModel model = new AlwaysOnStableBehaviorModel(new SimulationProperties(5, 1.0, 1800, 1800));
         ApplianceConfig config = routerConfig();
 
         var reading = model.generate(config, null, NOON, Duration.ofSeconds(5), sequenceOf(0.0, 0.5, 0.5));
@@ -63,7 +63,7 @@ class AlwaysOnStableBehaviorModelTest {
 
     @Test
     void faultContinuesUnchangedWhileStillWithinItsWindow() {
-        AlwaysOnStableBehaviorModel model = new AlwaysOnStableBehaviorModel(new SimulationProperties(5, 1.0));
+        AlwaysOnStableBehaviorModel model = new AlwaysOnStableBehaviorModel(new SimulationProperties(5, 1.0, 1800, 1800));
         ApplianceConfig config = routerConfig();
 
         var first = model.generate(config, null, NOON, Duration.ofSeconds(5), sequenceOf(0.0, 0.5, 0.5));
@@ -77,8 +77,8 @@ class AlwaysOnStableBehaviorModelTest {
 
     @Test
     void faultClearsAndPowerReturnsToNormalAfterItExpires() {
-        AlwaysOnStableBehaviorModel faultingModel = new AlwaysOnStableBehaviorModel(new SimulationProperties(5, 1.0));
-        AlwaysOnStableBehaviorModel normalModel = new AlwaysOnStableBehaviorModel(new SimulationProperties(5, 0.0));
+        AlwaysOnStableBehaviorModel faultingModel = new AlwaysOnStableBehaviorModel(new SimulationProperties(5, 1.0, 1800, 1800));
+        AlwaysOnStableBehaviorModel normalModel = new AlwaysOnStableBehaviorModel(new SimulationProperties(5, 0.0, 1800, 1800));
         ApplianceConfig config = routerConfig();
 
         var first = faultingModel.generate(config, null, NOON, Duration.ofSeconds(5), sequenceOf(0.0, 0.5, 0.5));
@@ -87,5 +87,53 @@ class AlwaysOnStableBehaviorModelTest {
 
         assertThat(second.nextState().activeFaultCode()).isNull();
         assertThat(second.powerWatt()).isBetween(config.simulationMinWatt(), config.simulationMaxWatt());
+    }
+
+    @Test
+    void doesNotEvaluateANewFaultBeforeTheNextScheduledEvaluation() {
+        // A short evaluation interval (10s) so the second tick, 5s later, is still inside it.
+        AlwaysOnStableBehaviorModel model = new AlwaysOnStableBehaviorModel(new SimulationProperties(5, 0.5, 10, 1800));
+        ApplianceConfig config = routerConfig();
+
+        // First-ever tick is always evaluated; roll a losing dice (0.9 >= 0.5) so it schedules the
+        // next evaluation for NOON+10s without starting a fault.
+        var first = model.generate(config, null, NOON, Duration.ofSeconds(5), sequenceOf(0.9, 0.5));
+        assertThat(first.nextState().activeFaultCode()).isNull();
+
+        // Only 5s later — still inside the 10s evaluation window. A winning dice (0.0 < 0.5) is
+        // supplied on purpose: if the window were ignored, this would incorrectly start a fault.
+        var second = model.generate(config, first.nextState(), NOON.plusSeconds(5), Duration.ofSeconds(5),
+                sequenceOf(0.0, 0.5, 0.5));
+
+        assertThat(second.nextState().activeFaultCode()).isNull();
+    }
+
+    @Test
+    void startsEvaluatingAgainOnceTheEvaluationIntervalHasPassed() {
+        AlwaysOnStableBehaviorModel model = new AlwaysOnStableBehaviorModel(new SimulationProperties(5, 0.5, 10, 1800));
+        ApplianceConfig config = routerConfig();
+
+        var first = model.generate(config, null, NOON, Duration.ofSeconds(5), sequenceOf(0.9, 0.5));
+        var second = model.generate(config, first.nextState(), NOON.plusSeconds(11), Duration.ofSeconds(5),
+                sequenceOf(0.0, 0.5, 0.5));
+
+        assertThat(second.nextState().activeFaultCode()).isEqualTo("POWER_SPIKE_MALFUNCTION");
+    }
+
+    @Test
+    void cooldownBlocksANewFaultImmediatelyAfterOneEnds() {
+        AlwaysOnStableBehaviorModel faultingModel = new AlwaysOnStableBehaviorModel(
+                new SimulationProperties(5, 1.0, 1800, 1800));
+        AlwaysOnStableBehaviorModel model = new AlwaysOnStableBehaviorModel(new SimulationProperties(5, 1.0, 1800, 1800));
+        ApplianceConfig config = routerConfig();
+
+        var first = faultingModel.generate(config, null, NOON, Duration.ofSeconds(5), sequenceOf(0.0, 0.5, 0.5));
+        // First fault lasts at most 60s; well past that, so it has just ended this tick.
+        var second = model.generate(config, first.nextState(), NOON.plusSeconds(90), Duration.ofSeconds(5),
+                sequenceOf(0.0, 0.5, 0.5));
+
+        assertThat(second.nextState().activeFaultCode())
+                .as("faultProbability=1.0 would restart a fault immediately if cooldown weren't enforced")
+                .isNull();
     }
 }

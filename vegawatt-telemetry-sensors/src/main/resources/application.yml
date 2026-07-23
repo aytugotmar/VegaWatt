@@ -23,4 +23,6 @@ vegawatt:
     telemetry-topic: ${KAFKA_TELEMETRY_TOPIC:vegawatt.telemetry.v1}
   simulation:
     telemetry-interval-seconds: ${TELEMETRY_INTERVAL:5}
-    fault-probability: ${FAULT_PROBABILITY:0.002}
+    fault-probability: ${FAULT_PROBABILITY:0.005}
+    fault-evaluation-interval-seconds: ${FAULT_EVALUATION_INTERVAL_SECONDS:1800}
+    fault-cooldown-seconds: ${FAULT_COOLDOWN_SECONDS:1800}

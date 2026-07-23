@@ -17,5 +17,13 @@ public record ApplianceRuntimeState(
         Instant faultStartedAt,
         Instant faultExpectedEndAt,
         Instant previousMeasurementAt,
-        String sessionId) {
+        String sessionId,
+        /** Next time an every-tick-unbound fault model (currently only
+         * {@code AlwaysOnStableBehaviorModel}) is allowed to roll the dice on starting a new
+         * fault. {@code null} means "not using time-windowed evaluation" (e.g. models that gate
+         * fault rolls on their own state-window boundaries instead). */
+        Instant nextFaultEvaluationAt,
+        /** While non-null and in the future, a fault that just ended blocks a new one from
+         * starting, even if {@link #nextFaultEvaluationAt} says an evaluation is due. */
+        Instant faultCooldownUntil) {
 }

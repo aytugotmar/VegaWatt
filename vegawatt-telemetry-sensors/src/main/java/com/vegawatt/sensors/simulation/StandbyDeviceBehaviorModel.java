@@ -67,7 +67,7 @@ class StandbyDeviceBehaviorModel implements ApplianceBehaviorModel {
 
         ApplianceRuntimeState nextState = new ApplianceRuntimeState(state.operatingState(), state.operatingMode(),
                 state.stateStartedAt(), state.expectedStateEndAt(), state.activeFaultCode(), state.faultStartedAt(),
-                state.faultExpectedEndAt(), now, state.sessionId());
+                state.faultExpectedEndAt(), now, state.sessionId(), null, null);
 
         return new GeneratedReading(powerWatt, nextState);
     }
@@ -89,7 +89,7 @@ class StandbyDeviceBehaviorModel implements ApplianceBehaviorModel {
         ApplianceOperatingState operatingState = active ? ApplianceOperatingState.ACTIVE
                 : ApplianceOperatingState.STANDBY;
         String mode = active ? "IN_USE" : "STANDBY";
-        return new ApplianceRuntimeState(operatingState, mode, now, windowEnd, null, null, null, now, null);
+        return new ApplianceRuntimeState(operatingState, mode, now, windowEnd, null, null, null, now, null, null, null);
     }
 
     /** Reuses the existing per-type diurnal demand curve ({@link ApplianceProfiles}) as a rough
@@ -144,7 +144,7 @@ class StandbyDeviceBehaviorModel implements ApplianceBehaviorModel {
                                                     Instant faultStartedAt, Instant faultExpectedEndAt) {
         return new ApplianceRuntimeState(state.operatingState(), state.operatingMode(), state.stateStartedAt(),
                 state.expectedStateEndAt(), faultCode, faultStartedAt, faultExpectedEndAt,
-                state.previousMeasurementAt(), state.sessionId());
+                state.previousMeasurementAt(), state.sessionId(), null, null);
     }
 
     private static ApplianceRuntimeState clearFault(ApplianceRuntimeState state) {
@@ -152,7 +152,8 @@ class StandbyDeviceBehaviorModel implements ApplianceBehaviorModel {
             return state;
         }
         return new ApplianceRuntimeState(state.operatingState(), state.operatingMode(), state.stateStartedAt(),
-                state.expectedStateEndAt(), null, null, null, state.previousMeasurementAt(), state.sessionId());
+                state.expectedStateEndAt(), null, null, null, state.previousMeasurementAt(), state.sessionId(), null,
+                null);
     }
 
     private static BigDecimal standbyMinWatt(ApplianceConfig config) {

@@ -10,7 +10,7 @@ class ApplianceRuntimeStateStoreTest {
 
     private static ApplianceRuntimeState state(ApplianceOperatingState operatingState) {
         Instant now = Instant.now();
-        return new ApplianceRuntimeState(operatingState, "NORMAL", now, null, null, null, null, now, null);
+        return new ApplianceRuntimeState(operatingState, "NORMAL", now, null, null, null, null, now, null, null, null);
     }
 
     @Test

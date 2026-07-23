@@ -33,11 +33,11 @@ class StandbyDeviceBehaviorModelTest {
     }
 
     private static StandbyDeviceBehaviorModel noFaultModel() {
-        return new StandbyDeviceBehaviorModel(new SimulationProperties(5, 0.0));
+        return new StandbyDeviceBehaviorModel(new SimulationProperties(5, 0.0, 1800, 1800));
     }
 
     private static StandbyDeviceBehaviorModel alwaysFaultModel() {
-        return new StandbyDeviceBehaviorModel(new SimulationProperties(5, 1.0));
+        return new StandbyDeviceBehaviorModel(new SimulationProperties(5, 1.0, 1800, 1800));
     }
 
     @Test

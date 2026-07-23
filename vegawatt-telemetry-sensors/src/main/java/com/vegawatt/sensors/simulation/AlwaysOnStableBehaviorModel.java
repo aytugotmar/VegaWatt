@@ -38,7 +38,27 @@ class AlwaysOnStableBehaviorModel implements ApplianceBehaviorModel {
         Instant now = measuredAt.toInstant();
         boolean faultOngoing = previousState != null && previousState.activeFaultCode() != null
                 && now.isBefore(previousState.faultExpectedEndAt());
-        boolean faultStarting = !faultOngoing && random.nextDouble() < properties.faultProbability();
+        // A fault that was active last tick but whose window has now elapsed just ended — start
+        // its cooldown from this tick, so the very next evaluation can't immediately re-trigger.
+        boolean faultJustEnded = !faultOngoing && previousState != null && previousState.activeFaultCode() != null;
+
+        Instant cooldownUntil = faultJustEnded
+                ? now.plusSeconds(properties.faultCooldownSeconds())
+                : previousState == null ? null : previousState.faultCooldownUntil();
+        boolean cooldownActive = cooldownUntil != null && now.isBefore(cooldownUntil);
+
+        Instant scheduledEvaluationAt = previousState == null ? null : previousState.nextFaultEvaluationAt();
+        boolean evaluationDue = scheduledEvaluationAt == null || !now.isBefore(scheduledEvaluationAt);
+
+        boolean faultStarting = !faultOngoing && !cooldownActive && evaluationDue
+                && random.nextDouble() < properties.faultProbability();
+
+        // Only advance the evaluation clock when an evaluation actually happens (dice rolled or
+        // skipped for cooldown) — a fault in progress keeps the schedule frozen so the next real
+        // evaluation lands `faultEvaluationIntervalSeconds` after the fault ends, not after it started.
+        Instant nextFaultEvaluationAt = faultOngoing
+                ? scheduledEvaluationAt
+                : evaluationDue ? now.plusSeconds(properties.faultEvaluationIntervalSeconds()) : scheduledEvaluationAt;
 
         BigDecimal powerWatt;
         String faultCode;
@@ -67,7 +87,8 @@ class AlwaysOnStableBehaviorModel implements ApplianceBehaviorModel {
 
         Instant stateStartedAt = previousState == null ? now : previousState.stateStartedAt();
         ApplianceRuntimeState nextState = new ApplianceRuntimeState(ApplianceOperatingState.ACTIVE, "NORMAL",
-                stateStartedAt, null, faultCode, faultStartedAt, faultExpectedEndAt, now, null);
+                stateStartedAt, null, faultCode, faultStartedAt, faultExpectedEndAt, now, null,
+                nextFaultEvaluationAt, cooldownUntil);
 
         return new GeneratedReading(powerWatt, nextState);
     }
