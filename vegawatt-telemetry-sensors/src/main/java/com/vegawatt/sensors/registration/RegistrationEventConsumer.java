@@ -2,16 +2,23 @@ package com.vegawatt.sensors.registration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vegawatt.sensors.simulation.ApplianceSimulationScheduler;
+import java.util.Map;
+import java.util.Set;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.listener.AbstractConsumerSeekAware;
 import org.springframework.stereotype.Component;
 
 @Component
-class RegistrationEventConsumer {
+class RegistrationEventConsumer extends AbstractConsumerSeekAware {
 
     private static final Logger log = LoggerFactory.getLogger(RegistrationEventConsumer.class);
+
+    /** v1: no catalog/behavior-profile/standby fields. v2: adds them, all nullable. */
+    private static final Set<Integer> SUPPORTED_EVENT_VERSIONS = Set.of(1, 2);
 
     private final HomeRegistry homeRegistry;
     private final ApplianceSimulationScheduler simulationScheduler;
@@ -22,6 +29,19 @@ class RegistrationEventConsumer {
         this.homeRegistry = homeRegistry;
         this.simulationScheduler = simulationScheduler;
         this.objectMapper = objectMapper;
+    }
+
+    // HomeRegistry is an in-memory projection of the registration log and nothing persists it.
+    // If I resumed from the committed offset after a restart, every home registered before that
+    // offset would be invisible, its appliances would never emit telemetry, and the container
+    // would still report healthy: the demo would look alive while sending nothing. So on every
+    // partition assignment I rewind to the start of the topic and rebuild the whole registry.
+    // upsert and ensureScheduled are both idempotent, so replaying the log costs only a few reads.
+    @Override
+    public void onPartitionsAssigned(Map<TopicPartition, Long> assignments, ConsumerSeekCallback callback) {
+        super.onPartitionsAssigned(assignments, callback);
+        assignments.keySet().forEach(partition ->
+                callback.seekToBeginning(partition.topic(), partition.partition()));
     }
 
     @KafkaListener(topics = "${vegawatt.kafka.registration-topic}", groupId = "vegawatt-sensors-registration")
@@ -35,10 +55,17 @@ class RegistrationEventConsumer {
             return;
         }
 
+        if (!SUPPORTED_EVENT_VERSIONS.contains(payload.eventVersion())) {
+            log.warn("Discarding asset registration event {} with unsupported eventVersion {} from partition {} offset {}",
+                    payload.eventId(), payload.eventVersion(), record.partition(), record.offset());
+            return;
+        }
+
         for (AssetRegistrationEventPayload.AppliancePayload appliance : payload.appliances()) {
             ApplianceConfig config = new ApplianceConfig(appliance.applianceId(), payload.home().homeId(),
                     appliance.type(), appliance.safePowerLimitWatt(), appliance.simulationMinWatt(),
-                    appliance.simulationMaxWatt());
+                    appliance.simulationMaxWatt(), appliance.catalogCode(), appliance.behaviorProfile(),
+                    appliance.standbyMinWatt(), appliance.standbyMaxWatt());
             homeRegistry.upsert(config);
             simulationScheduler.ensureScheduled(config.applianceId());
         }

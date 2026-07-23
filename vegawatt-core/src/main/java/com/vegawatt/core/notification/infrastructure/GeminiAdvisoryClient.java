@@ -29,8 +29,16 @@ class GeminiAdvisoryClient implements EnergyAdvisoryPort {
             "Enerji kullanımınız belirlenen sınıra yaklaştı veya ulaştı. Yüksek tüketimli cihazları "
                     + "kontrol ederek kullanımınızı azaltmanız önerilir.";
 
+    // I send the key as a header rather than as a ?key= query parameter. Query strings are
+    // recorded by access logs and by any proxy in between, and in this codebase there is a
+    // concrete path to disk: NotificationOrchestrator catches RuntimeException and logs the
+    // exception with its stack trace, so anything thrown out of URI.create would print the
+    // full URL, key included. With the key in a header that cannot happen regardless of
+    // which handler catches what.
     private static final String ENDPOINT_TEMPLATE =
-            "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s";
+            "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent";
+
+    private static final String API_KEY_HEADER = "x-goog-api-key";
 
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
@@ -76,12 +84,13 @@ class GeminiAdvisoryClient implements EnergyAdvisoryPort {
 
     private String callGemini(String apiKey, String prompt) throws IOException, InterruptedException {
         String requestBody = objectMapper.writeValueAsString(GeminiGenerateContentRequest.ofPrompt(prompt));
-        String url = ENDPOINT_TEMPLATE.formatted(properties.model(), apiKey);
+        String url = ENDPOINT_TEMPLATE.formatted(properties.model());
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .timeout(Duration.ofMillis(properties.readTimeoutMs()))
                 .header("Content-Type", "application/json")
+                .header(API_KEY_HEADER, apiKey)
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
 
@@ -129,6 +138,10 @@ class GeminiAdvisoryClient implements EnergyAdvisoryPort {
             case QUOTA_80 -> "enerji veya bütçe kotasının yüzde 80'ine ulaşıldı";
             case QUOTA_100 -> "enerji veya bütçe kotası aşıldı, ceza tarifesi devrede olabilir";
             case ANOMALY -> "bir cihazda üç ardışık ölçümde güvenli güç sınırı aşıldı";
+            case STANDBY_ANOMALY -> "bir cihaz bekleme modundayken beklenenden çok daha yüksek güç tüketiyor";
+            case TELEMETRY_STALE -> "bir cihazdan beklenenden uzun süredir veri gelmiyor, gecikme olabilir";
+            case TELEMETRY_OFFLINE -> "bir cihaz uzun süredir hiç veri göndermiyor, muhtemelen kapalı veya "
+                    + "bağlantısı kesilmiş";
         };
     }
 }
