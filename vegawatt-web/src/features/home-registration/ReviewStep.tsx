@@ -67,7 +67,9 @@ export function ReviewStep({
           {appliances.map((appliance, index) => (
             <li key={`${appliance.name}-${index}`} className="flex justify-between gap-2">
               <span>{appliance.name}</span>
-              <span className="text-text-muted">{appliance.safePowerLimitWatt} W limit</span>
+              <span className="text-text-muted">
+                {appliance.safePowerLimitWatt === null ? "Katalog varsayılanı" : `${appliance.safePowerLimitWatt} W limit`}
+              </span>
             </li>
           ))}
         </ul>
