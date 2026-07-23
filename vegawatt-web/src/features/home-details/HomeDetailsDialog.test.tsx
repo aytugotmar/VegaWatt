@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test/testUtils";
-import type { HomeLiveStatus, Recommendation } from "../../shared/types/home";
+import type { HomeLiveStatus, OperationalEvent, Recommendation } from "../../shared/types/home";
 import { HomeDetailsDialog } from "./HomeDetailsDialog";
 
 vi.mock("../../shared/api/homesApi", () => ({
@@ -10,10 +10,11 @@ vi.mock("../../shared/api/homesApi", () => ({
   fetchLiveHome: vi.fn(),
   fetchHomeHistory: vi.fn(),
   fetchHomeRecommendations: vi.fn(),
+  fetchHomeEvents: vi.fn(),
   registerHome: vi.fn(),
 }));
 
-import { fetchHomeHistory, fetchHomeRecommendations, fetchLiveHome } from "../../shared/api/homesApi";
+import { fetchHomeEvents, fetchHomeHistory, fetchHomeRecommendations, fetchLiveHome } from "../../shared/api/homesApi";
 
 const HOME: HomeLiveStatus = {
   homeId: "home-1",
@@ -59,6 +60,17 @@ const RECOMMENDATIONS: Recommendation[] = [
     fallbackUsed: false,
     emailStatus: "PENDING",
     createdAt: new Date().toISOString(),
+    triggerEventId: "event-1",
+  },
+];
+
+const EVENTS: OperationalEvent[] = [
+  {
+    id: "event-1",
+    applianceId: "app-1",
+    eventType: "ENERGY_QUOTA_80_REACHED",
+    eventTime: new Date().toISOString(),
+    details: "Enerji kotasının %80'ine ulaşıldı.",
   },
 ];
 
@@ -67,6 +79,16 @@ describe("HomeDetailsDialog", () => {
     vi.mocked(fetchLiveHome).mockReset().mockResolvedValue(HOME);
     vi.mocked(fetchHomeHistory).mockReset().mockResolvedValue([]);
     vi.mocked(fetchHomeRecommendations).mockReset().mockResolvedValue(RECOMMENDATIONS);
+    vi.mocked(fetchHomeEvents).mockReset().mockResolvedValue(EVENTS);
+  });
+
+  it("shows the energy flow visual on the overview tab, branching to the top appliances", async () => {
+    renderWithProviders(<HomeDetailsDialog homeId="home-1" onClose={vi.fn()} />);
+
+    expect(await screen.findByText("Enerji Akışı")).toBeInTheDocument();
+    expect(screen.getByText("ŞEBEKE")).toBeInTheDocument();
+    expect(screen.getByText("EV")).toBeInTheDocument();
+    expect(screen.getAllByText("Mutfak Buzdolabı").length).toBeGreaterThan(0);
   });
 
   it("renders appliances with an anomaly badge, breach indicator, and null-safe limit", async () => {
@@ -99,14 +121,45 @@ describe("HomeDetailsDialog", () => {
     expect(await screen.findByText("E-posta gönderiliyor")).toBeInTheDocument();
   });
 
-  it("shows an anomaly count badge on the devices tab and a recommendation count on the insights tab", async () => {
+  it("shows the linked event's historical detail under a recommendation, not today's live numbers", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<HomeDetailsDialog homeId="home-1" onClose={vi.fn()} />);
+
+    await user.click(await screen.findByRole("tab", { name: /Öneriler/ }));
+
+    expect(await screen.findByText(/Enerji kotasının %80'ine ulaşıldı\./)).toBeInTheDocument();
+  });
+
+  it("shows the event timeline on the events tab, and an empty state when there are none", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<HomeDetailsDialog homeId="home-1" onClose={vi.fn()} />);
+
+    await user.click(await screen.findByRole("tab", { name: /Olaylar/ }));
+
+    expect(await screen.findByText("Enerji kotası %80'e ulaştı")).toBeInTheDocument();
+    expect(screen.getByText("Mutfak Buzdolabı", { exact: false })).toBeInTheDocument();
+  });
+
+  it("shows an empty state on the events tab when there are no events", async () => {
+    vi.mocked(fetchHomeEvents).mockReset().mockResolvedValue([]);
+    const user = userEvent.setup();
+    renderWithProviders(<HomeDetailsDialog homeId="home-1" onClose={vi.fn()} />);
+
+    await user.click(await screen.findByRole("tab", { name: /Olaylar/ }));
+
+    expect(await screen.findByText("Henüz olay yok")).toBeInTheDocument();
+  });
+
+  it("shows an anomaly count badge on the devices tab, and recommendation/event counts on their tabs", async () => {
     renderWithProviders(<HomeDetailsDialog homeId="home-1" onClose={vi.fn()} />);
 
     const devicesTab = await screen.findByRole("tab", { name: /Cihazlar/ });
     const insightsTab = await screen.findByRole("tab", { name: /Öneriler/ });
+    const eventsTab = await screen.findByRole("tab", { name: /Olaylar/ });
 
     expect(devicesTab).toHaveTextContent("1");
     expect(insightsTab).toHaveTextContent("1");
+    expect(eventsTab).toHaveTextContent("1");
   });
 
   it("closes when Escape is pressed", async () => {

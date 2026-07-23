@@ -51,14 +51,24 @@ export interface Recommendation {
   fallbackUsed: boolean;
   emailStatus: EmailStatus;
   createdAt: string;
+  triggerEventId: string;
+}
+
+export interface OperationalEvent {
+  id: string;
+  applianceId: string | null;
+  eventType: string;
+  eventTime: string;
+  details: string;
 }
 
 export interface ApplianceRegistration {
   name: string;
   type: string;
-  safePowerLimitWatt: number;
-  simulationMinWatt: number;
-  simulationMaxWatt: number;
+  catalogItemId: string | null;
+  safePowerLimitWatt: number | null;
+  simulationMinWatt: number | null;
+  simulationMaxWatt: number | null;
 }
 
 export interface RegisterHomeRequest {
