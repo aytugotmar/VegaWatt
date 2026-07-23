@@ -1,6 +1,7 @@
 package com.vegawatt.core.telemetry.application;
 
 import com.vegawatt.core.anomaly.domain.AnomalyEvaluationResult;
+import com.vegawatt.core.anomaly.domain.StandbyAnomalyEvaluationResult;
 import com.vegawatt.core.billing.application.HomeUpdateOutcome;
 import com.vegawatt.core.billing.domain.BillingAccount;
 import com.vegawatt.core.billing.domain.BillingAccountRepository;
@@ -11,18 +12,20 @@ import com.vegawatt.core.common.events.OperationalEventRepository;
 import com.vegawatt.core.common.events.OperationalEventType;
 import com.vegawatt.core.common.time.BillingPeriodResolver;
 import com.vegawatt.core.home.domain.Appliance;
+import com.vegawatt.core.home.domain.ApplianceOperatingState;
 import com.vegawatt.core.home.domain.Home;
 import com.vegawatt.core.notification.domain.AdvisoryTriggerType;
 import com.vegawatt.core.notification.domain.NotificationJob;
 import com.vegawatt.core.notification.domain.NotificationJobRepository;
 import com.vegawatt.core.telemetry.domain.ProcessedTelemetryEventRepository;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-class TelemetryBillingRecorder {
+public class TelemetryBillingRecorder {
 
     private final BillingAccountRepository billingAccountRepository;
     private final OperationalEventRepository operationalEventRepository;
@@ -40,34 +43,60 @@ class TelemetryBillingRecorder {
     }
 
     @Transactional
-    void persist(UUID eventId, Home home, HomeUpdateOutcome homeOutcome, Appliance appliance,
-                 AnomalyEvaluationResult anomalyResult, Instant now, int anomalyBreachThreshold) {
-        processedTelemetryEventRepository.markProcessed(eventId, home.id(), appliance.id(), now);
+    public void persist(UUID eventId, Home home, HomeUpdateOutcome homeOutcome, Appliance appliance,
+                 AnomalyEvaluationResult anomalyResult, StandbyAnomalyEvaluationResult standbyResult,
+                 BigDecimal observedPowerWatt, ApplianceOperatingState operatingState, boolean transitionedToResumed,
+                 Instant occurredAt, Instant processedAt, int anomalyBreachThreshold) {
+        processedTelemetryEventRepository.markProcessed(eventId, home.id(), appliance.id(), processedAt);
 
-        String currentPeriod = BillingPeriodResolver.currentPeriod(now);
+        String currentPeriod = BillingPeriodResolver.currentPeriod(occurredAt);
         BillingAccount billingAccount = billingAccountRepository.findByHomeIdAndBillingPeriod(home.id(), currentPeriod)
-                .orElseGet(() -> BillingAccount.open(home.id(), currentPeriod, now));
+                .orElseGet(() -> BillingAccount.open(home.id(), currentPeriod, occurredAt));
 
-        billingAccount.applyTelemetry(homeOutcome.energyIncrementKwh(), Money.of(homeOutcome.costIncrement()), now);
+        billingAccount.applyTelemetry(homeOutcome.energyIncrementKwh(), Money.of(homeOutcome.costIncrement()),
+                occurredAt);
 
-        recordEnergyQuotaEvent(home, homeOutcome.energyTransition(), billingAccount, now);
-        recordBudgetQuotaEvent(home, homeOutcome.budgetTransition(), billingAccount, now);
+        recordEnergyQuotaEvent(home, homeOutcome.energyTransition(), billingAccount, occurredAt);
+        recordBudgetQuotaEvent(home, homeOutcome.budgetTransition(), billingAccount, occurredAt);
 
         if (homeOutcome.budgetTransition().crossed100() && !billingAccount.penaltyActive()) {
             billingAccount.activatePenalty();
             operationalEventRepository.save(OperationalEvent.create(home.id(), null,
-                    OperationalEventType.PENALTY_TARIFF_ACTIVATED, now, "penalty tariff activated"));
+                    OperationalEventType.PENALTY_TARIFF_ACTIVATED, occurredAt, "penalty tariff activated"));
         }
 
         if (anomalyResult.transitionedToAnomalous()) {
             OperationalEvent saved = operationalEventRepository.save(OperationalEvent.create(home.id(),
-                    appliance.id(), OperationalEventType.APPLIANCE_ANOMALY_DETECTED, now,
+                    appliance.id(), OperationalEventType.APPLIANCE_ANOMALY_DETECTED, occurredAt,
                     "appliance exceeded safe power limit for " + anomalyBreachThreshold + " consecutive readings"));
-            createNotificationJob(saved, home.id(), AdvisoryTriggerType.ANOMALY, now);
+            createNotificationJob(saved, home.id(), AdvisoryTriggerType.ANOMALY, occurredAt);
         }
         if (anomalyResult.transitionedToRecovered()) {
             operationalEventRepository.save(OperationalEvent.create(home.id(), appliance.id(),
-                    OperationalEventType.APPLIANCE_ANOMALY_RECOVERED, now, "appliance power draw back to normal"));
+                    OperationalEventType.APPLIANCE_ANOMALY_RECOVERED, occurredAt,
+                    "appliance power draw back to normal"));
+        }
+
+        if (standbyResult.transitionedToActive()) {
+            String details = ("standby power exceeded threshold: operatingState=%s, observedPowerWatt=%s, "
+                    + "expectedStandbyMaxWatt=%s, calculatedThresholdWatt=%s, consecutiveMeasurementCount=%d, "
+                    + "detectedAt=%s").formatted(operatingState, observedPowerWatt, appliance.standbyMaxWatt(),
+                    standbyResult.calculatedThresholdWatt(), standbyResult.standbyBreachCount(), occurredAt);
+            OperationalEvent saved = operationalEventRepository.save(OperationalEvent.create(home.id(),
+                    appliance.id(), OperationalEventType.APPLIANCE_STANDBY_ANOMALY_DETECTED, occurredAt, details));
+            createNotificationJob(saved, home.id(), AdvisoryTriggerType.STANDBY_ANOMALY, occurredAt);
+        }
+        if (standbyResult.transitionedToRecovered()) {
+            operationalEventRepository.save(OperationalEvent.create(home.id(), appliance.id(),
+                    OperationalEventType.APPLIANCE_STANDBY_ANOMALY_RECOVERED, occurredAt,
+                    "standby power draw back to normal after %d consecutive normal readings"
+                            .formatted(standbyResult.standbyRecoveryCount())));
+        }
+
+        if (transitionedToResumed) {
+            operationalEventRepository.save(OperationalEvent.create(home.id(), appliance.id(),
+                    OperationalEventType.APPLIANCE_TELEMETRY_RESUMED, occurredAt,
+                    "telemetry resumed after a period of staleness/offline silence"));
         }
 
         billingAccountRepository.save(billingAccount);

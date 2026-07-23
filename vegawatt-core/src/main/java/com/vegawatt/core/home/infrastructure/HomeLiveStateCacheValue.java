@@ -13,6 +13,7 @@ class HomeLiveStateCacheValue {
     private BigDecimal budgetQuotaPercentage;
     private TariffState tariffState;
     private boolean penaltyActive;
+    private String billingPeriod;
     private Instant lastUpdatedAt;
 
     HomeLiveStateCacheValue() {
@@ -20,7 +21,8 @@ class HomeLiveStateCacheValue {
 
     HomeLiveStateCacheValue(String homeName, BigDecimal currentEnergyKwh, BigDecimal currentCost,
                              BigDecimal energyQuotaPercentage, BigDecimal budgetQuotaPercentage,
-                             TariffState tariffState, boolean penaltyActive, Instant lastUpdatedAt) {
+                             TariffState tariffState, boolean penaltyActive, String billingPeriod,
+                             Instant lastUpdatedAt) {
         this.homeName = homeName;
         this.currentEnergyKwh = currentEnergyKwh;
         this.currentCost = currentCost;
@@ -28,6 +30,7 @@ class HomeLiveStateCacheValue {
         this.budgetQuotaPercentage = budgetQuotaPercentage;
         this.tariffState = tariffState;
         this.penaltyActive = penaltyActive;
+        this.billingPeriod = billingPeriod;
         this.lastUpdatedAt = lastUpdatedAt;
     }
 
@@ -57,6 +60,10 @@ class HomeLiveStateCacheValue {
 
     boolean isPenaltyActive() {
         return penaltyActive;
+    }
+
+    String getBillingPeriod() {
+        return billingPeriod;
     }
 
     Instant getLastUpdatedAt() {

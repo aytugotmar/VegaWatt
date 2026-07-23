@@ -11,4 +11,6 @@ public interface TelemetryLiveStatePort {
 
     TelemetryLiveStateUpdate update(UUID homeId, UUID applianceId, UnaryOperator<HomeLiveState> homeMutator,
                                      UnaryOperator<ApplianceLiveState> applianceMutator);
+
+    void restore(UUID homeId, UUID applianceId, HomeLiveState previousHome, ApplianceLiveState previousAppliance);
 }

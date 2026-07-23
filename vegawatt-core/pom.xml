@@ -22,6 +22,14 @@
         <springdoc.version>2.6.0</springdoc.version>
         <ignite.version>2.16.0</ignite.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <!-- Override Spring Boot's managed Testcontainers version: 1.19.8 hardcodes an old Docker
+             API default (1.32) that newer Docker Engine releases (29.x, API 1.44+) reject outright
+             instead of negotiating. 1.20.4+ pulls a newer docker-java, but 1.20.6 alone still isn't
+             enough on Docker Engine 29+ (confirmed independently: its probe still targets the
+             retired v1.32 API and the client-side DOCKER_API_VERSION override doesn't move it) —
+             1.21.4 is the first version whose probe actually negotiates. On Docker 24-28, both
+             versions work fine with no extra configuration. -->
+        <testcontainers.version>1.21.4</testcontainers.version>
         <!-- Apache Ignite 2.x reaches into JDK internals that are hidden by default on JDK 17
              module boundaries; these opens mirror what Ignite's own launch scripts add for JDK 11+. -->
         <ignite.jdk17.opens>--add-opens=java.base/jdk.internal.access=ALL-UNNAMED --add-opens=java.base/jdk.internal.misc=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.locks=ALL-UNNAMED --add-opens=java.base/java.math=ALL-UNNAMED --add-opens=java.base/java.text=ALL-UNNAMED --add-opens=java.base/java.time=ALL-UNNAMED --add-opens=java.sql/java.sql=ALL-UNNAMED --add-opens=java.management/sun.management=ALL-UNNAMED</ignite.jdk17.opens>
@@ -113,6 +121,25 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Integration tests boot the whole context against a real Postgres and a real Kafka
+             broker. Postgres has to be real because ddl-auto is validate and the schema is built
+             by the Flyway migrations, which H2 cannot run. Versions come from the Testcontainers
+             BOM that spring-boot-dependencies already imports. -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>redpanda</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -130,6 +157,27 @@
                 <configuration>
                     <argLine>${ignite.jdk17.opens}</argLine>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <argLine>${ignite.jdk17.opens}</argLine>
+                    <environmentVariables>
+                        <!-- docker-java's default ping targets an old Docker API version that
+                             newer Docker Engine releases reject outright instead of negotiating
+                             down; pin it explicitly to what this host's daemon supports. -->
+                        <DOCKER_API_VERSION>1.44</DOCKER_API_VERSION>
+                    </environmentVariables>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
