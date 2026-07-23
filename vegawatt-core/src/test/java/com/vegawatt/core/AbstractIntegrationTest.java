@@ -33,7 +33,7 @@ abstract class AbstractIntegrationTest {
             .withUsername("postgres")
             .withPassword("postgres")
             .withStartupAttempts(3)
-            .withReuse(true)
+            .withReuse(false)
             .waitingFor(Wait.forListeningPort());
 
     // Redpanda speaks the Kafka protocol and ships a native arm64 image, so it is up in a couple of
@@ -42,7 +42,8 @@ abstract class AbstractIntegrationTest {
     // speed without changing what is verified. Swap in a Kafka image here if that ever stops holding.
     @Container
     static final RedpandaContainer KAFKA =
-            new RedpandaContainer(DockerImageName.parse("redpandadata/redpanda:v24.1.2"));
+            new RedpandaContainer(DockerImageName.parse("redpandadata/redpanda:v24.1.2"))
+                    .withReuse(false);
 
     // I mock the Ignite thin client rather than stand up a node. The live-state path it drives was
     // verified end to end against the real stack, and what these tests add is context wiring and the
@@ -66,6 +67,7 @@ abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+        registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
         registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
         // application.yml gives this no default, so the context will not start without it. The value
         // only needs to be long enough for Keys.hmacShaKeyFor to pick an HMAC-SHA variant.
