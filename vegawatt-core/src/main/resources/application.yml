@@ -5,6 +5,8 @@ spring:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:vegawatt}
     username: ${POSTGRES_USER:vegawatt}
     password: ${POSTGRES_PASSWORD:change-me}
+    hikari:
+      connection-timeout: 60000
   jpa:
     hibernate:
       ddl-auto: validate

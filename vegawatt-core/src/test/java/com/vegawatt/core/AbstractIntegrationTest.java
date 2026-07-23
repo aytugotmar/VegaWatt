@@ -6,6 +6,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.redpanda.RedpandaContainer;
@@ -23,7 +24,8 @@ import org.testcontainers.utility.DockerImageName;
 abstract class AbstractIntegrationTest {
 
     @Container
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine")
+            .waitingFor(Wait.forLogMessage(".*database system is ready to accept connections.*\\s", 2));
 
     // Redpanda speaks the Kafka protocol and ships a native arm64 image, so it is up in a couple of
     // seconds where the emulated Confluent image takes most of a minute on this hardware. The relay
@@ -47,6 +49,7 @@ abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+        registry.add("spring.datasource.hikari.connection-timeout", () -> 60000);
         registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
         // application.yml gives this no default, so the context will not start without it. The value
         // only needs to be long enough for Keys.hmacShaKeyFor to pick an HMAC-SHA variant.
