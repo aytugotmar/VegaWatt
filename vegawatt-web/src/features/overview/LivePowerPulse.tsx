@@ -1,0 +1,81 @@
+import { useEffect, useRef, useState } from "react";
+import { Line, LineChart, ResponsiveContainer } from "recharts";
+import { formatPower } from "../../shared/utils/format";
+
+const POLL_INTERVAL_S = 2;
+const WINDOW_SECONDS = 5 * 60;
+const MAX_POINTS = WINDOW_SECONDS / POLL_INTERVAL_S;
+
+interface PowerPoint {
+  at: number;
+  powerWatt: number;
+}
+
+interface LivePowerPulseProps {
+  totalPowerWatt: number;
+  isLoading: boolean;
+}
+
+export function LivePowerPulse({ totalPowerWatt, isLoading }: LivePowerPulseProps) {
+  const [points, setPoints] = useState<PowerPoint[]>([]);
+  const [sessionPeak, setSessionPeak] = useState<number | null>(null);
+  const lastValueRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (lastValueRef.current === totalPowerWatt) return;
+    lastValueRef.current = totalPowerWatt;
+    setPoints((previous) => [...previous.slice(-(MAX_POINTS - 1)), { at: Date.now(), powerWatt: totalPowerWatt }]);
+    setSessionPeak((previous) => (previous === null ? totalPowerWatt : Math.max(previous, totalPowerWatt)));
+  }, [totalPowerWatt, isLoading]);
+
+  const oldestInWindow = points[0];
+  const changeVsWindowStart =
+    oldestInWindow && oldestInWindow.powerWatt > 0
+      ? ((totalPowerWatt - oldestInWindow.powerWatt) / oldestInWindow.powerWatt) * 100
+      : null;
+
+  return (
+    <div className="glow-card flex h-full flex-col gap-1 rounded-input border border-border bg-surface p-6 transition">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium uppercase tracking-wide text-text-muted">Canlı Güç</span>
+        <span className="flex items-center gap-1 text-xs font-medium text-success">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" aria-hidden="true" />
+          Canlı
+        </span>
+      </div>
+      <div className="flex flex-wrap items-baseline gap-3">
+        <p className="glow-text-primary text-5xl font-semibold tracking-tight tabular-nums text-text-primary">
+          {formatPower(totalPowerWatt)}
+        </p>
+        {changeVsWindowStart !== null && Math.abs(changeVsWindowStart) >= 1 && (
+          <span className={`text-sm font-medium ${changeVsWindowStart >= 0 ? "text-warning" : "text-success"}`}>
+            {changeVsWindowStart >= 0 ? "+" : ""}
+            {changeVsWindowStart.toFixed(1)}% son {Math.round(WINDOW_SECONDS / 60)} dakikada
+          </span>
+        )}
+      </div>
+      {sessionPeak !== null && (
+        <p className="text-xs text-text-muted">Bu oturumdaki tepe: {formatPower(sessionPeak)}</p>
+      )}
+      <div className="mt-3 h-32 flex-1">
+        {points.length >= 2 ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={points} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
+              <Line
+                type="monotone"
+                dataKey="powerWatt"
+                stroke="var(--color-primary)"
+                strokeWidth={2}
+                dot={false}
+                isAnimationActive={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-full items-center text-xs text-text-muted">Veri toplanıyor…</div>
+        )}
+      </div>
+    </div>
+  );
+}

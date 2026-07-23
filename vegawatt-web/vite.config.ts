@@ -8,6 +8,17 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ["react", "react-dom", "react-router-dom"],
+          query: ["@tanstack/react-query"],
+          charts: ["recharts"],
+        },
+      },
+    },
+  },
   test: {
     environment: "jsdom",
     globals: true,

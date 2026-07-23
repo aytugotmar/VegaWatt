@@ -1,8 +1,9 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { loginUser, logoutUser, registerUser, refreshSession, type AuthResponse } from "../../shared/api/authApi";
 import { setAccessToken } from "../../shared/auth/tokenProvider";
 
-interface CurrentUser {
+export interface CurrentUser {
   userId: string;
   email: string;
   role: "USER" | "ADMIN";
@@ -25,6 +26,7 @@ function toCurrentUser(session: AuthResponse): CurrentUser {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     refreshSession()
@@ -55,7 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await logoutUser();
     setAccessToken(null);
     setUser(null);
-  }, []);
+    queryClient.clear();
+  }, [queryClient]);
 
   const value = useMemo(
     () => ({ user, isInitializing, login, register, logout }),
