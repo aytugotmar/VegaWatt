@@ -1,5 +1,6 @@
 package com.vegawatt.core.notification.application;
 
+import com.vegawatt.core.notification.domain.AdvisoryEmailDispatchException;
 import com.vegawatt.core.notification.domain.AiRecommendation;
 import com.vegawatt.core.notification.domain.AiRecommendationRepository;
 import com.vegawatt.core.notification.domain.EmailDeliveryException;
@@ -15,6 +16,10 @@ public class DispatchAdvisoryEmailUseCase {
     private static final Logger log = LoggerFactory.getLogger(DispatchAdvisoryEmailUseCase.class);
     private static final String SUBJECT = "VegaWatt Enerji Tasarrufu Önerisi";
 
+    private static final String FALLBACK_NOTICE =
+            "Not: Bu ileti kişiye özel olarak oluşturulamadı. Öneri servisine ulaşılamadığı için "
+                    + "standart bilgilendirme metni gönderilmiştir.";
+
     private final EmailSenderPort emailSenderPort;
     private final AiRecommendationRepository aiRecommendationRepository;
 
@@ -24,13 +29,38 @@ public class DispatchAdvisoryEmailUseCase {
         this.aiRecommendationRepository = aiRecommendationRepository;
     }
 
+    /**
+     * Sends the advisory and records the outcome on the recommendation.
+     *
+     * <p>I record FAILED and then rethrow, rather than swallowing the failure. Swallowing it let
+     * the caller mark the notification job SENT while the recommendation said FAILED: two
+     * contradictory records of one operation, and the mail was never retried even though the
+     * retry machinery was sitting right there. Rethrowing puts a failed send back on the same
+     * path as every other failure.
+     */
     public void execute(AiRecommendation recommendation, String contactEmail) {
         try {
-            emailSenderPort.send(contactEmail, SUBJECT, recommendation.content());
+            emailSenderPort.send(contactEmail, SUBJECT, composeBody(recommendation));
             aiRecommendationRepository.save(recommendation.withEmailStatus(EmailStatus.SENT));
         } catch (EmailDeliveryException e) {
             log.error("Failed to send advisory email for home {}", recommendation.homeId(), e);
             aiRecommendationRepository.save(recommendation.withEmailStatus(EmailStatus.FAILED));
+            throw new AdvisoryEmailDispatchException(
+                    "Advisory email delivery failed for home " + recommendation.homeId(), e);
         }
+    }
+
+    /**
+     * I mark fallback advisories in the body because once the mail arrives the canned sentence is
+     * indistinguishable from a generated one. The reader assumes the system looked at their actual
+     * usage and acts on generic advice believing it is personal. We already store fallback_used,
+     * but nobody reading their inbox can see a database column, so the honesty has to travel with
+     * the message.
+     */
+    private static String composeBody(AiRecommendation recommendation) {
+        if (!recommendation.fallbackUsed()) {
+            return recommendation.content();
+        }
+        return recommendation.content() + "\n\n" + FALLBACK_NOTICE;
     }
 }

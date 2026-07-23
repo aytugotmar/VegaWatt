@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.vegawatt.core.history.domain.HistoryGranularity;
+
 @RestController
 @RequestMapping("/api/v1/homes/{homeId}/history")
 class HistoryController {
@@ -31,12 +33,26 @@ class HistoryController {
     List<ConsumptionHistoryPointResponse> history(
             @PathVariable UUID homeId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+            @RequestParam(required = false) String granularity) {
         Instant rangeEnd = to != null ? to : clockProvider.now();
         Instant rangeStart = from != null ? from : rangeEnd.minus(DEFAULT_RANGE_HOURS, ChronoUnit.HOURS);
 
-        return getHomeConsumptionHistoryQuery.execute(homeId, rangeStart, rangeEnd).stream()
+        HistoryGranularity requestedGranularity = parseGranularity(granularity);
+
+        return getHomeConsumptionHistoryQuery.execute(homeId, rangeStart, rangeEnd, requestedGranularity).stream()
                 .map(ConsumptionHistoryPointResponse::from)
                 .toList();
+    }
+
+    private static HistoryGranularity parseGranularity(String value) {
+        if (value == null || value.isBlank()) {
+            return HistoryGranularity.AUTO;
+        }
+        try {
+            return HistoryGranularity.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return HistoryGranularity.AUTO;
+        }
     }
 }

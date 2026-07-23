@@ -11,6 +11,7 @@ import com.vegawatt.core.home.domain.ApplianceLiveState;
 import com.vegawatt.core.home.domain.ApplianceNotFoundException;
 import com.vegawatt.core.home.domain.ApplianceRepository;
 import com.vegawatt.core.home.domain.Home;
+import com.vegawatt.core.home.domain.HomeLiveState;
 import com.vegawatt.core.home.domain.HomeLiveStatePort;
 import com.vegawatt.core.home.domain.HomeNotFoundException;
 import com.vegawatt.core.home.domain.HomeRepository;
@@ -21,6 +22,7 @@ import com.vegawatt.core.telemetry.domain.ProcessedTelemetryEventRepository;
 import com.vegawatt.core.telemetry.domain.TelemetryReading;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,7 +80,9 @@ public class ProcessTelemetryUseCase {
             return;
         }
 
-        Instant now = clockProvider.now();
+        Instant processedAt = clockProvider.now();
+        Instant occurredAt = reading.occurredAt() != null ? reading.occurredAt() : processedAt;
+
         BigDecimal energyIncrementKwh = EnergyCalculator.incrementKwh(reading.powerWatt(),
                 reading.measurementIntervalSeconds());
 
@@ -86,20 +90,24 @@ public class ProcessTelemetryUseCase {
         // IgniteTelemetryLiveStateAdapter) so a partial write is never observable; historical
         // logging in PostgreSQL follows and is explicitly guarded below so a logging failure is
         // never silent, and Ignite is compensated back to Postgres's truth if it fails.
+        AtomicReference<HomeLiveState> previousHomeRef = new AtomicReference<>();
+        AtomicReference<ApplianceLiveState> previousApplianceRef = new AtomicReference<>();
         AtomicReference<HomeUpdateOutcome> homeOutcomeRef = new AtomicReference<>();
         AtomicReference<AnomalyEvaluationResult> anomalyResultRef = new AtomicReference<>();
 
         telemetryLiveStatePort.update(home.id(), appliance.id(),
                 current -> {
+                    previousHomeRef.set(current);
                     HomeBillingEvaluation evaluation = evaluateHomeBillingUseCase.evaluate(home, current,
-                            energyIncrementKwh, now);
+                            energyIncrementKwh, occurredAt);
                     homeOutcomeRef.set(evaluation.outcome());
                     return evaluation.newState();
                 },
                 current -> {
+                    previousApplianceRef.set(current);
                     ApplianceLiveState existing = current != null ? current
                             : ApplianceLiveState.zero(reading.homeId(), reading.applianceId(), appliance.name(),
-                                    appliance.type(), appliance.safePowerLimitWatt(), now);
+                                    appliance.type(), appliance.safePowerLimitWatt(), occurredAt);
 
                     AnomalyEvaluationResult result = evaluateApplianceAnomalyUseCase.evaluate(
                             existing.consecutiveBreachCount(), existing.anomalous(), reading.powerWatt(),
@@ -109,36 +117,40 @@ public class ProcessTelemetryUseCase {
                     BigDecimal newAccumulatedEnergyKwh = existing.accumulatedEnergyKwh().add(energyIncrementKwh);
                     return new ApplianceLiveState(reading.homeId(), reading.applianceId(), existing.applianceName(),
                             existing.applianceType(), existing.safePowerLimitWatt(), reading.powerWatt(),
-                            newAccumulatedEnergyKwh, result.consecutiveBreachCount(), result.anomalous(), now);
+                            newAccumulatedEnergyKwh, result.consecutiveBreachCount(), result.anomalous(), occurredAt);
                 });
 
         HomeUpdateOutcome homeOutcome = homeOutcomeRef.get();
         AnomalyEvaluationResult anomalyResult = anomalyResultRef.get();
 
         try {
-            telemetryBillingRecorder.persist(reading.eventId(), home, homeOutcome, appliance, anomalyResult, now,
-                    evaluateApplianceAnomalyUseCase.breachThreshold());
+            telemetryBillingRecorder.persist(reading.eventId(), home, homeOutcome, appliance, anomalyResult,
+                    occurredAt, processedAt, evaluateApplianceAnomalyUseCase.breachThreshold());
+        } catch (org.springframework.dao.DataIntegrityViolationException duplicateEx) {
+            log.warn("Duplicate telemetry event {} detected during DB persist; restoring Ignite state and skipping",
+                    reading.eventId());
+            compensateLiveState(home.id(), appliance.id(), previousHomeRef.get(), previousApplianceRef.get());
         } catch (RuntimeException e) {
             log.error("Failed to persist billing/event log for telemetry event {} (home={}, appliance={}) after " +
-                            "Ignite update; compensating Ignite from the PostgreSQL ledger and rethrowing for " +
-                            "dead-letter routing", reading.eventId(), home.id(), appliance.id(), e);
-            compensateHomeState(home, now);
+                            "Ignite update; compensating both home and appliance Ignite states back to pre-event truth",
+                    reading.eventId(), home.id(), appliance.id(), e);
+            compensateLiveState(home.id(), appliance.id(), previousHomeRef.get(), previousApplianceRef.get());
             throw e;
         }
     }
 
     /**
-     * A failed PostgreSQL persist leaves Ignite's home state ahead of the permanent ledger (the
+     * A failed PostgreSQL persist leaves Ignite's live state ahead of the permanent ledger (the
      * energy/cost increment was already applied in Ignite but never durably recorded). Rebuilding
-     * the home's live state from PostgreSQL's last-committed billing account undoes that drift.
-     * Appliance anomaly state is not compensated: it is an ephemeral operational flag with no
-     * PostgreSQL source of truth, per the spec's volatile-state-isolation NFR.
+     * both the home's and appliance's live states back to their pre-event values in a single atomic
+     * Ignite transaction undoes that drift cleanly.
      */
-    private void compensateHomeState(Home home, Instant now) {
+    private void compensateLiveState(UUID homeId, UUID applianceId, HomeLiveState previousHome,
+                                     ApplianceLiveState previousAppliance) {
         try {
-            homeLiveStatePort.update(home.id(), current -> evaluateHomeBillingUseCase.recoverFromLedger(home, now));
+            telemetryLiveStatePort.restore(homeId, applianceId, previousHome, previousAppliance);
         } catch (RuntimeException compensationFailure) {
-            log.error("Failed to compensate Ignite home state for home {} after a persist failure", home.id(),
+            log.error("Failed to compensate Ignite live state for home {} and appliance {}", homeId, applianceId,
                     compensationFailure);
         }
     }

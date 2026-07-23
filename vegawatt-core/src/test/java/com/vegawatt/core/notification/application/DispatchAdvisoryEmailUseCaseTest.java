@@ -1,10 +1,12 @@
 package com.vegawatt.core.notification.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
+import com.vegawatt.core.notification.domain.AdvisoryEmailDispatchException;
 import com.vegawatt.core.notification.domain.AdvisoryTriggerType;
 import com.vegawatt.core.notification.domain.AiRecommendation;
 import com.vegawatt.core.notification.domain.AiRecommendationRepository;
@@ -29,7 +31,7 @@ class DispatchAdvisoryEmailUseCaseTest {
     private AiRecommendationRepository aiRecommendationRepository;
 
     @Test
-    void marksRecommendationFailedButKeepsItWhenSmtpFails() {
+    void marksRecommendationFailedAndRethrowsWhenSmtpFails() {
         AiRecommendation recommendation = AiRecommendation.create(UUID.randomUUID(), AdvisoryTriggerType.QUOTA_80,
                 "Tasarruf öneriniz", false, Instant.parse("2026-07-20T10:00:00Z"), UUID.randomUUID());
         doThrow(new EmailDeliveryException("smtp down", new RuntimeException()))
@@ -37,7 +39,12 @@ class DispatchAdvisoryEmailUseCaseTest {
 
         DispatchAdvisoryEmailUseCase useCase = new DispatchAdvisoryEmailUseCase(emailSenderPort,
                 aiRecommendationRepository);
-        useCase.execute(recommendation, "home@example.com");
+
+        // The rethrow is the point. Before this, the failure was swallowed here and the caller
+        // went on to mark the notification job SENT, so the recommendation said FAILED and the
+        // job said SENT for one operation and no retry ever happened.
+        assertThatThrownBy(() -> useCase.execute(recommendation, "home@example.com"))
+                .isInstanceOf(AdvisoryEmailDispatchException.class);
 
         ArgumentCaptor<AiRecommendation> captor = ArgumentCaptor.forClass(AiRecommendation.class);
         verify(aiRecommendationRepository).save(captor.capture());
@@ -57,5 +64,40 @@ class DispatchAdvisoryEmailUseCaseTest {
         ArgumentCaptor<AiRecommendation> captor = ArgumentCaptor.forClass(AiRecommendation.class);
         verify(aiRecommendationRepository).save(captor.capture());
         assertThat(captor.getValue().emailStatus()).isEqualTo(EmailStatus.SENT);
+    }
+
+    @Test
+    void tellsTheReaderWhenTheAdvisoryIsAFallback() {
+        AiRecommendation recommendation = AiRecommendation.create(UUID.randomUUID(), AdvisoryTriggerType.ANOMALY,
+                "Standart uyarı metni", true, Instant.parse("2026-07-20T10:00:00Z"), UUID.randomUUID());
+
+        DispatchAdvisoryEmailUseCase useCase = new DispatchAdvisoryEmailUseCase(emailSenderPort,
+                aiRecommendationRepository);
+        useCase.execute(recommendation, "home@example.com");
+
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        verify(emailSenderPort).send(any(), any(), body.capture());
+        assertThat(body.getValue()).startsWith("Standart uyarı metni");
+        assertThat(body.getValue()).contains("standart bilgilendirme metni gönderilmiştir");
+
+        // The stored content stays the bare advisory. The notice belongs to the delivery, not to
+        // the record, and fallback_used already carries the fact for anything reading the database.
+        ArgumentCaptor<AiRecommendation> saved = ArgumentCaptor.forClass(AiRecommendation.class);
+        verify(aiRecommendationRepository).save(saved.capture());
+        assertThat(saved.getValue().content()).isEqualTo("Standart uyarı metni");
+    }
+
+    @Test
+    void leavesAGeneratedAdvisoryUntouched() {
+        AiRecommendation recommendation = AiRecommendation.create(UUID.randomUUID(), AdvisoryTriggerType.QUOTA_100,
+                "Kişiye özel öneri", false, Instant.parse("2026-07-20T10:00:00Z"), UUID.randomUUID());
+
+        DispatchAdvisoryEmailUseCase useCase = new DispatchAdvisoryEmailUseCase(emailSenderPort,
+                aiRecommendationRepository);
+        useCase.execute(recommendation, "home@example.com");
+
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        verify(emailSenderPort).send(any(), any(), body.capture());
+        assertThat(body.getValue()).isEqualTo("Kişiye özel öneri");
     }
 }

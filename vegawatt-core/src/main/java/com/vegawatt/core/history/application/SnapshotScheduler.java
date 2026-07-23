@@ -29,7 +29,8 @@ public class SnapshotScheduler {
         this.clockProvider = clockProvider;
     }
 
-    @Scheduled(fixedRateString = "${vegawatt.scheduling.snapshot-interval-seconds}", timeUnit = TimeUnit.SECONDS)
+    @Scheduled(fixedRateString = "${vegawatt.scheduling.snapshot-interval-seconds}", timeUnit = TimeUnit.SECONDS,
+            scheduler = "snapshotTaskScheduler")
     public void captureSnapshots() {
         Instant now = clockProvider.now();
         for (HomeLiveState liveState : homeLiveStatePort.getAll()) {
