@@ -9,7 +9,12 @@ import {
   useApplianceAnomalySound,
   writeAlertSoundPreference,
 } from "../../shared/hooks/useApplianceAnomalySound";
-import { useHomeHistoryQuery, useLiveHomeQuery, useRecommendationsQuery } from "../../shared/hooks/useHomesQueries";
+import {
+  useHomeEventsQuery,
+  useHomeHistoryQuery,
+  useLiveHomeQuery,
+  useRecommendationsQuery,
+} from "../../shared/hooks/useHomesQueries";
 import { getHomeHealthStatus } from "../../shared/utils/homeStatus";
 import { formatRelativeTime } from "../../shared/utils/format";
 import { ConsumptionChart } from "../history/ConsumptionChart";
@@ -17,17 +22,22 @@ import { EnergyHeatmap } from "../history/EnergyHeatmap";
 import { computeHistoryRange, HistoryRangeSelector, type HistoryRangeKey } from "../history/HistoryRangeSelector";
 import { RecommendationsPanel } from "../recommendations/RecommendationsPanel";
 import { AppliancesTable } from "./AppliancesTable";
+import { EventTimeline } from "./EventTimeline";
 import { HomeOverviewSection } from "./HomeOverviewSection";
 
 export interface HomeDetailsContentProps {
   homeId: string;
   titleId?: string;
   onClose?: () => void;
+  /** False when rendered directly on a full page — the page itself scrolls, so this content
+   * shouldn't own its own scroll region. True (default) for the fixed-height dialog, which needs
+   * its content to scroll internally. */
+  scrollable?: boolean;
 }
 
-type DetailTab = "overview" | "devices" | "trends" | "insights";
+type DetailTab = "overview" | "devices" | "trends" | "insights" | "events";
 
-export function HomeDetailsContent({ homeId, titleId, onClose }: HomeDetailsContentProps) {
+export function HomeDetailsContent({ homeId, titleId, onClose, scrollable = true }: HomeDetailsContentProps) {
   const generatedTitleId = useId();
   const resolvedTitleId = titleId ?? generatedTitleId;
   const [activeTab, setActiveTab] = useState<DetailTab>("overview");
@@ -45,6 +55,7 @@ export function HomeDetailsContent({ homeId, titleId, onClose }: HomeDetailsCont
     isError: recommendationsIsError,
     refetch: refetchRecommendations,
   } = useRecommendationsQuery(homeId);
+  const { data: events, isError: eventsIsError, refetch: refetchEvents } = useHomeEventsQuery(homeId);
 
   const [soundEnabled, setSoundEnabled] = useState(() => readAlertSoundPreference());
   useApplianceAnomalySound(home?.appliances, soundEnabled);
@@ -60,6 +71,7 @@ export function HomeDetailsContent({ homeId, titleId, onClose }: HomeDetailsCont
   const anomalousCount = home?.appliances.filter((appliance) => appliance.anomalous).length ?? 0;
   const applianceCount = home?.appliances.length ?? 0;
   const recommendationCount = recommendations?.length ?? 0;
+  const eventCount = events?.length ?? 0;
 
   const tabs: TabItem[] = [
     { id: "overview", label: "Genel Bakış" },
@@ -78,6 +90,11 @@ export function HomeDetailsContent({ homeId, titleId, onClose }: HomeDetailsCont
       id: "insights",
       label: "Öneriler",
       badge: recommendationCount > 0 ? { text: recommendationCount } : undefined,
+    },
+    {
+      id: "events",
+      label: "Olaylar",
+      badge: eventCount > 0 ? { text: eventCount } : undefined,
     },
   ];
 
@@ -134,7 +151,7 @@ export function HomeDetailsContent({ homeId, titleId, onClose }: HomeDetailsCont
         <Tabs label="Ev detayı bölümleri" tabs={tabs} activeId={activeTab} onChange={(id) => setActiveTab(id as DetailTab)} />
       )}
 
-      <div className="flex-1 overflow-y-auto px-5 py-4">
+      <div className={`flex-1 px-5 py-4 ${scrollable ? "overflow-y-auto" : ""}`}>
         {isLoading && <Spinner label="Ev detayları yükleniyor..." />}
 
         {!isLoading && homeIsError && !home && (
@@ -181,7 +198,17 @@ export function HomeDetailsContent({ homeId, titleId, onClose }: HomeDetailsCont
                 {recommendationsIsError ? (
                   <InlineError message="Öneriler şu anda yüklenemiyor." onRetry={() => refetchRecommendations()} />
                 ) : (
-                  <RecommendationsPanel recommendations={recommendations ?? []} />
+                  <RecommendationsPanel recommendations={recommendations ?? []} events={events ?? []} />
+                )}
+              </div>
+            )}
+
+            {activeTab === "events" && (
+              <div role="tabpanel" id={panelId("events")} aria-labelledby={tabId("events")}>
+                {eventsIsError ? (
+                  <InlineError message="Olaylar şu anda yüklenemiyor." onRetry={() => refetchEvents()} />
+                ) : (
+                  <EventTimeline events={events ?? []} appliances={home.appliances} />
                 )}
               </div>
             )}

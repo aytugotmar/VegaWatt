@@ -19,6 +19,7 @@ public record RegisterHomeCommand(
             String type,
             BigDecimal safePowerLimitWatt,
             BigDecimal simulationMinWatt,
-            BigDecimal simulationMaxWatt) {
+            BigDecimal simulationMaxWatt,
+            UUID catalogItemId) {
     }
 }

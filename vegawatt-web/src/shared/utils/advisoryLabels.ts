@@ -28,3 +28,26 @@ const TRIGGER_EXPLANATIONS: Record<string, string> = {
 export function getAdvisoryTriggerExplanation(triggerType: string): string {
   return TRIGGER_EXPLANATIONS[triggerType] ?? "Sistem tarafından otomatik olarak oluşturuldu.";
 }
+
+export type AdvisorySeverity = "CRITICAL" | "WARNING" | "INFO";
+
+const TRIGGER_SEVERITY: Record<string, AdvisorySeverity> = {
+  QUOTA_80: "WARNING",
+  QUOTA_100: "CRITICAL",
+  ANOMALY: "CRITICAL",
+  RECOVERY: "INFO",
+};
+
+export function getAdvisorySeverity(triggerType: string): AdvisorySeverity {
+  return TRIGGER_SEVERITY[triggerType] ?? "INFO";
+}
+
+const SEVERITY_LABELS: Record<AdvisorySeverity, string> = {
+  CRITICAL: "Kritik",
+  WARNING: "Uyarı",
+  INFO: "Bilgi",
+};
+
+export function getSeverityLabel(severity: AdvisorySeverity): string {
+  return SEVERITY_LABELS[severity];
+}

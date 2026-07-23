@@ -27,9 +27,10 @@ public class TelemetryEventPublisher {
         this.kafkaProperties = kafkaProperties;
     }
 
-    public void publish(UUID homeId, UUID applianceId, BigDecimal powerWatt, int measurementIntervalSeconds) {
-        TelemetryEventPayload payload = new TelemetryEventPayload(UUID.randomUUID(), 1, Instant.now(), homeId,
-                applianceId, powerWatt, measurementIntervalSeconds);
+    public void publish(UUID homeId, UUID applianceId, BigDecimal powerWatt, String operatingState,
+                         String operatingMode, int measurementIntervalSeconds) {
+        TelemetryEventPayload payload = new TelemetryEventPayload(UUID.randomUUID(), 2, Instant.now(), homeId,
+                applianceId, powerWatt, operatingState, operatingMode, measurementIntervalSeconds);
 
         String json;
         try {

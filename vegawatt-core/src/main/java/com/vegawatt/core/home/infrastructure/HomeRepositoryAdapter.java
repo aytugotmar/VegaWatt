@@ -1,5 +1,7 @@
 package com.vegawatt.core.home.infrastructure;
 
+import com.vegawatt.core.appliancecatalog.domain.ApplianceBehaviorProfile;
+import com.vegawatt.core.appliancecatalog.domain.ApplianceCatalogCode;
 import com.vegawatt.core.home.domain.Appliance;
 import com.vegawatt.core.home.domain.Home;
 import com.vegawatt.core.home.domain.HomeRepository;
@@ -28,7 +30,11 @@ class HomeRepositoryAdapter implements HomeRepository {
         List<ApplianceEntity> applianceEntities = home.appliances().stream()
                 .map(appliance -> new ApplianceEntity(appliance.id(), appliance.homeId(), appliance.name(),
                         appliance.type(), appliance.safePowerLimitWatt(), appliance.simulationMinWatt(),
-                        appliance.simulationMaxWatt(), appliance.active(), home.createdAt()))
+                        appliance.simulationMaxWatt(), appliance.active(), home.createdAt(),
+                        appliance.catalogItemId(),
+                        appliance.catalogCodeSnapshot() == null ? null : appliance.catalogCodeSnapshot().value(),
+                        appliance.behaviorProfileSnapshot() == null ? null : appliance.behaviorProfileSnapshot().name(),
+                        appliance.standbyMinWatt(), appliance.standbyMaxWatt()))
                 .toList();
         applianceJpaRepository.saveAll(applianceEntities);
 
@@ -61,6 +67,10 @@ class HomeRepositoryAdapter implements HomeRepository {
     private static Appliance toDomainAppliance(ApplianceEntity entity) {
         return new Appliance(entity.getId(), entity.getHomeId(), entity.getName(), entity.getType(),
                 entity.getSafePowerLimitWatt(), entity.getSimulationMinWatt(), entity.getSimulationMaxWatt(),
-                entity.isActive());
+                entity.isActive(), entity.getCatalogItemId(),
+                entity.getCatalogCodeSnapshot() == null ? null : new ApplianceCatalogCode(entity.getCatalogCodeSnapshot()),
+                entity.getBehaviorProfileSnapshot() == null ? null
+                        : ApplianceBehaviorProfile.valueOf(entity.getBehaviorProfileSnapshot()),
+                entity.getStandbyMinWatt(), entity.getStandbyMaxWatt());
     }
 }

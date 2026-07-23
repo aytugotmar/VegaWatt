@@ -138,6 +138,10 @@ class GeminiAdvisoryClient implements EnergyAdvisoryPort {
             case QUOTA_80 -> "enerji veya bütçe kotasının yüzde 80'ine ulaşıldı";
             case QUOTA_100 -> "enerji veya bütçe kotası aşıldı, ceza tarifesi devrede olabilir";
             case ANOMALY -> "bir cihazda üç ardışık ölçümde güvenli güç sınırı aşıldı";
+            case STANDBY_ANOMALY -> "bir cihaz bekleme modundayken beklenenden çok daha yüksek güç tüketiyor";
+            case TELEMETRY_STALE -> "bir cihazdan beklenenden uzun süredir veri gelmiyor, gecikme olabilir";
+            case TELEMETRY_OFFLINE -> "bir cihaz uzun süredir hiç veri göndermiyor, muhtemelen kapalı veya "
+                    + "bağlantısı kesilmiş";
         };
     }
 }

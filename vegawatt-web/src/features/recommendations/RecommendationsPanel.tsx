@@ -1,9 +1,14 @@
 import { Lightbulb } from "lucide-react";
-import type { Recommendation } from "../../shared/types/home";
+import type { OperationalEvent, Recommendation } from "../../shared/types/home";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { RecommendationCard } from "./RecommendationCard";
 
-export function RecommendationsPanel({ recommendations }: { recommendations: Recommendation[] }) {
+interface RecommendationsPanelProps {
+  recommendations: Recommendation[];
+  events: OperationalEvent[];
+}
+
+export function RecommendationsPanel({ recommendations, events }: RecommendationsPanelProps) {
   if (recommendations.length === 0) {
     return (
       <EmptyState
@@ -17,7 +22,12 @@ export function RecommendationsPanel({ recommendations }: { recommendations: Rec
   return (
     <ul className="flex flex-col gap-2.5">
       {recommendations.map((recommendation, index) => (
-        <RecommendationCard key={recommendation.id} recommendation={recommendation} highlighted={index === 0} />
+        <RecommendationCard
+          key={recommendation.id}
+          recommendation={recommendation}
+          highlighted={index === 0}
+          linkedEvent={events.find((event) => event.id === recommendation.triggerEventId)}
+        />
       ))}
     </ul>
   );

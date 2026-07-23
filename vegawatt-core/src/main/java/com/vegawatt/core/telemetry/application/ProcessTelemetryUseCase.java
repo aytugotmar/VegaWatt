@@ -1,10 +1,14 @@
 package com.vegawatt.core.telemetry.application;
 
 import com.vegawatt.core.anomaly.application.EvaluateApplianceAnomalyUseCase;
+import com.vegawatt.core.anomaly.application.EvaluateStandbyConsumptionUseCase;
 import com.vegawatt.core.anomaly.domain.AnomalyEvaluationResult;
+import com.vegawatt.core.anomaly.domain.EvaluateStandbyConsumptionPolicy;
+import com.vegawatt.core.anomaly.domain.StandbyAnomalyEvaluationResult;
 import com.vegawatt.core.billing.application.EvaluateHomeBillingUseCase;
 import com.vegawatt.core.billing.application.HomeBillingEvaluation;
 import com.vegawatt.core.billing.application.HomeUpdateOutcome;
+import com.vegawatt.core.common.ApplianceHealthStatus;
 import com.vegawatt.core.common.time.ClockProvider;
 import com.vegawatt.core.home.domain.Appliance;
 import com.vegawatt.core.home.domain.ApplianceLiveState;
@@ -26,6 +30,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -39,6 +44,7 @@ public class ProcessTelemetryUseCase {
     private final TelemetryLiveStatePort telemetryLiveStatePort;
     private final EvaluateHomeBillingUseCase evaluateHomeBillingUseCase;
     private final EvaluateApplianceAnomalyUseCase evaluateApplianceAnomalyUseCase;
+    private final EvaluateStandbyConsumptionUseCase evaluateStandbyConsumptionUseCase;
     private final ProcessedTelemetryEventRepository processedTelemetryEventRepository;
     private final TelemetryBillingRecorder telemetryBillingRecorder;
     private final ClockProvider clockProvider;
@@ -47,6 +53,7 @@ public class ProcessTelemetryUseCase {
                                     HomeLiveStatePort homeLiveStatePort, TelemetryLiveStatePort telemetryLiveStatePort,
                                     EvaluateHomeBillingUseCase evaluateHomeBillingUseCase,
                                     EvaluateApplianceAnomalyUseCase evaluateApplianceAnomalyUseCase,
+                                    EvaluateStandbyConsumptionUseCase evaluateStandbyConsumptionUseCase,
                                     ProcessedTelemetryEventRepository processedTelemetryEventRepository,
                                     TelemetryBillingRecorder telemetryBillingRecorder, ClockProvider clockProvider) {
         this.homeRepository = homeRepository;
@@ -55,6 +62,7 @@ public class ProcessTelemetryUseCase {
         this.telemetryLiveStatePort = telemetryLiveStatePort;
         this.evaluateHomeBillingUseCase = evaluateHomeBillingUseCase;
         this.evaluateApplianceAnomalyUseCase = evaluateApplianceAnomalyUseCase;
+        this.evaluateStandbyConsumptionUseCase = evaluateStandbyConsumptionUseCase;
         this.processedTelemetryEventRepository = processedTelemetryEventRepository;
         this.telemetryBillingRecorder = telemetryBillingRecorder;
         this.clockProvider = clockProvider;
@@ -89,11 +97,13 @@ public class ProcessTelemetryUseCase {
         // Home and appliance Ignite state are updated together in one transaction (see
         // IgniteTelemetryLiveStateAdapter) so a partial write is never observable; historical
         // logging in PostgreSQL follows and is explicitly guarded below so a logging failure is
-        // never silent, and Ignite is compensated back to Postgres's truth if it fails.
+        // never silent, and Ignite is compensated back to pre-event truth if it fails.
         AtomicReference<HomeLiveState> previousHomeRef = new AtomicReference<>();
         AtomicReference<ApplianceLiveState> previousApplianceRef = new AtomicReference<>();
         AtomicReference<HomeUpdateOutcome> homeOutcomeRef = new AtomicReference<>();
         AtomicReference<AnomalyEvaluationResult> anomalyResultRef = new AtomicReference<>();
+        AtomicReference<StandbyAnomalyEvaluationResult> standbyResultRef = new AtomicReference<>();
+        AtomicReference<Boolean> transitionedToResumedRef = new AtomicReference<>();
 
         telemetryLiveStatePort.update(home.id(), appliance.id(),
                 current -> {
@@ -114,19 +124,40 @@ public class ProcessTelemetryUseCase {
                             appliance.safePowerLimitWatt());
                     anomalyResultRef.set(result);
 
+                    StandbyAnomalyEvaluationResult standbyResult = EvaluateStandbyConsumptionPolicy.isEligible(
+                            reading.operatingState(), appliance.behaviorProfileSnapshot(), appliance.standbyMaxWatt())
+                            ? evaluateStandbyConsumptionUseCase.evaluate(existing.standbyBreachCount(),
+                                    existing.standbyRecoveryCount(), existing.standbyAnomalyActive(),
+                                    reading.powerWatt(), appliance.standbyMaxWatt())
+                            : StandbyAnomalyEvaluationResult.unchanged(existing.standbyBreachCount(),
+                                    existing.standbyRecoveryCount(), existing.standbyAnomalyActive());
+                    standbyResultRef.set(standbyResult);
+
+                    // Any real telemetry event proves the appliance is reachable again, regardless
+                    // of v1/v2 shape or operating state — unlike the standby rule, resumption isn't
+                    // conditional on eligibility.
+                    boolean transitionedToResumed = existing.telemetryHealthStatus() != ApplianceHealthStatus.NORMAL;
+                    transitionedToResumedRef.set(transitionedToResumed);
+
                     BigDecimal newAccumulatedEnergyKwh = existing.accumulatedEnergyKwh().add(energyIncrementKwh);
                     return new ApplianceLiveState(reading.homeId(), reading.applianceId(), existing.applianceName(),
                             existing.applianceType(), existing.safePowerLimitWatt(), reading.powerWatt(),
-                            newAccumulatedEnergyKwh, result.consecutiveBreachCount(), result.anomalous(), occurredAt);
+                            reading.operatingState(), reading.operatingMode(), newAccumulatedEnergyKwh,
+                            result.consecutiveBreachCount(), result.anomalous(), standbyResult.standbyBreachCount(),
+                            standbyResult.standbyRecoveryCount(), standbyResult.standbyAnomalyActive(),
+                            ApplianceHealthStatus.NORMAL, occurredAt);
                 });
 
         HomeUpdateOutcome homeOutcome = homeOutcomeRef.get();
         AnomalyEvaluationResult anomalyResult = anomalyResultRef.get();
+        StandbyAnomalyEvaluationResult standbyResult = standbyResultRef.get();
+        boolean transitionedToResumed = transitionedToResumedRef.get();
 
         try {
             telemetryBillingRecorder.persist(reading.eventId(), home, homeOutcome, appliance, anomalyResult,
-                    occurredAt, processedAt, evaluateApplianceAnomalyUseCase.breachThreshold());
-        } catch (org.springframework.dao.DataIntegrityViolationException duplicateEx) {
+                    standbyResult, reading.powerWatt(), reading.operatingState(), transitionedToResumed, occurredAt,
+                    processedAt, evaluateApplianceAnomalyUseCase.breachThreshold());
+        } catch (DataIntegrityViolationException duplicateEx) {
             log.warn("Duplicate telemetry event {} detected during DB persist; restoring Ignite state and skipping",
                     reading.eventId());
             compensateLiveState(home.id(), appliance.id(), previousHomeRef.get(), previousApplianceRef.get());

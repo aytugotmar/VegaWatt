@@ -11,5 +11,7 @@ record TelemetryEventPayload(
         UUID homeId,
         UUID applianceId,
         BigDecimal powerWatt,
+        String operatingState,
+        String operatingMode,
         int measurementIntervalSeconds) {
 }

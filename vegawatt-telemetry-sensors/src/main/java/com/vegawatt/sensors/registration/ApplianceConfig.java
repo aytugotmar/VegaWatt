@@ -9,5 +9,9 @@ public record ApplianceConfig(
         String type,
         BigDecimal safePowerLimitWatt,
         BigDecimal simulationMinWatt,
-        BigDecimal simulationMaxWatt) {
+        BigDecimal simulationMaxWatt,
+        String catalogCode,
+        String behaviorProfile,
+        BigDecimal standbyMinWatt,
+        BigDecimal standbyMaxWatt) {
 }

@@ -9,6 +9,8 @@
   --color-surface: #ffffff;
   --color-surface-subtle: #eef1ed;
   --color-surface-raised: #fafcf9;
+  --color-sidebar-bg: #fafcf9;
+  --color-topbar-bg: #fafcf9;
   --color-border: #dce2dc;
   --color-border-strong: #c4cdc5;
 
@@ -44,32 +46,34 @@
 }
 
 [data-theme="dark"] {
-  --color-app-bg: #0f1411;
-  --color-surface: #171d19;
-  --color-surface-subtle: #1e2721;
-  --color-surface-raised: #1c2521;
-  --color-border: #2e3932;
-  --color-border-strong: #435146;
+  --color-app-bg: #0a0f0c;
+  --color-surface: #131b17;
+  --color-surface-raised: #18221d;
+  --color-surface-subtle: #1d2922;
+  --color-sidebar-bg: #111914;
+  --color-topbar-bg: #101713;
+  --color-border: #24332b;
+  --color-border-strong: #33473c;
 
-  --color-text-primary: #f2f5f2;
-  --color-text-secondary: #a1aba4;
-  --color-text-muted: #77837b;
+  --color-text-primary: #f3f7f4;
+  --color-text-secondary: #a5b2aa;
+  --color-text-muted: #718078;
 
-  --color-primary: #68c2a1;
-  --color-primary-hover: #7bd0b1;
-  --color-primary-soft: #203b31;
+  --color-primary: #66d0aa;
+  --color-primary-hover: #79dcb9;
+  --color-primary-soft: #173d31;
 
-  --color-energy: #68c2a1;
-  --color-energy-accent: #d1e568;
-  --color-cost: #e0b35b;
+  --color-energy: #65cead;
+  --color-energy-accent: #bcd96e;
+  --color-cost: #dfac58;
 
-  --color-success: #6ec39b;
+  --color-success: #69c79b;
   --color-success-soft: #1b3329;
-  --color-warning: #e0b35b;
+  --color-warning: #ddaa55;
   --color-warning-soft: #3a3020;
-  --color-danger: #e57d70;
+  --color-danger: #ef7b70;
   --color-danger-soft: #3b2421;
-  --color-info: #7fb3cf;
+  --color-info: #79aec8;
   --color-info-soft: #20333d;
 
   --shadow-modal: 0 8px 16px rgba(0, 0, 0, 0.28), 0 24px 48px rgba(0, 0, 0, 0.36);
@@ -110,9 +114,38 @@
   .btn-ghost {
     @apply inline-flex items-center gap-1.5 rounded-button px-3.5 py-2 text-sm font-semibold text-text-secondary transition hover:bg-surface-subtle hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg disabled:cursor-not-allowed disabled:opacity-60;
   }
+
+  /* Decorative glow accents — dark theme only, reserved for hero numbers and their containing
+     cards (never applied to chart data-ink itself, which stays thin and glow-free for legibility). */
+  .glow-text-primary {
+    text-shadow: none;
+  }
+  [data-theme="dark"] .glow-text-primary {
+    text-shadow: 0 0 22px rgba(102, 208, 170, 0.5);
+  }
+
+  .glow-card {
+    box-shadow: none;
+  }
+  [data-theme="dark"] .glow-card {
+    box-shadow:
+      0 0 0 1px rgba(102, 208, 170, 0.16),
+      0 0 32px rgba(102, 208, 170, 0.08);
+  }
+
+  .glow-stroke {
+    filter: none;
+  }
+  [data-theme="dark"] .glow-stroke {
+    filter: drop-shadow(0 0 6px rgba(102, 208, 170, 0.7));
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+
   @keyframes shimmer {
     0% {
       background-position: 100% 50%;
@@ -151,6 +184,20 @@
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  @keyframes flow-pulse {
+    0%,
+    100% {
+      opacity: 0.4;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  .animate-flow-pulse {
+    animation: flow-pulse 1.8s ease-in-out infinite;
   }
 
   .skeleton-line {

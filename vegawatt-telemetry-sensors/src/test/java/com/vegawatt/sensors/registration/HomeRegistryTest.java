@@ -13,7 +13,7 @@ class HomeRegistryTest {
         HomeRegistry registry = new HomeRegistry();
         UUID applianceId = UUID.randomUUID();
         ApplianceConfig config = new ApplianceConfig(applianceId, UUID.randomUUID(), "AIR_CONDITIONER",
-                new BigDecimal("2000"), new BigDecimal("100"), new BigDecimal("1800"));
+                new BigDecimal("2000"), new BigDecimal("100"), new BigDecimal("1800"), null, null, null, null);
 
         registry.upsert(config);
 
@@ -26,10 +26,10 @@ class HomeRegistryTest {
         UUID applianceId = UUID.randomUUID();
         UUID homeId = UUID.randomUUID();
         registry.upsert(new ApplianceConfig(applianceId, homeId, "AIR_CONDITIONER", new BigDecimal("2000"),
-                new BigDecimal("100"), new BigDecimal("1800")));
+                new BigDecimal("100"), new BigDecimal("1800"), null, null, null, null));
 
         ApplianceConfig updated = new ApplianceConfig(applianceId, homeId, "AIR_CONDITIONER", new BigDecimal("2500"),
-                new BigDecimal("200"), new BigDecimal("2200"));
+                new BigDecimal("200"), new BigDecimal("2200"), null, null, null, null);
         registry.upsert(updated);
 
         assertThat(registry.find(applianceId)).contains(updated);

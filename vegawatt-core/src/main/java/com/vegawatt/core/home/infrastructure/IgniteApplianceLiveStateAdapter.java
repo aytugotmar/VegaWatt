@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.UnaryOperator;
 import org.apache.ignite.cache.CacheAtomicityMode;
+import org.apache.ignite.cache.query.ScanQuery;
 import org.apache.ignite.client.ClientCache;
 import org.apache.ignite.client.ClientCacheConfiguration;
 import org.apache.ignite.client.ClientTransaction;
@@ -74,6 +75,18 @@ class IgniteApplianceLiveStateAdapter implements ApplianceLiveStatePort {
     }
 
     @Override
+    public List<ApplianceLiveState> getAll() {
+        List<ApplianceLiveState> result = new ArrayList<>();
+        try (var cursor = stateCache.query(new ScanQuery<String, ApplianceLiveStateCacheValue>())) {
+            for (var entry : cursor) {
+                String[] parts = entry.getKey().split(":", 2);
+                result.add(toDomain(UUID.fromString(parts[0]), UUID.fromString(parts[1]), entry.getValue()));
+            }
+        }
+        return result;
+    }
+
+    @Override
     public ApplianceLiveState update(UUID homeId, UUID applianceId, UnaryOperator<ApplianceLiveState> mutator) {
         String key = compositeKey(homeId, applianceId);
         try (ClientTransaction transaction = igniteClient.transactions().txStart()) {
@@ -93,13 +106,17 @@ class IgniteApplianceLiveStateAdapter implements ApplianceLiveStatePort {
 
     private static ApplianceLiveStateCacheValue toCacheValue(ApplianceLiveState state) {
         return new ApplianceLiveStateCacheValue(state.applianceName(), state.applianceType(),
-                state.safePowerLimitWatt(), state.currentPowerWatt(), state.accumulatedEnergyKwh(),
-                state.consecutiveBreachCount(), state.anomalous(), state.lastUpdatedAt());
+                state.safePowerLimitWatt(), state.currentPowerWatt(), state.operatingState(), state.operatingMode(),
+                state.accumulatedEnergyKwh(), state.consecutiveBreachCount(), state.anomalous(),
+                state.standbyBreachCount(), state.standbyRecoveryCount(), state.standbyAnomalyActive(),
+                state.telemetryHealthStatus(), state.lastUpdatedAt());
     }
 
     private static ApplianceLiveState toDomain(UUID homeId, UUID applianceId, ApplianceLiveStateCacheValue value) {
         return new ApplianceLiveState(homeId, applianceId, value.getApplianceName(), value.getApplianceType(),
-                value.getSafePowerLimitWatt(), value.getCurrentPowerWatt(), value.getAccumulatedEnergyKwh(),
-                value.getConsecutiveBreachCount(), value.isAnomalous(), value.getLastUpdatedAt());
+                value.getSafePowerLimitWatt(), value.getCurrentPowerWatt(), value.getOperatingState(),
+                value.getOperatingMode(), value.getAccumulatedEnergyKwh(), value.getConsecutiveBreachCount(),
+                value.isAnomalous(), value.getStandbyBreachCount(), value.getStandbyRecoveryCount(),
+                value.isStandbyAnomalyActive(), value.getTelemetryHealthStatus(), value.getLastUpdatedAt());
     }
 }

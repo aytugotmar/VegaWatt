@@ -10,11 +10,12 @@ public record RecommendationResponse(
         String content,
         boolean fallbackUsed,
         String emailStatus,
-        Instant createdAt) {
+        Instant createdAt,
+        UUID triggerEventId) {
 
     public static RecommendationResponse from(AiRecommendation recommendation) {
         return new RecommendationResponse(recommendation.id(), recommendation.triggerType().name(),
                 recommendation.content(), recommendation.fallbackUsed(), recommendation.emailStatus().name(),
-                recommendation.createdAt());
+                recommendation.createdAt(), recommendation.triggerEventId());
     }
 }

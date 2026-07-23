@@ -3,6 +3,7 @@ package com.vegawatt.core.telemetry.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -12,16 +13,21 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.vegawatt.core.anomaly.application.EvaluateApplianceAnomalyUseCase;
+import com.vegawatt.core.anomaly.application.EvaluateStandbyConsumptionUseCase;
+import com.vegawatt.core.appliancecatalog.domain.ApplianceBehaviorProfile;
 import com.vegawatt.core.billing.application.EvaluateHomeBillingUseCase;
 import com.vegawatt.core.billing.domain.BillingAccount;
 import com.vegawatt.core.billing.domain.BillingAccountRepository;
+import com.vegawatt.core.common.ApplianceHealthStatus;
 import com.vegawatt.core.common.Money;
 import com.vegawatt.core.common.TariffState;
 import com.vegawatt.core.common.config.AnomalyProperties;
+import com.vegawatt.core.common.config.StandbyAnomalyProperties;
 import com.vegawatt.core.common.time.BillingPeriodResolver;
 import com.vegawatt.core.common.time.ClockProvider;
 import com.vegawatt.core.home.domain.Appliance;
 import com.vegawatt.core.home.domain.ApplianceLiveState;
+import com.vegawatt.core.home.domain.ApplianceOperatingState;
 import com.vegawatt.core.home.domain.ApplianceRepository;
 import com.vegawatt.core.home.domain.Home;
 import com.vegawatt.core.home.domain.HomeLiveState;
@@ -78,10 +84,13 @@ class ProcessTelemetryUseCaseTest {
                 billingAccountRepository);
         EvaluateApplianceAnomalyUseCase evaluateApplianceAnomalyUseCase = new EvaluateApplianceAnomalyUseCase(
                 new AnomalyProperties(3));
+        EvaluateStandbyConsumptionUseCase evaluateStandbyConsumptionUseCase = new EvaluateStandbyConsumptionUseCase(
+                new StandbyAnomalyProperties(new BigDecimal("3"), new BigDecimal("2"), 3, 3));
 
         useCase = new ProcessTelemetryUseCase(homeRepository, applianceRepository, homeLiveStatePort,
                 telemetryLiveStatePort, evaluateHomeBillingUseCase, evaluateApplianceAnomalyUseCase,
-                processedTelemetryEventRepository, telemetryBillingRecorder, clockProvider);
+                evaluateStandbyConsumptionUseCase, processedTelemetryEventRepository, telemetryBillingRecorder,
+                clockProvider);
 
         lenient().when(clockProvider.now()).thenReturn(NOW);
         lenient().when(homeRepository.findById(HOME_ID)).thenReturn(Optional.of(testHome()));
@@ -105,11 +114,17 @@ class ProcessTelemetryUseCaseTest {
 
     private static Appliance testAppliance(boolean active) {
         return new Appliance(APPLIANCE_ID, HOME_ID, "Fridge", "REFRIGERATOR", new BigDecimal("200"),
-                new BigDecimal("50"), new BigDecimal("150"), active);
+                new BigDecimal("50"), new BigDecimal("150"), active, null, null, null, null, null);
+    }
+
+    private static Appliance standbyEligibleAppliance() {
+        return new Appliance(APPLIANCE_ID, HOME_ID, "TV", "TELEVISION", new BigDecimal("180"),
+                new BigDecimal("40"), new BigDecimal("150"), true, null, null,
+                ApplianceBehaviorProfile.STANDBY_DEVICE, new BigDecimal("0.5"), new BigDecimal("3"));
     }
 
     private static TelemetryReading reading(UUID eventId, BigDecimal powerWatt) {
-        return new TelemetryReading(eventId, HOME_ID, APPLIANCE_ID, powerWatt, 5, NOW);
+        return new TelemetryReading(eventId, HOME_ID, APPLIANCE_ID, powerWatt, null, null, 5, NOW);
     }
 
     @Test
@@ -126,7 +141,7 @@ class ProcessTelemetryUseCaseTest {
     void rejectsTelemetryWhenApplianceDoesNotBelongToHome() {
         UUID otherHomeId = UUID.randomUUID();
         TelemetryReading mismatched = new TelemetryReading(UUID.randomUUID(), otherHomeId, APPLIANCE_ID,
-                new BigDecimal("1000"), 5, NOW);
+                new BigDecimal("1000"), null, null, 5, NOW);
         when(homeRepository.findById(otherHomeId)).thenReturn(Optional.of(
                 Home.reconstitute(otherHomeId, "Other Ev", "other@example.com", new BigDecimal("500"),
                         new BigDecimal("1000"), new BigDecimal("2.10"), new BigDecimal("3.50"), NOW, NOW, List.of())));
@@ -150,7 +165,96 @@ class ProcessTelemetryUseCaseTest {
     void persistsBillingAfterLiveStateUpdate() {
         useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
 
-        verify(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), anyInt());
+        verify(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), any(),
+                anyBoolean(), any(), any(), anyInt());
+    }
+
+    @Test
+    void propagatesOperatingStateAndModeIntoApplianceLiveState() {
+        TelemetryReading reading = new TelemetryReading(UUID.randomUUID(), HOME_ID, APPLIANCE_ID,
+                new BigDecimal("1000"), ApplianceOperatingState.STANDBY, "STANDBY", 5, NOW);
+
+        useCase.execute(reading);
+
+        assertThat(applianceLiveStateSlot.operatingState()).isEqualTo(ApplianceOperatingState.STANDBY);
+        assertThat(applianceLiveStateSlot.operatingMode()).isEqualTo("STANDBY");
+    }
+
+    @Test
+    void v1TelemetryWithoutOperatingStateNeverTouchesStandbyFieldsAndSafePowerFlowStillWorks() {
+        when(applianceRepository.findById(APPLIANCE_ID)).thenReturn(Optional.of(standbyEligibleAppliance()));
+        TelemetryReading v1Reading = new TelemetryReading(UUID.randomUUID(), HOME_ID, APPLIANCE_ID,
+                new BigDecimal("1000"), null, null, 5, NOW);
+
+        useCase.execute(v1Reading);
+
+        assertThat(applianceLiveStateSlot.standbyAnomalyActive()).isFalse();
+        assertThat(applianceLiveStateSlot.standbyBreachCount()).isZero();
+        assertThat(applianceLiveStateSlot.consecutiveBreachCount()).isEqualTo(1);
+        verify(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), any(),
+                anyBoolean(), any(), any(), anyInt());
+    }
+
+    @Test
+    void threeConsecutiveHighStandbyReadingsActivateStandbyAnomaly() {
+        when(applianceRepository.findById(APPLIANCE_ID)).thenReturn(Optional.of(standbyEligibleAppliance()));
+
+        useCase.execute(new TelemetryReading(UUID.randomUUID(), HOME_ID, APPLIANCE_ID, new BigDecimal("20"),
+                ApplianceOperatingState.STANDBY, "STANDBY", 5, NOW));
+        assertThat(applianceLiveStateSlot.standbyAnomalyActive()).isFalse();
+
+        useCase.execute(new TelemetryReading(UUID.randomUUID(), HOME_ID, APPLIANCE_ID, new BigDecimal("20"),
+                ApplianceOperatingState.STANDBY, "STANDBY", 5, NOW));
+        assertThat(applianceLiveStateSlot.standbyAnomalyActive()).isFalse();
+
+        useCase.execute(new TelemetryReading(UUID.randomUUID(), HOME_ID, APPLIANCE_ID, new BigDecimal("20"),
+                ApplianceOperatingState.STANDBY, "STANDBY", 5, NOW));
+
+        assertThat(applianceLiveStateSlot.standbyAnomalyActive()).isTrue();
+        assertThat(applianceLiveStateSlot.standbyBreachCount()).isEqualTo(3);
+    }
+
+    @Test
+    void safePowerAndStandbyAnomaliesAreIndependent() {
+        when(applianceRepository.findById(APPLIANCE_ID)).thenReturn(Optional.of(standbyEligibleAppliance()));
+
+        for (int i = 0; i < 3; i++) {
+            useCase.execute(new TelemetryReading(UUID.randomUUID(), HOME_ID, APPLIANCE_ID, new BigDecimal("20"),
+                    ApplianceOperatingState.STANDBY, "STANDBY", 5, NOW));
+        }
+        assertThat(applianceLiveStateSlot.standbyAnomalyActive()).isTrue();
+        assertThat(applianceLiveStateSlot.anomalous()).isFalse();
+
+        for (int i = 0; i < 3; i++) {
+            useCase.execute(new TelemetryReading(UUID.randomUUID(), HOME_ID, APPLIANCE_ID, new BigDecimal("1000"),
+                    ApplianceOperatingState.ACTIVE, "IN_USE", 5, NOW));
+        }
+        assertThat(applianceLiveStateSlot.anomalous()).isTrue();
+        assertThat(applianceLiveStateSlot.standbyAnomalyActive())
+                .as("safe-power breach evaluation must never touch the independent standby anomaly state")
+                .isTrue();
+    }
+
+    @Test
+    void telemetryResumesAfterStaleStatusResetsHealthAndFlagsRecorderForResumedEvent() {
+        applianceLiveStateSlot = new ApplianceLiveState(HOME_ID, APPLIANCE_ID, "Fridge", "REFRIGERATOR",
+                new BigDecimal("200"), new BigDecimal("0"), null, null, BigDecimal.ZERO.setScale(9), 0, false, 0, 0,
+                false, ApplianceHealthStatus.STALE, NOW.minusSeconds(60));
+
+        useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
+
+        assertThat(applianceLiveStateSlot.telemetryHealthStatus()).isEqualTo(ApplianceHealthStatus.NORMAL);
+        verify(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), any(), eq(true),
+                any(), any(), anyInt());
+    }
+
+    @Test
+    void doesNotFlagResumedWhenAlreadyNormal() {
+        useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
+
+        assertThat(applianceLiveStateSlot.telemetryHealthStatus()).isEqualTo(ApplianceHealthStatus.NORMAL);
+        verify(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), any(), eq(false),
+                any(), any(), anyInt());
     }
 
     @Test
@@ -180,7 +284,8 @@ class ProcessTelemetryUseCaseTest {
     @Test
     void compensatesBothHomeAndApplianceStateWhenPersistFails() {
         doThrow(new RuntimeException("postgres unavailable"))
-                .when(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), anyInt());
+                .when(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), any(),
+                        anyBoolean(), any(), any(), anyInt());
 
         assertThatThrownBy(() -> useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000"))))
                 .isInstanceOf(RuntimeException.class);
@@ -190,10 +295,12 @@ class ProcessTelemetryUseCaseTest {
 
     @Test
     void handlesConcurrentDuplicateEventGracefully() {
-        doThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate key value violates unique constraint"))
-                .when(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), anyInt());
+        doThrow(new org.springframework.dao.DataIntegrityViolationException(
+                "duplicate key value violates unique constraint"))
+                .when(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), any(),
+                        anyBoolean(), any(), any(), anyInt());
 
-        // Should not throw, but restore Ignite state and skip duplicate gracefully
+        // Should not throw, but restore Ignite state and skip the duplicate gracefully.
         useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
 
         verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), any(), any());

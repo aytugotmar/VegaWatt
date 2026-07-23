@@ -6,15 +6,18 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 import com.vegawatt.core.anomaly.application.EvaluateApplianceAnomalyUseCase;
+import com.vegawatt.core.anomaly.application.EvaluateStandbyConsumptionUseCase;
 import com.vegawatt.core.billing.application.EvaluateHomeBillingUseCase;
 import com.vegawatt.core.billing.domain.BillingAccount;
 import com.vegawatt.core.billing.domain.BillingAccountRepository;
 import com.vegawatt.core.common.Money;
 import com.vegawatt.core.common.config.AnomalyProperties;
+import com.vegawatt.core.common.config.StandbyAnomalyProperties;
 import com.vegawatt.core.common.events.OperationalEventRepository;
 import com.vegawatt.core.common.time.BillingPeriodResolver;
 import com.vegawatt.core.common.time.ClockProvider;
 import com.vegawatt.core.home.domain.Appliance;
+import com.vegawatt.core.home.domain.ApplianceLiveState;
 import com.vegawatt.core.home.domain.ApplianceRepository;
 import com.vegawatt.core.home.domain.Home;
 import com.vegawatt.core.home.domain.HomeLiveState;
@@ -31,9 +34,15 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.UnaryOperator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+/**
+ * A lightweight (pure-Mockito, no Testcontainers) end-to-end check that {@link ProcessTelemetryUseCase} and
+ * {@link TelemetryBillingRecorder} still wire together correctly after the billing-period-rollover +
+ * home/appliance compensation refactor.
+ */
 class BillingAndTelemetryIntegrationTest {
 
     private HomeRepository homeRepository;
@@ -49,6 +58,7 @@ class BillingAndTelemetryIntegrationTest {
     private ProcessTelemetryUseCase processTelemetryUseCase;
     private EvaluateHomeBillingUseCase evaluateHomeBillingUseCase;
     private EvaluateApplianceAnomalyUseCase evaluateApplianceAnomalyUseCase;
+    private EvaluateStandbyConsumptionUseCase evaluateStandbyConsumptionUseCase;
     private TelemetryBillingRecorder telemetryBillingRecorder;
 
     private final UUID homeId = UUID.randomUUID();
@@ -73,18 +83,20 @@ class BillingAndTelemetryIntegrationTest {
         home = Home.reconstitute(homeId, "Villa", "owner@example.com", new BigDecimal("100"),
                 new BigDecimal("500"), new BigDecimal("2.50"), new BigDecimal("5.00"), now, now, List.of());
         appliance = new Appliance(applianceId, homeId, "AC", "HVAC", new BigDecimal("2000"),
-                new BigDecimal("500"), new BigDecimal("1500"), true);
+                new BigDecimal("500"), new BigDecimal("1500"), true, null, null, null, null, null);
 
         evaluateHomeBillingUseCase = new EvaluateHomeBillingUseCase(billingAccountRepository);
         AnomalyProperties anomalyProperties = new AnomalyProperties(3);
         evaluateApplianceAnomalyUseCase = new EvaluateApplianceAnomalyUseCase(anomalyProperties);
+        evaluateStandbyConsumptionUseCase = new EvaluateStandbyConsumptionUseCase(
+                new StandbyAnomalyProperties(new BigDecimal("3"), new BigDecimal("2"), 3, 3));
 
         telemetryBillingRecorder = new TelemetryBillingRecorder(billingAccountRepository, operationalEventRepository,
                 processedTelemetryEventRepository, notificationJobRepository);
 
         processTelemetryUseCase = new ProcessTelemetryUseCase(homeRepository, applianceRepository,
                 homeLiveStatePort, telemetryLiveStatePort, evaluateHomeBillingUseCase,
-                evaluateApplianceAnomalyUseCase, processedTelemetryEventRepository,
+                evaluateApplianceAnomalyUseCase, evaluateStandbyConsumptionUseCase, processedTelemetryEventRepository,
                 telemetryBillingRecorder, clockProvider);
 
         lenient().when(homeRepository.findById(homeId)).thenReturn(Optional.of(home));
@@ -98,11 +110,11 @@ class BillingAndTelemetryIntegrationTest {
 
         lenient().when(telemetryLiveStatePort.update(any(), any(), any(), any()))
                 .thenAnswer(invocation -> {
-                    java.util.function.UnaryOperator<HomeLiveState> homeMutator = invocation.getArgument(2);
-                    java.util.function.UnaryOperator<com.vegawatt.core.home.domain.ApplianceLiveState> applianceMutator = invocation.getArgument(3);
+                    UnaryOperator<HomeLiveState> homeMutator = invocation.getArgument(2);
+                    UnaryOperator<ApplianceLiveState> applianceMutator = invocation.getArgument(3);
                     HomeLiveState nextHome = homeMutator.apply(currentHomeLiveState.get());
                     currentHomeLiveState.set(nextHome);
-                    com.vegawatt.core.home.domain.ApplianceLiveState nextAppliance = applianceMutator.apply(null);
+                    ApplianceLiveState nextAppliance = applianceMutator.apply(null);
                     return new TelemetryLiveStateUpdate(nextHome, nextAppliance);
                 });
     }
@@ -110,7 +122,7 @@ class BillingAndTelemetryIntegrationTest {
     @Test
     void execute_endToEndTelemetryIngestion_accumulatesEnergyAndPersistsBilling() {
         TelemetryReading reading = new TelemetryReading(UUID.randomUUID(), homeId, applianceId,
-                new BigDecimal("1000"), 3600, now);
+                new BigDecimal("1000"), null, null, 3600, now);
 
         processTelemetryUseCase.execute(reading);
 

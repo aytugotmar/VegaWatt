@@ -10,15 +10,6 @@ export interface TargetsValues {
   penaltyTariffPerKwh: string;
 }
 
-export interface PresetSelection {
-  checked: boolean;
-  quantity: number;
-  customized: boolean;
-  safePowerLimitWatt: string;
-  simulationMinWatt: string;
-  simulationMaxWatt: string;
-}
-
 export interface CustomAppliance {
   id: number;
   name: string;
@@ -76,6 +67,9 @@ export function validateApplianceLimits(values: {
   if (Number.isFinite(min) && max !== null && max <= min) {
     errors.simulationMaxWatt = "Maksimum değer, minimumdan büyük olmalıdır.";
   }
+  if (limit !== null && max !== null && max > limit) {
+    errors.simulationMaxWatt = "Maksimum değer, güvenli limiti aşamaz.";
+  }
   return errors;
 }
 
@@ -85,3 +79,4 @@ export function validateCustomAppliance(appliance: CustomAppliance): FieldErrors
   if (!appliance.type.trim()) errors.type = "Cihaz tipi zorunludur.";
   return errors;
 }
+

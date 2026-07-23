@@ -28,6 +28,10 @@ public record AssetRegistrationEventPayload(
             String type,
             BigDecimal safePowerLimitWatt,
             BigDecimal simulationMinWatt,
-            BigDecimal simulationMaxWatt) {
+            BigDecimal simulationMaxWatt,
+            String catalogCode,
+            String behaviorProfile,
+            BigDecimal standbyMinWatt,
+            BigDecimal standbyMaxWatt) {
     }
 }

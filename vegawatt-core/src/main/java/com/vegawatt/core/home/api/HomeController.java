@@ -76,7 +76,8 @@ class HomeController {
                 request.appliances().stream()
                         .map(appliance -> new RegisterHomeCommand.ApplianceCommand(
                                 appliance.name(), appliance.type(), appliance.safePowerLimitWatt(),
-                                appliance.simulationMinWatt(), appliance.simulationMaxWatt()))
+                                appliance.simulationMinWatt(), appliance.simulationMaxWatt(),
+                                appliance.catalogItemId()))
                         .toList(),
                 ownerUserId);
     }

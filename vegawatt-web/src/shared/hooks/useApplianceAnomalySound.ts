@@ -4,7 +4,7 @@ import type { ApplianceLiveStatus } from "../types/home";
 const STORAGE_KEY = "vegawatt-alert-sound-enabled";
 
 export function readAlertSoundPreference(): boolean {
-  return window.localStorage.getItem(STORAGE_KEY) !== "false";
+  return window.localStorage.getItem(STORAGE_KEY) === "true";
 }
 
 export function writeAlertSoundPreference(enabled: boolean): void {

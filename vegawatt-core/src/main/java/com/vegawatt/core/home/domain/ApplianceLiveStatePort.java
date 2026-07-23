@@ -13,5 +13,7 @@ public interface ApplianceLiveStatePort {
 
     List<ApplianceLiveState> getByHomeId(UUID homeId);
 
+    List<ApplianceLiveState> getAll();
+
     ApplianceLiveState update(UUID homeId, UUID applianceId, UnaryOperator<ApplianceLiveState> mutator);
 }

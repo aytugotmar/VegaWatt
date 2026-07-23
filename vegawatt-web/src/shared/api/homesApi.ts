@@ -3,6 +3,7 @@ import type {
   ConsumptionHistoryPoint,
   HomeLiveStatus,
   HomeLiveSummary,
+  OperationalEvent,
   Recommendation,
   RegisterHomeRequest,
   RegisterHomeResponse,
@@ -26,6 +27,10 @@ export function fetchHomeHistory(homeId: string, from?: string, to?: string): Pr
 
 export function fetchHomeRecommendations(homeId: string): Promise<Recommendation[]> {
   return apiFetch<Recommendation[]>(`/api/v1/homes/${homeId}/recommendations`);
+}
+
+export function fetchHomeEvents(homeId: string): Promise<OperationalEvent[]> {
+  return apiFetch<OperationalEvent[]>(`/api/v1/homes/${homeId}/events`);
 }
 
 export function registerHome(request: RegisterHomeRequest): Promise<RegisterHomeResponse> {

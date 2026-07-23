@@ -3,6 +3,7 @@ package com.vegawatt.sensors.registration;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vegawatt.sensors.simulation.ApplianceSimulationScheduler;
 import java.util.Map;
+import java.util.Set;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
@@ -15,6 +16,9 @@ import org.springframework.stereotype.Component;
 class RegistrationEventConsumer extends AbstractConsumerSeekAware {
 
     private static final Logger log = LoggerFactory.getLogger(RegistrationEventConsumer.class);
+
+    /** v1: no catalog/behavior-profile/standby fields. v2: adds them, all nullable. */
+    private static final Set<Integer> SUPPORTED_EVENT_VERSIONS = Set.of(1, 2);
 
     private final HomeRegistry homeRegistry;
     private final ApplianceSimulationScheduler simulationScheduler;
@@ -51,10 +55,17 @@ class RegistrationEventConsumer extends AbstractConsumerSeekAware {
             return;
         }
 
+        if (!SUPPORTED_EVENT_VERSIONS.contains(payload.eventVersion())) {
+            log.warn("Discarding asset registration event {} with unsupported eventVersion {} from partition {} offset {}",
+                    payload.eventId(), payload.eventVersion(), record.partition(), record.offset());
+            return;
+        }
+
         for (AssetRegistrationEventPayload.AppliancePayload appliance : payload.appliances()) {
             ApplianceConfig config = new ApplianceConfig(appliance.applianceId(), payload.home().homeId(),
                     appliance.type(), appliance.safePowerLimitWatt(), appliance.simulationMinWatt(),
-                    appliance.simulationMaxWatt());
+                    appliance.simulationMaxWatt(), appliance.catalogCode(), appliance.behaviorProfile(),
+                    appliance.standbyMinWatt(), appliance.standbyMaxWatt());
             homeRegistry.upsert(config);
             simulationScheduler.ensureScheduled(config.applianceId());
         }

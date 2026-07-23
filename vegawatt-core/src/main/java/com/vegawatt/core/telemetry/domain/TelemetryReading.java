@@ -1,5 +1,6 @@
 package com.vegawatt.core.telemetry.domain;
 
+import com.vegawatt.core.home.domain.ApplianceOperatingState;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
@@ -9,6 +10,8 @@ public record TelemetryReading(
         UUID homeId,
         UUID applianceId,
         BigDecimal powerWatt,
+        ApplianceOperatingState operatingState,
+        String operatingMode,
         int measurementIntervalSeconds,
         Instant occurredAt) {
 

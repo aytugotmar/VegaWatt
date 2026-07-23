@@ -1,5 +1,8 @@
 package com.vegawatt.core.home.domain;
 
+import com.vegawatt.core.appliancecatalog.domain.ApplianceBehaviorProfile;
+import com.vegawatt.core.appliancecatalog.domain.ApplianceCatalogCode;
+import com.vegawatt.core.appliancecatalog.domain.ApplianceCatalogItem;
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -11,7 +14,12 @@ public record Appliance(
         BigDecimal safePowerLimitWatt,
         BigDecimal simulationMinWatt,
         BigDecimal simulationMaxWatt,
-        boolean active) {
+        boolean active,
+        UUID catalogItemId,
+        ApplianceCatalogCode catalogCodeSnapshot,
+        ApplianceBehaviorProfile behaviorProfileSnapshot,
+        BigDecimal standbyMinWatt,
+        BigDecimal standbyMaxWatt) {
 
     public Appliance {
         if (safePowerLimitWatt.signum() <= 0) {
@@ -23,11 +31,23 @@ public record Appliance(
         if (simulationMaxWatt.compareTo(simulationMinWatt) <= 0) {
             throw new InvalidApplianceConfigurationException("simulationMaxWatt must be greater than simulationMinWatt");
         }
+        if (standbyMinWatt != null && standbyMaxWatt != null && standbyMaxWatt.compareTo(standbyMinWatt) < 0) {
+            throw new InvalidApplianceConfigurationException("standbyMaxWatt must be >= standbyMinWatt");
+        }
     }
 
     public static Appliance create(UUID homeId, String name, String type, BigDecimal safePowerLimitWatt,
                                     BigDecimal simulationMinWatt, BigDecimal simulationMaxWatt) {
         return new Appliance(UUID.randomUUID(), homeId, name, type, safePowerLimitWatt, simulationMinWatt,
-                simulationMaxWatt, true);
+                simulationMaxWatt, true, null, null, null, null, null);
+    }
+
+    public static Appliance createFromCatalog(UUID homeId, String name, ApplianceCatalogItem catalogItem,
+                                               BigDecimal safePowerLimitWatt, BigDecimal simulationMinWatt,
+                                               BigDecimal simulationMaxWatt) {
+        return new Appliance(UUID.randomUUID(), homeId, name, catalogItem.code().value(), safePowerLimitWatt,
+                simulationMinWatt, simulationMaxWatt, true, catalogItem.id(), catalogItem.code(),
+                catalogItem.behaviorProfile(), catalogItem.defaultStandbyMinWatt(),
+                catalogItem.defaultStandbyMaxWatt());
     }
 }

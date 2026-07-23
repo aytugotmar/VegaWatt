@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.vegawatt.core.anomaly.domain.AnomalyEvaluationResult;
+import com.vegawatt.core.anomaly.domain.StandbyAnomalyEvaluationResult;
 import com.vegawatt.core.billing.application.HomeUpdateOutcome;
 import com.vegawatt.core.billing.domain.BillingAccount;
 import com.vegawatt.core.billing.domain.BillingAccountRepository;
@@ -19,6 +20,7 @@ import com.vegawatt.core.common.events.OperationalEventRepository;
 import com.vegawatt.core.common.events.OperationalEventType;
 import com.vegawatt.core.common.time.BillingPeriodResolver;
 import com.vegawatt.core.home.domain.Appliance;
+import com.vegawatt.core.home.domain.ApplianceOperatingState;
 import com.vegawatt.core.home.domain.Home;
 import com.vegawatt.core.notification.domain.AdvisoryTriggerType;
 import com.vegawatt.core.notification.domain.NotificationJob;
@@ -59,6 +61,7 @@ class TelemetryBillingRecorderTest {
     private Home home;
     private Appliance appliance;
     private AnomalyEvaluationResult noAnomalyChange;
+    private StandbyAnomalyEvaluationResult noStandbyChange;
 
     @BeforeEach
     void setUp() {
@@ -67,8 +70,9 @@ class TelemetryBillingRecorderTest {
         home = Home.reconstitute(HOME_ID, "Test Ev", "test@example.com", new BigDecimal("500"),
                 new BigDecimal("1000"), new BigDecimal("2.10"), new BigDecimal("3.50"), NOW, NOW, List.of());
         appliance = new Appliance(APPLIANCE_ID, HOME_ID, "Fridge", "REFRIGERATOR", new BigDecimal("200"),
-                new BigDecimal("50"), new BigDecimal("150"), true);
+                new BigDecimal("50"), new BigDecimal("150"), true, null, null, null, null, null);
         noAnomalyChange = new AnomalyEvaluationResult(0, false, false, false);
+        noStandbyChange = StandbyAnomalyEvaluationResult.unchanged(0, 0, false);
 
         lenient().when(billingAccountRepository.findByHomeIdAndBillingPeriod(HOME_ID, PERIOD))
                 .thenAnswer(invocation -> Optional.of(BillingAccount.open(HOME_ID, PERIOD, NOW)));
@@ -82,7 +86,8 @@ class TelemetryBillingRecorderTest {
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("0.002"), new BigDecimal("0.0042"),
                 NO_TRANSITION, NO_TRANSITION);
 
-        recorder.persist(eventId, home, outcome, appliance, noAnomalyChange, NOW, NOW, BREACH_THRESHOLD);
+        recorder.persist(eventId, home, outcome, appliance, noAnomalyChange, noStandbyChange,
+                new BigDecimal("100"), null, false, NOW, NOW, BREACH_THRESHOLD);
 
         verify(processedTelemetryEventRepository).markProcessed(eventId, HOME_ID, APPLIANCE_ID, NOW);
     }
@@ -92,7 +97,8 @@ class TelemetryBillingRecorderTest {
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("400"), new BigDecimal("840"),
                 new QuotaTransition(true, false), NO_TRANSITION);
 
-        recorder.persist(UUID.randomUUID(), home, outcome, appliance, noAnomalyChange, NOW, NOW, BREACH_THRESHOLD);
+        recorder.persist(UUID.randomUUID(), home, outcome, appliance, noAnomalyChange, noStandbyChange,
+                new BigDecimal("100"), null, false, NOW, NOW, BREACH_THRESHOLD);
 
         verify(operationalEventRepository).save(argThatEventType(OperationalEventType.ENERGY_QUOTA_80_REACHED));
         ArgumentCaptor<NotificationJob> jobCaptor = ArgumentCaptor.forClass(NotificationJob.class);
@@ -115,7 +121,8 @@ class TelemetryBillingRecorderTest {
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("1"), new BigDecimal("2.1"),
                 new QuotaTransition(true, false), NO_TRANSITION);
 
-        recorder.persist(UUID.randomUUID(), home, outcome, appliance, noAnomalyChange, NOW, NOW, BREACH_THRESHOLD);
+        recorder.persist(UUID.randomUUID(), home, outcome, appliance, noAnomalyChange, noStandbyChange,
+                new BigDecimal("100"), null, false, NOW, NOW, BREACH_THRESHOLD);
 
         verify(operationalEventRepository, never()).save(any());
         verify(notificationJobRepository, never()).save(any());
@@ -126,7 +133,8 @@ class TelemetryBillingRecorderTest {
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("500"), new BigDecimal("1050"),
                 NO_TRANSITION, new QuotaTransition(true, true));
 
-        recorder.persist(UUID.randomUUID(), home, outcome, appliance, noAnomalyChange, NOW, NOW, BREACH_THRESHOLD);
+        recorder.persist(UUID.randomUUID(), home, outcome, appliance, noAnomalyChange, noStandbyChange,
+                new BigDecimal("100"), null, false, NOW, NOW, BREACH_THRESHOLD);
 
         // 100% supersedes 80% for the same quota dimension within one event - only one job, not two.
         verify(operationalEventRepository).save(argThatEventType(OperationalEventType.BUDGET_QUOTA_100_REACHED));
@@ -150,7 +158,8 @@ class TelemetryBillingRecorderTest {
                 NO_TRANSITION);
         AnomalyEvaluationResult transitioned = new AnomalyEvaluationResult(3, true, true, false);
 
-        recorder.persist(UUID.randomUUID(), home, outcome, appliance, transitioned, NOW, NOW, BREACH_THRESHOLD);
+        recorder.persist(UUID.randomUUID(), home, outcome, appliance, transitioned, noStandbyChange,
+                new BigDecimal("100"), null, false, NOW, NOW, BREACH_THRESHOLD);
 
         verify(operationalEventRepository).save(argThatEventType(OperationalEventType.APPLIANCE_ANOMALY_DETECTED));
         ArgumentCaptor<NotificationJob> jobCaptor = ArgumentCaptor.forClass(NotificationJob.class);
@@ -164,11 +173,76 @@ class TelemetryBillingRecorderTest {
                 NO_TRANSITION);
         AnomalyEvaluationResult recovered = new AnomalyEvaluationResult(0, false, false, true);
 
-        recorder.persist(UUID.randomUUID(), home, outcome, appliance, recovered, NOW, NOW, BREACH_THRESHOLD);
+        recorder.persist(UUID.randomUUID(), home, outcome, appliance, recovered, noStandbyChange,
+                new BigDecimal("100"), null, false, NOW, NOW, BREACH_THRESHOLD);
 
         verify(operationalEventRepository).save(argThatEventType(OperationalEventType.APPLIANCE_ANOMALY_RECOVERED));
         verify(operationalEventRepository, times(1)).save(any());
         verify(notificationJobRepository, never()).save(any());
+    }
+
+    @Test
+    void createsStandbyAnomalyNotificationJobOnTransitionToActiveWithFullMetadataInDetails() {
+        HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("1"), new BigDecimal("2.1"), NO_TRANSITION,
+                NO_TRANSITION);
+        StandbyAnomalyEvaluationResult transitioned = new StandbyAnomalyEvaluationResult(3, 0, true, true, false,
+                new BigDecimal("9"));
+
+        recorder.persist(UUID.randomUUID(), home, outcome, appliance, noAnomalyChange, transitioned,
+                new BigDecimal("12.5"), ApplianceOperatingState.STANDBY, false, NOW, NOW, BREACH_THRESHOLD);
+
+        ArgumentCaptor<OperationalEvent> eventCaptor = ArgumentCaptor.forClass(OperationalEvent.class);
+        verify(operationalEventRepository).save(eventCaptor.capture());
+        OperationalEvent saved = eventCaptor.getValue();
+        assertThat(saved.eventType()).isEqualTo(OperationalEventType.APPLIANCE_STANDBY_ANOMALY_DETECTED);
+        assertThat(saved.details()).contains("operatingState=STANDBY", "observedPowerWatt=12.5",
+                "expectedStandbyMaxWatt=" + appliance.standbyMaxWatt(), "calculatedThresholdWatt=9",
+                "consecutiveMeasurementCount=3", "detectedAt=" + NOW);
+
+        ArgumentCaptor<NotificationJob> jobCaptor = ArgumentCaptor.forClass(NotificationJob.class);
+        verify(notificationJobRepository).save(jobCaptor.capture());
+        assertThat(jobCaptor.getValue().triggerType()).isEqualTo(AdvisoryTriggerType.STANDBY_ANOMALY);
+    }
+
+    @Test
+    void savesStandbyRecoveryEventWithoutCreatingNotificationJob() {
+        HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("1"), new BigDecimal("2.1"), NO_TRANSITION,
+                NO_TRANSITION);
+        StandbyAnomalyEvaluationResult recovered = new StandbyAnomalyEvaluationResult(0, 3, false, false, true,
+                new BigDecimal("9"));
+
+        recorder.persist(UUID.randomUUID(), home, outcome, appliance, noAnomalyChange, recovered,
+                new BigDecimal("1"), ApplianceOperatingState.STANDBY, false, NOW, NOW, BREACH_THRESHOLD);
+
+        verify(operationalEventRepository)
+                .save(argThatEventType(OperationalEventType.APPLIANCE_STANDBY_ANOMALY_RECOVERED));
+        verify(operationalEventRepository, times(1)).save(any());
+        verify(notificationJobRepository, never()).save(any());
+    }
+
+    @Test
+    void savesTelemetryResumedEventWithoutCreatingNotificationJob() {
+        HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("1"), new BigDecimal("2.1"), NO_TRANSITION,
+                NO_TRANSITION);
+
+        recorder.persist(UUID.randomUUID(), home, outcome, appliance, noAnomalyChange, noStandbyChange,
+                new BigDecimal("100"), null, true, NOW, NOW, BREACH_THRESHOLD);
+
+        verify(operationalEventRepository).save(argThatEventType(OperationalEventType.APPLIANCE_TELEMETRY_RESUMED));
+        verify(operationalEventRepository, times(1)).save(any());
+        verify(notificationJobRepository, never()).save(any());
+    }
+
+    @Test
+    void doesNotSaveTelemetryResumedEventWhenNotTransitioned() {
+        HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("1"), new BigDecimal("2.1"), NO_TRANSITION,
+                NO_TRANSITION);
+
+        recorder.persist(UUID.randomUUID(), home, outcome, appliance, noAnomalyChange, noStandbyChange,
+                new BigDecimal("100"), null, false, NOW, NOW, BREACH_THRESHOLD);
+
+        verify(operationalEventRepository, never())
+                .save(argThatEventType(OperationalEventType.APPLIANCE_TELEMETRY_RESUMED));
     }
 
     private static OperationalEvent argThatEventType(OperationalEventType type) {

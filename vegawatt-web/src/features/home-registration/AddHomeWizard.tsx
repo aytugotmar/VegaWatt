@@ -3,20 +3,18 @@ import { useId, useMemo, useState } from "react";
 import { Dialog } from "../../shared/components/Dialog";
 import { Button } from "../../shared/components/Button";
 import { ApiError } from "../../shared/api/client";
-import { APPLIANCE_TYPE_PRESETS } from "../../shared/constants/applianceTypes";
 import { useRegisterHomeMutation } from "../../shared/hooks/useHomesQueries";
 import type { ApplianceRegistration } from "../../shared/types/home";
+import { useCatalogSelection } from "../appliance-catalog/hooks/useCatalogSelection";
 import { AppliancesStep } from "./AppliancesStep";
 import { HomeInfoStep } from "./HomeInfoStep";
 import {
-  validateApplianceLimits,
   validateCustomAppliance,
   validateHomeInfo,
   validateTargets,
   type CustomAppliance,
   type FieldErrors,
   type HomeInfoValues,
-  type PresetSelection,
   type TargetsValues,
 } from "./registrationSchema";
 import { ReviewStep } from "./ReviewStep";
@@ -36,22 +34,6 @@ const INITIAL_TARGETS: TargetsValues = {
   penaltyTariffPerKwh: "3.50",
 };
 
-function initialSelections(): Record<string, PresetSelection> {
-  return Object.fromEntries(
-    APPLIANCE_TYPE_PRESETS.map((preset) => [
-      preset.key,
-      {
-        checked: false,
-        quantity: 1,
-        customized: false,
-        safePowerLimitWatt: String(preset.safePowerLimitWatt),
-        simulationMinWatt: String(preset.simulationMinWatt),
-        simulationMaxWatt: String(preset.simulationMaxWatt),
-      },
-    ]),
-  );
-}
-
 let customIdSeq = 0;
 function newCustomAppliance(): CustomAppliance {
   return {
@@ -69,28 +51,17 @@ export function AddHomeWizard({ onClose }: AddHomeWizardProps) {
   const [step, setStep] = useState(0);
   const [homeInfo, setHomeInfo] = useState(INITIAL_HOME_INFO);
   const [targets, setTargets] = useState(INITIAL_TARGETS);
-  const [selections, setSelections] = useState<Record<string, PresetSelection>>(() => initialSelections());
   const [customAppliances, setCustomAppliances] = useState<CustomAppliance[]>([]);
   const [attemptedSteps, setAttemptedSteps] = useState<Set<number>>(new Set());
 
   const registerMutation = useRegisterHomeMutation();
+  const catalogSelection = useCatalogSelection();
 
   const rawHomeInfoErrors = validateHomeInfo(homeInfo);
   const rawTargetsErrors = validateTargets(targets);
   const homeInfoErrors = attemptedSteps.has(0) ? rawHomeInfoErrors : {};
   const targetsErrors = attemptedSteps.has(1) ? rawTargetsErrors : {};
   const showApplianceErrors = attemptedSteps.has(2);
-
-  const presetErrors = useMemo(() => {
-    const result: Record<string, FieldErrors> = {};
-    for (const preset of APPLIANCE_TYPE_PRESETS) {
-      const selection = selections[preset.key];
-      if (selection.checked) {
-        result[preset.key] = validateApplianceLimits(selection);
-      }
-    }
-    return result;
-  }, [selections]);
 
   const customErrors = useMemo(() => {
     const result: Record<number, FieldErrors> = {};
@@ -100,36 +71,33 @@ export function AddHomeWizard({ onClose }: AddHomeWizardProps) {
     return result;
   }, [customAppliances]);
 
-  const hasAtLeastOneAppliance =
-    Object.values(selections).some((selection) => selection.checked) || customAppliances.length > 0;
+  const hasAtLeastOneAppliance = catalogSelection.selectedAppliances.length > 0 || customAppliances.length > 0;
 
   const appliancesValid =
     hasAtLeastOneAppliance &&
-    Object.values(presetErrors).every((errors) => Object.keys(errors).length === 0) &&
+    Object.values(catalogSelection.errors).every((errors) => Object.keys(errors).length === 0) &&
     Object.values(customErrors).every((errors) => Object.keys(errors).length === 0);
 
   function buildAppliances(): ApplianceRegistration[] {
-    const fromPresets = APPLIANCE_TYPE_PRESETS.flatMap((preset) => {
-      const selection = selections[preset.key];
-      if (!selection.checked) return [];
-      return Array.from({ length: selection.quantity }, (_, index) => ({
-        name: selection.quantity === 1 ? preset.label : `${preset.label} ${index + 1}`,
-        type: preset.type,
-        safePowerLimitWatt: Number(selection.safePowerLimitWatt),
-        simulationMinWatt: Number(selection.simulationMinWatt),
-        simulationMaxWatt: Number(selection.simulationMaxWatt),
-      }));
-    });
+    const fromCatalog = catalogSelection.selectedAppliances.map((instance) => ({
+      name: instance.name,
+      type: instance.catalogCode,
+      catalogItemId: instance.catalogItemId,
+      safePowerLimitWatt: instance.overridden.safePowerLimitWatt ? Number(instance.safePowerLimitWatt) : null,
+      simulationMinWatt: instance.overridden.simulationMinWatt ? Number(instance.simulationMinWatt) : null,
+      simulationMaxWatt: instance.overridden.simulationMaxWatt ? Number(instance.simulationMaxWatt) : null,
+    }));
 
     const fromCustom = customAppliances.map((appliance) => ({
       name: appliance.name,
       type: appliance.type,
+      catalogItemId: null,
       safePowerLimitWatt: Number(appliance.safePowerLimitWatt),
       simulationMinWatt: Number(appliance.simulationMinWatt),
       simulationMaxWatt: Number(appliance.simulationMaxWatt),
     }));
 
-    return [...fromPresets, ...fromCustom];
+    return [...fromCatalog, ...fromCustom];
   }
 
   function goNext() {
@@ -219,26 +187,12 @@ export function AddHomeWizard({ onClose }: AddHomeWizardProps) {
         )}
         {step === 2 && (
           <AppliancesStep
-            selections={selections}
-            presetErrors={showApplianceErrors ? presetErrors : {}}
-            onTogglePreset={(key) =>
-              setSelections((current) => ({ ...current, [key]: { ...current[key], checked: !current[key].checked } }))
-            }
-            onQuantityChange={(key, delta) =>
-              setSelections((current) => ({
-                ...current,
-                [key]: { ...current[key], quantity: Math.min(10, Math.max(1, current[key].quantity + delta)) },
-              }))
-            }
-            onToggleCustomize={(key) =>
-              setSelections((current) => ({
-                ...current,
-                [key]: { ...current[key], customized: !current[key].customized },
-              }))
-            }
-            onLimitChange={(key, field, value) =>
-              setSelections((current) => ({ ...current, [key]: { ...current[key], [field]: value } }))
-            }
+            selectedAppliances={catalogSelection.selectedAppliances}
+            selectionErrors={showApplianceErrors ? catalogSelection.errors : {}}
+            onAddInstance={catalogSelection.addInstance}
+            onDecrement={catalogSelection.decrementQuantity}
+            onRename={catalogSelection.renameInstance}
+            onUpdateOverride={catalogSelection.updateOverride}
             customAppliances={customAppliances}
             customErrors={showApplianceErrors ? customErrors : {}}
             onAddCustom={() => setCustomAppliances((current) => [...current, newCustomAppliance()])}

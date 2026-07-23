@@ -23,13 +23,15 @@ public record RegisterHomeResponse(
             String type,
             BigDecimal safePowerLimitWatt,
             BigDecimal simulationMinWatt,
-            BigDecimal simulationMaxWatt) {
+            BigDecimal simulationMaxWatt,
+            UUID catalogItemId) {
     }
 
     public static RegisterHomeResponse from(Home home) {
         List<ApplianceResponse> appliances = home.appliances().stream()
                 .map(appliance -> new ApplianceResponse(appliance.id(), appliance.name(), appliance.type(),
-                        appliance.safePowerLimitWatt(), appliance.simulationMinWatt(), appliance.simulationMaxWatt()))
+                        appliance.safePowerLimitWatt(), appliance.simulationMinWatt(), appliance.simulationMaxWatt(),
+                        appliance.catalogItemId()))
                 .toList();
         return new RegisterHomeResponse(home.id(), home.name(), home.contactEmail(), home.energyQuotaKwh(),
                 home.budgetQuotaTry(), home.baseTariffPerKwh(), home.penaltyTariffPerKwh(), home.createdAt(),
