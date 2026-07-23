@@ -32,19 +32,28 @@ class AuthController {
     private final RefreshTokenUseCase refreshTokenUseCase;
     private final LogoutUseCase logoutUseCase;
     private final JwtProperties jwtProperties;
+    private final com.vegawatt.core.common.rate.RateLimiter rateLimiter;
+
+    @org.springframework.beans.factory.annotation.Value("${vegawatt.auth.cookie-secure:false}")
+    private boolean cookieSecure;
 
     AuthController(RegisterUserUseCase registerUserUseCase, LoginUseCase loginUseCase,
                     RefreshTokenUseCase refreshTokenUseCase, LogoutUseCase logoutUseCase,
-                    JwtProperties jwtProperties) {
+                    JwtProperties jwtProperties,
+                    com.vegawatt.core.common.rate.RateLimiter rateLimiter) {
         this.registerUserUseCase = registerUserUseCase;
         this.loginUseCase = loginUseCase;
         this.refreshTokenUseCase = refreshTokenUseCase;
         this.logoutUseCase = logoutUseCase;
         this.jwtProperties = jwtProperties;
+        this.rateLimiter = rateLimiter;
     }
 
     @PostMapping("/register")
-    ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterUserRequest request) {
+    ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterUserRequest request, jakarta.servlet.http.HttpServletRequest httpRequest) {
+        String clientKey = extractClientKey(httpRequest, request.email());
+        rateLimiter.tryAcquire("register:" + clientKey, 10, Duration.ofMinutes(1));
+
         User user = registerUserUseCase.execute(request.email(), request.password());
         AuthSession session = loginUseCase.issueSession(user);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -53,7 +62,10 @@ class AuthController {
     }
 
     @PostMapping("/login")
-    ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+    ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request, jakarta.servlet.http.HttpServletRequest httpRequest) {
+        String clientKey = extractClientKey(httpRequest, request.email());
+        rateLimiter.tryAcquire("login:" + clientKey, 30, Duration.ofMinutes(1));
+
         AuthSession session = loginUseCase.execute(request.email(), request.password());
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie(session).toString())
@@ -61,7 +73,11 @@ class AuthController {
     }
 
     @PostMapping("/refresh")
-    ResponseEntity<AuthResponse> refresh(@CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken) {
+    ResponseEntity<AuthResponse> refresh(@CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken,
+                                         jakarta.servlet.http.HttpServletRequest httpRequest) {
+        String clientKey = extractClientKey(httpRequest, "refresh");
+        rateLimiter.tryAcquire("refresh:" + clientKey, 20, Duration.ofMinutes(1));
+
         if (refreshToken == null) {
             throw new InvalidRefreshTokenException();
         }
@@ -84,6 +100,7 @@ class AuthController {
     private ResponseCookie refreshCookie(AuthSession session) {
         return ResponseCookie.from(REFRESH_COOKIE_NAME, session.rawRefreshToken())
                 .httpOnly(true)
+                .secure(cookieSecure)
                 .path(REFRESH_COOKIE_PATH)
                 .sameSite("Lax")
                 .maxAge(Duration.ofDays(jwtProperties.refreshTokenTtlDays()))
@@ -93,9 +110,16 @@ class AuthController {
     private ResponseCookie clearedRefreshCookie() {
         return ResponseCookie.from(REFRESH_COOKIE_NAME, "")
                 .httpOnly(true)
+                .secure(cookieSecure)
                 .path(REFRESH_COOKIE_PATH)
                 .sameSite("Lax")
                 .maxAge(0)
                 .build();
+    }
+
+    private String extractClientKey(jakarta.servlet.http.HttpServletRequest request, String identifier) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        String ip = (xForwardedFor != null && !xForwardedFor.isBlank()) ? xForwardedFor.split(",")[0].trim() : request.getRemoteAddr();
+        return ip + ":" + (identifier != null ? identifier.toLowerCase().trim() : "anonymous");
     }
 }

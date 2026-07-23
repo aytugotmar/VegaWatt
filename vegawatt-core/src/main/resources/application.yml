@@ -67,6 +67,8 @@ vegawatt:
     from: ${MAIL_FROM:no-reply@vegawatt.local}
   web:
     allowed-origin: ${FRONTEND_DEV_ORIGIN:http://localhost:5173}
+  auth:
+    cookie-secure: ${COOKIE_SECURE:false}
   jwt:
     secret: ${JWT_SIGNING_SECRET}
     access-token-ttl-minutes: ${JWT_ACCESS_TOKEN_TTL_MINUTES:15}
@@ -87,5 +89,6 @@ vegawatt:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+    persist-authorization: true
   api-docs:
     path: /v3/api-docs

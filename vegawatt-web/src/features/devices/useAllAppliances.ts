@@ -60,10 +60,17 @@ export function useAllAppliances(): AllAppliancesResult {
   return { isLoading, isError, devices };
 }
 
-export function useDeviceById(applianceId: string | undefined): DeviceRow | undefined {
-  const { devices } = useAllAppliances();
-  return useMemo(
-    () => devices.find((device) => device.appliance.applianceId === applianceId),
+export interface UseDeviceByIdResult {
+  device: DeviceRow | undefined;
+  isLoading: boolean;
+  isError: boolean;
+}
+
+export function useDeviceById(applianceId: string | undefined): UseDeviceByIdResult {
+  const { devices, isLoading, isError } = useAllAppliances();
+  const device = useMemo(
+    () => devices.find((d) => d.appliance.applianceId === applianceId),
     [devices, applianceId],
   );
+  return { device, isLoading, isError };
 }

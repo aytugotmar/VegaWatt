@@ -22,6 +22,9 @@ const DevicesPage = lazy(() => import("../features/devices/DevicesPage").then((m
 const DeviceDetailsPage = lazy(() =>
   import("../features/devices/DeviceDetailsPage").then((m) => ({ default: m.DeviceDetailsPage })),
 );
+const NotificationsPage = lazy(() =>
+  import("../features/notifications/NotificationsPage").then((m) => ({ default: m.NotificationsPage })),
+);
 
 function FullPageSpinner() {
   return (
@@ -109,6 +112,14 @@ function AppRoutes() {
             element={
               <ErrorBoundary>
                 <DeviceDetailsPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="notifications"
+            element={
+              <ErrorBoundary>
+                <NotificationsPage />
               </ErrorBoundary>
             }
           />

@@ -27,33 +27,36 @@ class ApplianceBehaviorModelRegistryTest {
     @Test
     void returnsTheModelRegisteredForAKnownProfile() {
         ApplianceBehaviorModel standbyModel = modelFor(ApplianceBehaviorProfile.STANDBY_DEVICE);
-        ApplianceBehaviorModelRegistry registry = new ApplianceBehaviorModelRegistry(List.of(standbyModel));
+        ApplianceBehaviorModelRegistry registry = new ApplianceBehaviorModelRegistry(List.of(standbyModel), new LegacyFallbackBehaviorModel());
 
         assertThat(registry.forConfig(configWithProfile("STANDBY_DEVICE"))).contains(standbyModel);
     }
 
     @Test
-    void returnsEmptyWhenBehaviorProfileIsNull() {
+    void returnsFallbackWhenBehaviorProfileIsNull() {
+        LegacyFallbackBehaviorModel fallback = new LegacyFallbackBehaviorModel();
         ApplianceBehaviorModelRegistry registry = new ApplianceBehaviorModelRegistry(
-                List.of(modelFor(ApplianceBehaviorProfile.STANDBY_DEVICE)));
+                List.of(modelFor(ApplianceBehaviorProfile.STANDBY_DEVICE)), fallback);
 
-        assertThat(registry.forConfig(configWithProfile(null))).isEmpty();
+        assertThat(registry.forConfig(configWithProfile(null))).contains(fallback);
     }
 
     @Test
-    void returnsEmptyForAnUnparseableProfileString() {
+    void returnsFallbackForAnUnparseableProfileString() {
+        LegacyFallbackBehaviorModel fallback = new LegacyFallbackBehaviorModel();
         ApplianceBehaviorModelRegistry registry = new ApplianceBehaviorModelRegistry(
-                List.of(modelFor(ApplianceBehaviorProfile.STANDBY_DEVICE)));
+                List.of(modelFor(ApplianceBehaviorProfile.STANDBY_DEVICE)), fallback);
 
-        assertThat(registry.forConfig(configWithProfile("NOT_A_REAL_PROFILE"))).isEmpty();
+        assertThat(registry.forConfig(configWithProfile("NOT_A_REAL_PROFILE"))).contains(fallback);
     }
 
     @Test
-    void returnsEmptyForARecognizedProfileWithoutARegisteredModel() {
+    void returnsFallbackForARecognizedProfileWithoutARegisteredModel() {
+        LegacyFallbackBehaviorModel fallback = new LegacyFallbackBehaviorModel();
         ApplianceBehaviorModelRegistry registry = new ApplianceBehaviorModelRegistry(
-                List.of(modelFor(ApplianceBehaviorProfile.STANDBY_DEVICE)));
+                List.of(modelFor(ApplianceBehaviorProfile.STANDBY_DEVICE)), fallback);
 
-        assertThat(registry.forConfig(configWithProfile("ALWAYS_ON_STABLE"))).isEmpty();
+        assertThat(registry.forConfig(configWithProfile("ALWAYS_ON_VARIABLE"))).contains(fallback);
     }
 
     @Test
@@ -61,7 +64,7 @@ class ApplianceBehaviorModelRegistryTest {
         ApplianceBehaviorModel first = modelFor(ApplianceBehaviorProfile.STANDBY_DEVICE);
         ApplianceBehaviorModel second = modelFor(ApplianceBehaviorProfile.STANDBY_DEVICE);
 
-        assertThatThrownBy(() -> new ApplianceBehaviorModelRegistry(List.of(first, second)))
+        assertThatThrownBy(() -> new ApplianceBehaviorModelRegistry(List.of(first, second), new LegacyFallbackBehaviorModel()))
                 .isInstanceOf(IllegalStateException.class);
     }
 }

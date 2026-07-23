@@ -34,11 +34,12 @@ class BootstrapAdminRunner implements CommandLineRunner {
         if (!StringUtils.hasText(properties.email()) || !StringUtils.hasText(properties.password())) {
             return;
         }
-        if (userRepository.existsByEmail(properties.email())) {
-            return;
-        }
-        userRepository.save(User.bootstrapAdmin(properties.email(),
-                passwordEncoder.encode(properties.password()), clockProvider.now()));
-        log.info("Bootstrapped admin user {}", properties.email());
+        User admin = userRepository.findByEmail(properties.email())
+                .map(existing -> User.reconstitute(existing.id(), existing.email(),
+                        passwordEncoder.encode(properties.password()), existing.role(), existing.createdAt()))
+                .orElseGet(() -> User.bootstrapAdmin(properties.email(),
+                        passwordEncoder.encode(properties.password()), clockProvider.now()));
+        userRepository.save(admin);
+        log.info("Bootstrapped admin user {} with verified password hash", properties.email());
     }
 }

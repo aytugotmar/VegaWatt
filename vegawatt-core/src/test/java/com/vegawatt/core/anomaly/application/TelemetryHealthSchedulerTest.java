@@ -47,13 +47,14 @@ class TelemetryHealthSchedulerTest {
     @Mock
     private ClockProvider clockProvider;
 
+    private TelemetryHealthTransitionRecorder transitionRecorder;
     private TelemetryHealthScheduler scheduler;
 
     @BeforeEach
     void setUp() {
         lenient().when(clockProvider.now()).thenReturn(NOW);
-        scheduler = new TelemetryHealthScheduler(applianceLiveStatePort, operationalEventRepository,
-                notificationJobRepository, clockProvider, PROPERTIES);
+        transitionRecorder = new TelemetryHealthTransitionRecorder(operationalEventRepository, notificationJobRepository);
+        scheduler = new TelemetryHealthScheduler(applianceLiveStatePort, transitionRecorder, clockProvider, PROPERTIES);
         lenient().when(operationalEventRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
@@ -64,9 +65,6 @@ class TelemetryHealthSchedulerTest {
                 lastUpdatedAt);
     }
 
-    /** Makes the mocked port actually apply the scheduler's mutator to {@code existing}, mirroring
-     * the real Ignite adapter's read-mutate-write behavior — without this, the mutator lambda (and
-     * the scheduler's internal transition bookkeeping inside it) never actually runs. */
     @SuppressWarnings("unchecked")
     private void stubUpdateToApply(UUID applianceId, ApplianceLiveState existing) {
         when(applianceLiveStatePort.update(eq(HOME_ID), eq(applianceId), any())).thenAnswer(invocation -> {
@@ -140,7 +138,6 @@ class TelemetryHealthSchedulerTest {
     void reCheckInsideTheTransactionSkipsAnApplianceThatRecoveredBetweenScanAndUpdate() {
         UUID applianceId = UUID.randomUUID();
         ApplianceLiveState scanned = liveState(applianceId, ApplianceHealthStatus.NORMAL, NOW.minusSeconds(45));
-        // By the time the transactional update runs, fresh telemetry has already arrived.
         ApplianceLiveState recovered = liveState(applianceId, ApplianceHealthStatus.NORMAL, NOW);
         when(applianceLiveStatePort.getAll()).thenReturn(List.of(scanned));
         stubUpdateToApply(applianceId, recovered);
@@ -168,5 +165,19 @@ class TelemetryHealthSchedulerTest {
 
         verify(operationalEventRepository).save(any());
         verify(notificationJobRepository).save(any());
+    }
+
+    @Test
+    void databaseFailureTriggersCompensatingRollbackOfLiveState() {
+        UUID applianceId = UUID.randomUUID();
+        ApplianceLiveState existing = liveState(applianceId, ApplianceHealthStatus.NORMAL, NOW.minusSeconds(45));
+        when(applianceLiveStatePort.getAll()).thenReturn(List.of(existing));
+        stubUpdateToApply(applianceId, existing);
+        when(operationalEventRepository.save(any())).thenThrow(new RuntimeException("PostgreSQL connection lost"));
+
+        scheduler.sweep();
+
+        // Second update call restores previous live state
+        verify(applianceLiveStatePort, org.mockito.Mockito.times(2)).update(eq(HOME_ID), eq(applianceId), any());
     }
 }
