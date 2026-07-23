@@ -5,9 +5,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
@@ -22,19 +22,31 @@ import org.testcontainers.utility.DockerImageName;
 @Testcontainers(disabledWithoutDocker = true)
 abstract class AbstractIntegrationTest {
 
-    @Container
+    // These are singleton containers, started once here and never stopped between test classes, and
+    // that lifecycle is the point. With @Container the Testcontainers extension stops static
+    // containers in each class's afterAll, so once there was a second integration test class the one
+    // that ran second reused a Spring context (cached, because the configuration is identical) whose
+    // Hikari pool still pointed at the first class's already-stopped container, and every query came
+    // back "connection refused". Starting them in a static block and leaving them to Ryuk at JVM exit
+    // keeps every context pointed at a live broker and database.
+    //
+    // Confluent rather than Redpanda for Kafka: its Testcontainers listener wiring is the most
+    // exercised one in the Spring ecosystem, and the relay only needs the standard producer API, so
+    // the broker is interchangeable as far as these tests are concerned.
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
-
-    // I first reached for Redpanda here because its arm64 image starts fast on this machine, but the
-    // whole class skips on this machine (its Docker is too new for the Testcontainers probe), so that
-    // only ever mattered on CI, where the runner is amd64 anyway. On the runner Redpanda's advertised
-    // listener did not line up with the mapped port and every Kafka client failed to connect, so I
-    // moved to the Confluent image, whose Testcontainers listener wiring is the most exercised one in
-    // the Spring ecosystem. The relay uses only the standard producer API, so the broker is
-    // interchangeable as far as this test is concerned.
-    @Container
     static final KafkaContainer KAFKA =
             new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1"));
+
+    static {
+        // The @Testcontainers(disabledWithoutDocker) condition skips the tests when Docker is absent,
+        // but this static block runs at class-load regardless, so it has to make the same check or it
+        // would try to start a container on a machine that has none (this one, whose Docker is too new
+        // for the Testcontainers probe).
+        if (DockerClientFactory.instance().isDockerAvailable()) {
+            POSTGRES.start();
+            KAFKA.start();
+        }
+    }
 
     // I mock the Ignite thin client rather than stand up a node. The live-state path it drives was
     // verified end to end against the real stack, and what these tests add is context wiring and the
@@ -55,5 +67,11 @@ abstract class AbstractIntegrationTest {
         // only needs to be long enough for Keys.hmacShaKeyFor to pick an HMAC-SHA variant.
         registry.add("vegawatt.jwt.secret",
                 () -> "integration-test-signing-secret-of-at-least-256-bits-long");
+        // The context's own notification worker polls with claimDue on a timer. Since these tests
+        // share one context, that worker would race NotificationJobClaimIntegrationTest for the very
+        // jobs it inserts and quietly claim some out from under it. Pushing its interval past any test
+        // run leaves the test the only claimant, without touching the outbox relay the relay test
+        // needs (that is a separate interval).
+        registry.add("vegawatt.notification.worker-interval-ms", () -> "3600000");
     }
 }
