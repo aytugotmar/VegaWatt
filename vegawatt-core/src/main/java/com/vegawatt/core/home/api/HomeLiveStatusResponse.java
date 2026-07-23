@@ -25,6 +25,8 @@ public record HomeLiveStatusResponse(
             String applianceType,
             BigDecimal safePowerLimitWatt,
             BigDecimal currentPowerWatt,
+            String operatingState,
+            String operatingMode,
             BigDecimal accumulatedEnergyKwh,
             int consecutiveBreachCount,
             boolean anomalous,
@@ -32,8 +34,10 @@ public record HomeLiveStatusResponse(
 
         static ApplianceLiveStatusResponse from(ApplianceLiveState state) {
             return new ApplianceLiveStatusResponse(state.applianceId(), state.applianceName(), state.applianceType(),
-                    state.safePowerLimitWatt(), state.currentPowerWatt(), state.accumulatedEnergyKwh(),
-                    state.consecutiveBreachCount(), state.anomalous(), state.lastUpdatedAt());
+                    state.safePowerLimitWatt(), state.currentPowerWatt(),
+                    state.operatingState() == null ? null : state.operatingState().name(), state.operatingMode(),
+                    state.accumulatedEnergyKwh(), state.consecutiveBreachCount(), state.anomalous(),
+                    state.lastUpdatedAt());
         }
     }
 

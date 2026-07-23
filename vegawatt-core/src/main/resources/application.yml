@@ -47,6 +47,15 @@ vegawatt:
     addresses: ${IGNITE_ADDRESSES:localhost:10800}
   anomaly:
     breach-threshold: ${ANOMALY_BREACH_THRESHOLD:3}
+  standby-anomaly:
+    threshold-multiplier: ${STANDBY_ANOMALY_THRESHOLD_MULTIPLIER:3}
+    minimum-excess-watt: ${STANDBY_ANOMALY_MINIMUM_EXCESS_WATT:2}
+    breach-threshold: ${STANDBY_ANOMALY_BREACH_THRESHOLD:3}
+    recovery-threshold: ${STANDBY_ANOMALY_RECOVERY_THRESHOLD:3}
+  telemetry-health:
+    stale-after-seconds: ${TELEMETRY_STALE_AFTER_SECONDS:30}
+    offline-after-seconds: ${TELEMETRY_OFFLINE_AFTER_SECONDS:120}
+    sweep-interval-seconds: ${TELEMETRY_HEALTH_SWEEP_INTERVAL_SECONDS:15}
   gemini:
     api-key: ${GEMINI_API_KEY:}
     model: ${GEMINI_MODEL:gemini-2.0-flash}

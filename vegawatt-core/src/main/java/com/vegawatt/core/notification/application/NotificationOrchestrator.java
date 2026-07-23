@@ -2,7 +2,6 @@ package com.vegawatt.core.notification.application;
 
 import com.vegawatt.core.common.time.ClockProvider;
 import com.vegawatt.core.home.domain.Appliance;
-import com.vegawatt.core.home.domain.ApplianceLiveState;
 import com.vegawatt.core.home.domain.ApplianceLiveStatePort;
 import com.vegawatt.core.home.domain.Home;
 import com.vegawatt.core.home.domain.HomeLiveState;
@@ -64,7 +63,7 @@ public class NotificationOrchestrator {
             }
 
             List<String> anomalousApplianceNames = applianceLiveStatePort.getByHomeId(homeId).stream()
-                    .filter(ApplianceLiveState::anomalous)
+                    .filter(state -> state.anomalous() || state.standbyAnomalyActive())
                     .map(state -> applianceName(home, state.applianceId()))
                     .toList();
 
