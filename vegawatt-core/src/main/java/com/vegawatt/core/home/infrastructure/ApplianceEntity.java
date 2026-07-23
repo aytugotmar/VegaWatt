@@ -39,11 +39,28 @@ class ApplianceEntity {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    @Column(name = "catalog_item_id")
+    private UUID catalogItemId;
+
+    @Column(name = "catalog_code_snapshot")
+    private String catalogCodeSnapshot;
+
+    @Column(name = "behavior_profile_snapshot")
+    private String behaviorProfileSnapshot;
+
+    @Column(name = "standby_min_watt")
+    private BigDecimal standbyMinWatt;
+
+    @Column(name = "standby_max_watt")
+    private BigDecimal standbyMaxWatt;
+
     protected ApplianceEntity() {
     }
 
     ApplianceEntity(UUID id, UUID homeId, String name, String type, BigDecimal safePowerLimitWatt,
-                     BigDecimal simulationMinWatt, BigDecimal simulationMaxWatt, boolean active, Instant createdAt) {
+                     BigDecimal simulationMinWatt, BigDecimal simulationMaxWatt, boolean active, Instant createdAt,
+                     UUID catalogItemId, String catalogCodeSnapshot, String behaviorProfileSnapshot,
+                     BigDecimal standbyMinWatt, BigDecimal standbyMaxWatt) {
         this.id = id;
         this.homeId = homeId;
         this.name = name;
@@ -53,6 +70,11 @@ class ApplianceEntity {
         this.simulationMaxWatt = simulationMaxWatt;
         this.active = active;
         this.createdAt = createdAt;
+        this.catalogItemId = catalogItemId;
+        this.catalogCodeSnapshot = catalogCodeSnapshot;
+        this.behaviorProfileSnapshot = behaviorProfileSnapshot;
+        this.standbyMinWatt = standbyMinWatt;
+        this.standbyMaxWatt = standbyMaxWatt;
     }
 
     UUID getId() {
@@ -89,5 +111,25 @@ class ApplianceEntity {
 
     Instant getCreatedAt() {
         return createdAt;
+    }
+
+    UUID getCatalogItemId() {
+        return catalogItemId;
+    }
+
+    String getCatalogCodeSnapshot() {
+        return catalogCodeSnapshot;
+    }
+
+    String getBehaviorProfileSnapshot() {
+        return behaviorProfileSnapshot;
+    }
+
+    BigDecimal getStandbyMinWatt() {
+        return standbyMinWatt;
+    }
+
+    BigDecimal getStandbyMaxWatt() {
+        return standbyMaxWatt;
     }
 }

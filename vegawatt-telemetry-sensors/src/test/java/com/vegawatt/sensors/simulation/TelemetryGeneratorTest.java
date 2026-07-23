@@ -21,15 +21,15 @@ class TelemetryGeneratorTest {
     /** An unmapped type, so {@link ApplianceProfiles} falls back to {@code GENERIC}. */
     private static final ApplianceConfig GENERIC_CONFIG = new ApplianceConfig(
             FIXED_ID, UUID.randomUUID(), "SPACE_HEATER", new BigDecimal("2000"), new BigDecimal("100"),
-            new BigDecimal("1800"));
+            new BigDecimal("1800"), null, null, null, null);
 
     private static final ApplianceConfig REFRIGERATOR_CONFIG = new ApplianceConfig(
             FIXED_ID, UUID.randomUUID(), "REFRIGERATOR", new BigDecimal("200"), new BigDecimal("100"),
-            new BigDecimal("200"));
+            new BigDecimal("200"), null, null, null, null);
 
     private static final ApplianceConfig WASHING_MACHINE_CONFIG = new ApplianceConfig(
             FIXED_ID, UUID.randomUUID(), "WASHING_MACHINE", new BigDecimal("2200"), new BigDecimal("100"),
-            new BigDecimal("1800"));
+            new BigDecimal("1800"), null, null, null, null);
 
     /** 1970-01-01, a Thursday (weekday) — so {@code epochDay == 0} keeps session-offset math clean. */
     private static final LocalDate WEEKDAY = LocalDate.ofEpochDay(0);
@@ -68,7 +68,7 @@ class TelemetryGeneratorTest {
     @Test
     void neverGeneratesNegativePower() {
         ApplianceConfig zeroFloorConfig = new ApplianceConfig(FIXED_ID, UUID.randomUUID(), "SPACE_HEATER",
-                new BigDecimal("500"), BigDecimal.ZERO, new BigDecimal("400"));
+                new BigDecimal("500"), BigDecimal.ZERO, new BigDecimal("400"), null, null, null, null);
         RandomSource noSpikeThenLowerBound = sequenceOf(0.5, 0.0);
 
         BigDecimal reading = TelemetryGenerator.generatePowerWatt(zeroFloorConfig, noSpikeThenLowerBound, at(LocalTime.NOON));
@@ -90,7 +90,7 @@ class TelemetryGeneratorTest {
     @Test
     void twoAppliancesOfTheSameTypeDoNotPeakAtTheExactSameReadingAcrossHomes() {
         ApplianceConfig otherHomesAc = new ApplianceConfig(new UUID(0L, 1L), UUID.randomUUID(), "SPACE_HEATER",
-                new BigDecimal("2000"), new BigDecimal("100"), new BigDecimal("1800"));
+                new BigDecimal("2000"), new BigDecimal("100"), new BigDecimal("1800"), null, null, null, null);
 
         BigDecimal fixedIdReading = TelemetryGenerator.generatePowerWatt(GENERIC_CONFIG, MID_RANGE, at(LocalTime.of(19, 0)));
         BigDecimal otherApplianceReading = TelemetryGenerator.generatePowerWatt(otherHomesAc, MID_RANGE, at(LocalTime.of(19, 0)));

@@ -1,0 +1,18 @@
+package com.vegawatt.core.appliancecatalog.domain;
+
+public enum ApplianceBehaviorProfile {
+    ALWAYS_ON_STABLE,
+    ALWAYS_ON_VARIABLE,
+    MANUAL_SWITCH,
+    SCHEDULED_SWITCH,
+    STANDBY_DEVICE,
+    SHORT_SESSION,
+    SHORT_HIGH_POWER,
+    PROGRAM_CYCLE,
+    THERMOSTATIC_CYCLE,
+    THERMOSTATIC_SESSION,
+    VARIABLE_LOAD,
+    CHARGING_CURVE,
+    CHARGING_AND_SESSION,
+    FLOW_TRIGGERED
+}

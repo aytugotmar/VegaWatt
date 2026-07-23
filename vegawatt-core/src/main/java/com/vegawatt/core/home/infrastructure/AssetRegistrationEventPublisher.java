@@ -30,7 +30,7 @@ public class AssetRegistrationEventPublisher implements AssetRegistrationPublish
         Instant occurredAt = clockProvider.now();
         AssetRegistrationEventPayload payload = new AssetRegistrationEventPayload(
                 UUID.randomUUID(),
-                1,
+                2,
                 occurredAt,
                 new AssetRegistrationEventPayload.HomePayload(
                         home.id(), home.name(), home.contactEmail(), home.energyQuotaKwh(),
@@ -39,7 +39,11 @@ public class AssetRegistrationEventPublisher implements AssetRegistrationPublish
                         .map(appliance -> new AssetRegistrationEventPayload.AppliancePayload(
                                 appliance.id(), appliance.name(), appliance.type(),
                                 appliance.safePowerLimitWatt(), appliance.simulationMinWatt(),
-                                appliance.simulationMaxWatt()))
+                                appliance.simulationMaxWatt(),
+                                appliance.catalogCodeSnapshot() == null ? null : appliance.catalogCodeSnapshot().value(),
+                                appliance.behaviorProfileSnapshot() == null ? null
+                                        : appliance.behaviorProfileSnapshot().name(),
+                                appliance.standbyMinWatt(), appliance.standbyMaxWatt()))
                         .toList());
 
         String json;

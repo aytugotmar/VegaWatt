@@ -33,6 +33,7 @@ class TelemetryEventKafkaConsumer {
             throw new IllegalArgumentException("Malformed telemetry event JSON", e);
         }
         return new TelemetryReading(payload.eventId(), payload.homeId(), payload.applianceId(), payload.powerWatt(),
-                payload.measurementIntervalSeconds(), payload.occurredAt());
+                payload.operatingState(), payload.operatingMode(), payload.measurementIntervalSeconds(),
+                payload.occurredAt());
     }
 }
