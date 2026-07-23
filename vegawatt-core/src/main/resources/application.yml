@@ -68,6 +68,7 @@ vegawatt:
     send-timeout-ms: ${OUTBOX_SEND_TIMEOUT_MS:10000}
   notification:
     worker-interval-ms: ${NOTIFICATION_WORKER_INTERVAL_MS:2000}
+    claim-lease-seconds: ${NOTIFICATION_CLAIM_LEASE_SECONDS:120}
   scheduling:
     snapshot-interval-seconds: ${SNAPSHOT_INTERVAL:60}
     telemetry-interval-seconds: ${TELEMETRY_INTERVAL:5}
