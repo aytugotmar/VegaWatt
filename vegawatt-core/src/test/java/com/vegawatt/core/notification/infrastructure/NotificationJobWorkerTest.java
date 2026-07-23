@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class NotificationJobWorkerTest {
 
     private static final Instant NOW = Instant.parse("2026-01-01T00:00:00Z");
+    private static final long LEASE_SECONDS = 120;
 
     @Mock
     private NotificationJobRepository notificationJobRepository;
@@ -29,16 +30,19 @@ class NotificationJobWorkerTest {
     private ClockProvider clockProvider;
 
     @Test
-    void processesEveryDueJob() {
+    void processesEveryClaimedJob() {
         when(clockProvider.now()).thenReturn(NOW);
         NotificationJob jobOne = NotificationJob.create(UUID.randomUUID(), UUID.randomUUID(),
                 AdvisoryTriggerType.QUOTA_80, NOW);
         NotificationJob jobTwo = NotificationJob.create(UUID.randomUUID(), UUID.randomUUID(),
                 AdvisoryTriggerType.ANOMALY, NOW);
-        when(notificationJobRepository.findDue(NOW, 50)).thenReturn(List.of(jobOne, jobTwo));
+        // The worker claims with a lease that ends LEASE_SECONDS after now; anything else here would
+        // mean it was reserving jobs for a different window than the one it says it is.
+        when(notificationJobRepository.claimDue(NOW, NOW.plusSeconds(LEASE_SECONDS), 50))
+                .thenReturn(List.of(jobOne, jobTwo));
 
         NotificationJobWorker worker = new NotificationJobWorker(notificationJobRepository, notificationOrchestrator,
-                clockProvider);
+                clockProvider, LEASE_SECONDS);
         worker.processDueJobs();
 
         verify(notificationOrchestrator).processJob(jobOne);
