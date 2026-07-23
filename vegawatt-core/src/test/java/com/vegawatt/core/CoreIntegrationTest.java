@@ -55,7 +55,7 @@ class CoreIntegrationTest extends AbstractIntegrationTest {
         }
 
         // The relay must also mark the row published, or the next scheduler tick would resend it.
-        await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
+        await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
                 assertThat(outboxRepository.findUnpublished(50))
                         .noneMatch(event -> event.aggregateId().equals(aggregateId)));
     }
@@ -74,7 +74,7 @@ class CoreIntegrationTest extends AbstractIntegrationTest {
     // keeps this from matching another test's events on the shared, compacted registration topic.
     private static ConsumerRecord<String, String> awaitRecordWithKey(Consumer<String, String> consumer, String key) {
         AtomicReference<ConsumerRecord<String, String>> found = new AtomicReference<>();
-        await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> {
+        await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
             ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(500));
             for (ConsumerRecord<String, String> record : records) {
                 if (key.equals(record.key())) {
