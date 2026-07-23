@@ -11,24 +11,25 @@ import org.springframework.stereotype.Component;
 class ApplianceBehaviorModelRegistry {
 
     private final Map<ApplianceBehaviorProfile, ApplianceBehaviorModel> modelsByProfile;
+    private final LegacyFallbackBehaviorModel fallbackModel;
 
-    ApplianceBehaviorModelRegistry(List<ApplianceBehaviorModel> models) {
+    ApplianceBehaviorModelRegistry(List<ApplianceBehaviorModel> models, LegacyFallbackBehaviorModel fallbackModel) {
         this.modelsByProfile = models.stream()
+                .filter(m -> m.supportedProfile() != null)
                 .collect(Collectors.toUnmodifiableMap(ApplianceBehaviorModel::supportedProfile, model -> model));
+        this.fallbackModel = fallbackModel;
     }
 
-    /** Empty when the appliance has no catalog association, an unrecognized profile string, or a
-     * profile no model has been implemented for yet — callers fall back to the legacy stateless
-     * generator in all of those cases. */
     Optional<ApplianceBehaviorModel> forConfig(ApplianceConfig config) {
         if (config.behaviorProfile() == null) {
-            return Optional.empty();
+            return Optional.of(fallbackModel);
         }
         try {
             ApplianceBehaviorProfile profile = ApplianceBehaviorProfile.valueOf(config.behaviorProfile());
-            return Optional.ofNullable(modelsByProfile.get(profile));
+            ApplianceBehaviorModel model = modelsByProfile.get(profile);
+            return Optional.ofNullable(model != null ? model : fallbackModel);
         } catch (IllegalArgumentException e) {
-            return Optional.empty();
+            return Optional.of(fallbackModel);
         }
     }
 }

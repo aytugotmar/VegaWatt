@@ -104,8 +104,19 @@ export function getAppliancePresetByType(type: string | null | undefined): Appli
   return APPLIANCE_TYPE_PRESETS.find((preset) => preset.type === type);
 }
 
-export function getApplianceIcon(type: string | null | undefined): LucideIcon {
-  return getAppliancePresetByType(type)?.icon ?? CUSTOM_ICON;
+import { getApplianceCatalogIcon } from "./applianceCatalogIcons";
+
+export function getApplianceIcon(type: string | null | undefined, catalogCodeSnapshot?: string | null): LucideIcon {
+  if (catalogCodeSnapshot) {
+    return getApplianceCatalogIcon(catalogCodeSnapshot);
+  }
+  const preset = getAppliancePresetByType(type);
+  if (preset) return preset.icon;
+  if (type) {
+    // Attempt fallback lookup via catalog icon key naming
+    return getApplianceCatalogIcon(type.toLowerCase().replace(/_/g, ""));
+  }
+  return CUSTOM_ICON;
 }
 
 function titleCaseFallback(type: string): string {

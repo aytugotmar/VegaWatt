@@ -37,6 +37,11 @@ class UserRepositoryAdapter implements UserRepository {
         return jpaRepository.existsByEmail(email);
     }
 
+    @Override
+    public java.util.List<User> findAll() {
+        return jpaRepository.findAll().stream().map(UserRepositoryAdapter::toDomain).toList();
+    }
+
     private static UserEntity toEntity(User user) {
         return new UserEntity(user.id(), user.email(), user.passwordHash(), user.role().name(), user.createdAt());
     }

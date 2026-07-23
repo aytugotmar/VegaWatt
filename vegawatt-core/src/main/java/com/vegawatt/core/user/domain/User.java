@@ -31,6 +31,18 @@ public final class User {
         return new User(id, email, passwordHash, role, createdAt);
     }
 
+    public User changePassword(String newPasswordHash) {
+        return new User(id, email, newPasswordHash, role, createdAt);
+    }
+
+    public User changeEmail(String newEmail) {
+        return new User(id, newEmail, passwordHash, role, createdAt);
+    }
+
+    public User changeRole(UserRole newRole) {
+        return new User(id, email, passwordHash, newRole, createdAt);
+    }
+
     public UUID id() {
         return id;
     }

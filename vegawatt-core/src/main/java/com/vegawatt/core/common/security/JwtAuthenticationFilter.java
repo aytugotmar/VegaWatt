@@ -42,6 +42,10 @@ class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith(BEARER_PREFIX)) {
             return Optional.of(header.substring(BEARER_PREFIX.length()));
         }
+        String tokenParam = request.getParameter("token");
+        if (tokenParam != null && !tokenParam.isBlank()) {
+            return Optional.of(tokenParam);
+        }
         return Optional.empty();
     }
 }

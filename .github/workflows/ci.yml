@@ -41,7 +41,7 @@ jobs:
       # infrastructure and the Gemini and SMTP paths fall back or are mocked.
       - name: Test ${{ matrix.module }}
         working-directory: ${{ matrix.module }}
-        run: mvn -B -ntp test
+        run: mvn -B -ntp clean verify
 
   frontend:
     name: frontend
@@ -67,3 +67,6 @@ jobs:
 
       - name: Test
         run: npm run test
+
+      - name: Build
+        run: npm run build

@@ -13,8 +13,14 @@ public final class EvaluateApplianceAnomalyPolicy {
         boolean breach = currentPowerWatt.compareTo(safePowerLimitWatt) > 0;
 
         if (!breach) {
-            boolean transitionedToRecovered = previouslyAnomalous;
-            return new AnomalyEvaluationResult(0, false, false, transitionedToRecovered);
+            if (previouslyAnomalous) {
+                // Require recoveryThreshold (same as breachThreshold) consecutive normal readings to recover
+                int consecutiveNormalCount = Math.max(0, breachThreshold - previousConsecutiveBreachCount + 1);
+                boolean recovered = consecutiveNormalCount >= breachThreshold;
+                int remainingBreach = recovered ? 0 : previousConsecutiveBreachCount - 1;
+                return new AnomalyEvaluationResult(Math.max(0, remainingBreach), !recovered, false, recovered);
+            }
+            return new AnomalyEvaluationResult(0, false, false, false);
         }
 
         int consecutiveBreachCount = previousConsecutiveBreachCount + 1;

@@ -11,9 +11,13 @@ export function filterCatalogItems(
   items: ApplianceCatalogItem[],
   options: { tab: ApplianceCatalogTab; query: string },
 ): ApplianceCatalogItem[] {
-  return items.filter((item) => {
-    const matchesTab = options.tab === FEATURED_TAB ? item.featured : item.category === options.tab;
-    if (!matchesTab) return false;
-    return matchesApplianceCatalogSearch(item, getApplianceCategoryLabel(item.category), options.query);
-  });
+  const query = options.query.trim();
+  if (query) {
+    return items.filter((item) =>
+      matchesApplianceCatalogSearch(item, getApplianceCategoryLabel(item.category), query),
+    );
+  }
+  return items.filter((item) =>
+    options.tab === FEATURED_TAB ? item.featured : item.category === options.tab,
+  );
 }

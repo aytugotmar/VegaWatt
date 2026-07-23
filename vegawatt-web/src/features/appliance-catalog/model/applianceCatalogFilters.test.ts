@@ -46,9 +46,9 @@ describe("filterCatalogItems", () => {
     expect(result).toEqual([AIR_CONDITIONER]);
   });
 
-  it("combines category and search with AND", () => {
+  it("searches globally across all categories when search query is present", () => {
     const result = filterCatalogItems(ITEMS, { tab: "KITCHEN", query: "klima" });
-    expect(result).toEqual([]);
+    expect(result).toEqual([AIR_CONDITIONER]);
   });
 
   it("matches an item that is in the tab and matches the search", () => {

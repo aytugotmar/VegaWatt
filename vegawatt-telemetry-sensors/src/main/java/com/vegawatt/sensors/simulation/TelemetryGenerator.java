@@ -56,7 +56,7 @@ public final class TelemetryGenerator {
         return profile.weekdaySession();
     }
 
-    static double diurnalMultiplier(ApplianceProfile profile, ZonedDateTime time, UUID applianceId) {
+    public static double diurnalMultiplier(ApplianceProfile profile, ZonedDateTime time, UUID applianceId) {
         List<ApplianceProfile.Bump> bumps = new ArrayList<>(profile.bumps());
         if (DiurnalCurve.isWeekend(time)) {
             bumps.addAll(profile.weekendBumps());
@@ -69,13 +69,13 @@ public final class TelemetryGenerator {
         return randomInRange(config.safePowerLimitWatt(), spikeCeiling, randomSource);
     }
 
-    static BigDecimal randomInRange(BigDecimal min, BigDecimal max, RandomSource randomSource) {
+    public static BigDecimal randomInRange(BigDecimal min, BigDecimal max, RandomSource randomSource) {
         BigDecimal span = max.subtract(min);
         BigDecimal value = min.add(span.multiply(BigDecimal.valueOf(randomSource.nextDouble())));
         return scale(value);
     }
 
-    static BigDecimal scale(BigDecimal value) {
+    public static BigDecimal scale(BigDecimal value) {
         return value.max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
     }
 }

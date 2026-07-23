@@ -44,6 +44,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.UNAUTHORIZED, "Unauthorized", ex.getMessage());
     }
 
+    @ExceptionHandler(com.vegawatt.core.common.rate.RateLimitExceededException.class)
+    public ProblemDetail handleRateLimitExceeded(com.vegawatt.core.common.rate.RateLimitExceededException ex) {
+        return problem(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", ex.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleUnexpected(Exception ex) {
         log.error("Unhandled exception", ex);

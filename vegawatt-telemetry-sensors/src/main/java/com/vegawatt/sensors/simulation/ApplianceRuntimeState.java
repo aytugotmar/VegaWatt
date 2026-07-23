@@ -26,4 +26,8 @@ public record ApplianceRuntimeState(
         /** While non-null and in the future, a fault that just ended blocks a new one from
          * starting, even if {@link #nextFaultEvaluationAt} says an evaluation is due. */
         Instant faultCooldownUntil) {
+
+    public static ApplianceRuntimeState initial(Instant now) {
+        return new ApplianceRuntimeState(ApplianceOperatingState.OFF, "STANDBY", now, null, null, null, null, now, null, null, null);
+    }
 }

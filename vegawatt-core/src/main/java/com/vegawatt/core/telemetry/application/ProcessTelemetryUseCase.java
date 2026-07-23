@@ -40,6 +40,7 @@ public class ProcessTelemetryUseCase {
 
     private final HomeRepository homeRepository;
     private final ApplianceRepository applianceRepository;
+    @SuppressWarnings("unused")
     private final HomeLiveStatePort homeLiveStatePort;
     private final TelemetryLiveStatePort telemetryLiveStatePort;
     private final EvaluateHomeBillingUseCase evaluateHomeBillingUseCase;

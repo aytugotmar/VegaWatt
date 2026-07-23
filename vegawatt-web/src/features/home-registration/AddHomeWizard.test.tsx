@@ -177,7 +177,7 @@ describe("AddHomeWizard", () => {
     await user.type(screen.getByLabelText("Cihaz ara"), "klima");
 
     await waitFor(() => expect(screen.queryByText("Buzdolabı")).not.toBeInTheDocument());
-    expect(screen.queryByText("Klima")).not.toBeInTheDocument();
+    expect(screen.getByText("Klima")).toBeInTheDocument();
   });
 
   it("opens the details drawer and adds the appliance from its CTA", async () => {

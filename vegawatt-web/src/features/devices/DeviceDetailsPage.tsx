@@ -22,14 +22,35 @@ const BAR_TONE_CLASS: Record<"normal" | "warning" | "critical", string> = {
 
 export function DeviceDetailsPage() {
   const { applianceId } = useParams<{ applianceId: string }>();
-  const device = useDeviceById(applianceId);
+  const { device, isLoading } = useDeviceById(applianceId);
 
   if (!applianceId) return null;
 
-  if (!device) {
+  if (isLoading) {
     return (
       <div className="mx-auto max-w-3xl px-6 py-10">
-        <Spinner label="Cihaz yükleniyor..." />
+        <Spinner label="Cihaz bilgileri yükleniyor..." />
+      </div>
+    );
+  }
+
+  if (!device) {
+    return (
+      <div className="mx-auto max-w-xl px-6 py-16 text-center">
+        <div className="rounded-input border border-border bg-surface p-8 shadow-sm">
+          <AlertTriangle className="mx-auto h-12 w-12 text-warning" aria-hidden="true" />
+          <h2 className="mt-4 text-xl font-semibold text-text-primary">Cihaz Bulunamadı</h2>
+          <p className="mt-2 text-sm text-text-muted">
+            Aradığınız cihaz sistemde bulunamadı veya erişim yetkiniz yok.
+          </p>
+          <Link
+            to="/app/devices"
+            className="mt-6 inline-flex items-center gap-2 rounded-input bg-primary px-4 py-2 text-sm font-medium text-white shadow hover:bg-primary-hover"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            Cihazlara Dön
+          </Link>
+        </div>
       </div>
     );
   }

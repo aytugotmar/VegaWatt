@@ -115,7 +115,7 @@ class StandbyDeviceBehaviorModel implements ApplianceBehaviorModel {
 
         boolean priorFaultStillValid = previousState != null && previousState.activeFaultCode() != null
                 && previousState.faultExpectedEndAt() != null && now.isBefore(previousState.faultExpectedEndAt());
-        if (priorFaultStillValid) {
+        if (priorFaultStillValid && previousState != null) {
             return withFault(windowState, previousState.activeFaultCode(), previousState.faultStartedAt(),
                     previousState.faultExpectedEndAt());
         }
