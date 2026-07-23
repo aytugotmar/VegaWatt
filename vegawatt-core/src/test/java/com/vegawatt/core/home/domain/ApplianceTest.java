@@ -46,6 +46,21 @@ class ApplianceTest {
     }
 
     @Test
+    void rejectsSimulationMaxAboveSafePowerLimit() {
+        assertThatThrownBy(() -> Appliance.create(HOME_ID, "Klima", "AC", new BigDecimal("100"),
+                new BigDecimal("10"), new BigDecimal("1000")))
+                .isInstanceOf(InvalidApplianceConfigurationException.class);
+    }
+
+    @Test
+    void acceptsSimulationMaxEqualToSafePowerLimit() {
+        Appliance appliance = Appliance.create(HOME_ID, "Klima", "AC", new BigDecimal("2500"),
+                new BigDecimal("200"), new BigDecimal("2500"));
+
+        assertThat(appliance.safePowerLimitWatt()).isEqualByComparingTo(appliance.simulationMaxWatt());
+    }
+
+    @Test
     void rejectsNegativeSimulationMin() {
         assertThatThrownBy(() -> Appliance.create(HOME_ID, "Klima", "AC", new BigDecimal("2500"),
                 new BigDecimal("-1"), new BigDecimal("2300")))

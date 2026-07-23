@@ -1,6 +1,7 @@
 package com.vegawatt.core.home.api;
 
 import com.vegawatt.core.access.domain.HomeAccessService;
+import com.vegawatt.core.access.domain.HomeAuthorizationService;
 import com.vegawatt.core.common.security.CurrentUser;
 import com.vegawatt.core.home.application.GetAllLiveHomesQuery;
 import com.vegawatt.core.home.application.GetLiveHomeStatusQuery;
@@ -30,13 +31,16 @@ class HomeController {
     private final GetAllLiveHomesQuery getAllLiveHomesQuery;
     private final GetLiveHomeStatusQuery getLiveHomeStatusQuery;
     private final HomeAccessService homeAccessService;
+    private final HomeAuthorizationService homeAuthorizationService;
 
     HomeController(RegisterHomeUseCase registerHomeUseCase, GetAllLiveHomesQuery getAllLiveHomesQuery,
-                    GetLiveHomeStatusQuery getLiveHomeStatusQuery, HomeAccessService homeAccessService) {
+                    GetLiveHomeStatusQuery getLiveHomeStatusQuery, HomeAccessService homeAccessService,
+                    HomeAuthorizationService homeAuthorizationService) {
         this.registerHomeUseCase = registerHomeUseCase;
         this.getAllLiveHomesQuery = getAllLiveHomesQuery;
         this.getLiveHomeStatusQuery = getLiveHomeStatusQuery;
         this.homeAccessService = homeAccessService;
+        this.homeAuthorizationService = homeAuthorizationService;
     }
 
     @PostMapping
@@ -57,9 +61,7 @@ class HomeController {
 
     @GetMapping("/{homeId}/live")
     HomeLiveStatusResponse liveHome(@PathVariable UUID homeId, @AuthenticationPrincipal CurrentUser currentUser) {
-        if (currentUser.role() != UserRole.ADMIN && !homeAccessService.canAccess(currentUser.userId(), homeId)) {
-            throw new HomeNotFoundException(homeId);
-        }
+        homeAuthorizationService.requireAccess(currentUser, homeId);
         return getLiveHomeStatusQuery.execute(homeId)
                 .map(HomeLiveStatusResponse::from)
                 .orElseThrow(() -> new HomeNotFoundException(homeId));

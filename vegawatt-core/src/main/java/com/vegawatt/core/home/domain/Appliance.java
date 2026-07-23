@@ -31,6 +31,9 @@ public record Appliance(
         if (simulationMaxWatt.compareTo(simulationMinWatt) <= 0) {
             throw new InvalidApplianceConfigurationException("simulationMaxWatt must be greater than simulationMinWatt");
         }
+        if (simulationMaxWatt.compareTo(safePowerLimitWatt) > 0) {
+            throw new InvalidApplianceConfigurationException("simulationMaxWatt must not exceed safePowerLimitWatt");
+        }
         if (standbyMinWatt != null && standbyMaxWatt != null && standbyMaxWatt.compareTo(standbyMinWatt) < 0) {
             throw new InvalidApplianceConfigurationException("standbyMaxWatt must be >= standbyMinWatt");
         }

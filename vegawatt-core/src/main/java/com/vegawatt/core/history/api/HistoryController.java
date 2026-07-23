@@ -1,5 +1,7 @@
 package com.vegawatt.core.history.api;
 
+import com.vegawatt.core.access.domain.HomeAuthorizationService;
+import com.vegawatt.core.common.security.CurrentUser;
 import com.vegawatt.core.common.time.ClockProvider;
 import com.vegawatt.core.history.application.GetHomeConsumptionHistoryQuery;
 import java.time.Instant;
@@ -7,6 +9,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,10 +26,13 @@ class HistoryController {
 
     private final GetHomeConsumptionHistoryQuery getHomeConsumptionHistoryQuery;
     private final ClockProvider clockProvider;
+    private final HomeAuthorizationService homeAuthorizationService;
 
-    HistoryController(GetHomeConsumptionHistoryQuery getHomeConsumptionHistoryQuery, ClockProvider clockProvider) {
+    HistoryController(GetHomeConsumptionHistoryQuery getHomeConsumptionHistoryQuery, ClockProvider clockProvider,
+                       HomeAuthorizationService homeAuthorizationService) {
         this.getHomeConsumptionHistoryQuery = getHomeConsumptionHistoryQuery;
         this.clockProvider = clockProvider;
+        this.homeAuthorizationService = homeAuthorizationService;
     }
 
     @GetMapping
@@ -34,7 +40,9 @@ class HistoryController {
             @PathVariable UUID homeId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
-            @RequestParam(required = false) String granularity) {
+            @RequestParam(required = false) String granularity,
+            @AuthenticationPrincipal CurrentUser currentUser) {
+        homeAuthorizationService.requireAccess(currentUser, homeId);
         Instant rangeEnd = to != null ? to : clockProvider.now();
         Instant rangeStart = from != null ? from : rangeEnd.minus(DEFAULT_RANGE_HOURS, ChronoUnit.HOURS);
 
