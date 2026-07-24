@@ -1,7 +1,7 @@
 import { Cpu } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { getApplianceIcon, getApplianceTypeLabel } from "../../shared/constants/applianceTypes";
+import { getApplianceDisplayName, getApplianceIcon, getApplianceTypeLabel } from "../../shared/constants/applianceTypes";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Skeleton";
 import { formatPercentage, formatPower, formatRelativeTime } from "../../shared/utils/format";
@@ -123,7 +123,7 @@ export function DevicesPage() {
           </thead>
           <tbody>
             {filtered.map((device: DeviceRow) => {
-              const Icon = getApplianceIcon(device.appliance.applianceType);
+              const Icon = getApplianceIcon(device.appliance.applianceType, device.appliance.catalogCode);
               const tone = limitBarTone(device.limitUsagePercentage);
               return (
                 <tr
@@ -150,7 +150,7 @@ export function DevicesPage() {
                           )}
                         </span>
                         <span className="text-xs text-text-muted">
-                          {getApplianceTypeLabel(device.appliance.applianceType)}
+                          {getApplianceDisplayName(device.appliance.applianceType, device.appliance.catalogDisplayName)}
                         </span>
                       </div>
                     </Link>

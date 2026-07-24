@@ -1,10 +1,12 @@
-import { AlertTriangle, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { ApplianceBreachIndicator } from "../home-details/ApplianceBreachIndicator";
-import { getApplianceIcon, getApplianceTypeLabel } from "../../shared/constants/applianceTypes";
+import { getApplianceDisplayName, getApplianceIcon } from "../../shared/constants/applianceTypes";
+import { ApplianceStatusBadge } from "../../shared/components/ApplianceStatusBadge";
 import { RadialGauge } from "../../shared/components/RadialGauge";
 import { Spinner } from "../../shared/components/Skeleton";
 import { formatCurrency, formatEnergy, formatPercentage, formatPower, formatRelativeTime } from "../../shared/utils/format";
+import { getApplianceHealthTone } from "../../shared/utils/homeStatus";
 import { useDeviceById } from "./useAllAppliances";
 
 function limitBarTone(percentage: number | null): "normal" | "warning" | "critical" {
@@ -55,9 +57,11 @@ export function DeviceDetailsPage() {
     );
   }
 
-  const Icon = getApplianceIcon(device.appliance.applianceType);
+  const Icon = getApplianceIcon(device.appliance.applianceType, device.appliance.catalogCode);
   const tone = limitBarTone(device.limitUsagePercentage);
   const limitWidth = device.limitUsagePercentage === null ? 0 : Math.min(100, device.limitUsagePercentage);
+  const healthTone = getApplianceHealthTone(device.appliance);
+  const isLive = healthTone !== "offline" && healthTone !== "stale";
 
   return (
     <div className="mx-auto max-w-[1400px] px-8 py-8">
@@ -81,13 +85,16 @@ export function DeviceDetailsPage() {
             <p className="text-sm text-text-muted">
               {device.homeName} ·{" "}
               <Link to={`/app/homes/${device.homeId}`} className="hover:text-primary">
-                {getApplianceTypeLabel(device.appliance.applianceType)}
+                {getApplianceDisplayName(device.appliance.applianceType, device.appliance.catalogDisplayName)}
               </Link>
             </p>
           </div>
         </div>
-        <span className="flex items-center gap-1.5 text-xs font-medium text-success">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" aria-hidden="true" />
+        <span className={`flex items-center gap-1.5 text-xs font-medium ${isLive ? "text-success" : "text-danger"}`}>
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${isLive ? "animate-pulse bg-success" : "bg-danger"}`}
+            aria-hidden="true"
+          />
           Son ölçüm: {formatRelativeTime(device.appliance.lastUpdatedAt)}
         </span>
       </div>
@@ -148,17 +155,7 @@ export function DeviceDetailsPage() {
         <div className="rounded-input border border-border bg-surface p-4">
           <span className="text-xs font-medium uppercase tracking-wide text-text-muted">Durum</span>
           <div className="mt-1.5 flex items-center gap-2">
-            {device.appliance.anomalous ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-danger-soft px-2 py-0.5 text-xs font-semibold text-danger">
-                <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
-                Anomali
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2 py-0.5 text-xs font-semibold text-success">
-                <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                Normal
-              </span>
-            )}
+            <ApplianceStatusBadge appliance={device.appliance} />
           </div>
           <div className="mt-1.5">
             <ApplianceBreachIndicator consecutiveBreachCount={device.appliance.consecutiveBreachCount} />

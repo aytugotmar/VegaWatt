@@ -132,3 +132,10 @@ export function getApplianceTypeLabel(type: string | null | undefined): string {
   if (!type) return "Bilinmeyen cihaz";
   return getAppliancePresetByType(type)?.label ?? titleCaseFallback(type);
 }
+
+export function getApplianceDisplayName(
+  type: string | null | undefined,
+  catalogDisplayName?: string | null,
+): string {
+  return catalogDisplayName ?? getApplianceTypeLabel(type);
+}

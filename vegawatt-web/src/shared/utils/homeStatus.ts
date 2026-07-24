@@ -1,4 +1,4 @@
-import type { HomeLiveSummary } from "../types/home";
+import type { ApplianceLiveStatus, HomeLiveSummary } from "../types/home";
 import { toSafeNumber } from "./format";
 
 export type HomeHealthStatus = "NORMAL" | "WARNING" | "CRITICAL" | "PENALTY";
@@ -37,4 +37,31 @@ export function getQuotaTone(percentage: string | number | null | undefined): Qu
   if (value >= 100) return "critical";
   if (value >= 80) return "warning";
   return "normal";
+}
+
+export type ApplianceHealthTone = "offline" | "stale" | "anomalous" | "warning" | "normal";
+
+type ApplianceStatusInput = Pick<
+  ApplianceLiveStatus,
+  "telemetryHealthStatus" | "anomalous" | "standbyAnomalyActive"
+>;
+
+export function getApplianceHealthTone(appliance: ApplianceStatusInput): ApplianceHealthTone {
+  if (appliance.telemetryHealthStatus === "OFFLINE") return "offline";
+  if (appliance.telemetryHealthStatus === "STALE") return "stale";
+  if (appliance.anomalous) return "anomalous";
+  if (appliance.standbyAnomalyActive) return "warning";
+  return "normal";
+}
+
+const APPLIANCE_TONE_LABELS: Record<ApplianceHealthTone, string> = {
+  offline: "Çevrimdışı",
+  stale: "Veri bekleniyor",
+  anomalous: "Anomali",
+  warning: "Bekleme uyarısı",
+  normal: "Normal",
+};
+
+export function getApplianceHealthLabel(tone: ApplianceHealthTone): string {
+  return APPLIANCE_TONE_LABELS[tone];
 }

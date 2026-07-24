@@ -1,6 +1,6 @@
-import { AlertTriangle } from "lucide-react";
 import type { ApplianceLiveStatus } from "../../shared/types/home";
-import { getApplianceIcon, getApplianceTypeLabel } from "../../shared/constants/applianceTypes";
+import { getApplianceDisplayName, getApplianceIcon } from "../../shared/constants/applianceTypes";
+import { ApplianceStatusBadge } from "../../shared/components/ApplianceStatusBadge";
 import { formatEnergy, formatPower, formatRelativeTime } from "../../shared/utils/format";
 import { ApplianceBreachIndicator } from "./ApplianceBreachIndicator";
 import { MobileApplianceCard } from "./MobileApplianceCard";
@@ -32,7 +32,7 @@ export function AppliancesTable({ appliances }: AppliancesTableProps) {
         </thead>
         <tbody>
           {appliances.map((appliance) => {
-            const Icon = getApplianceIcon(appliance.applianceType);
+            const Icon = getApplianceIcon(appliance.applianceType, appliance.catalogCode);
             return (
               <tr
                 key={appliance.applianceId}
@@ -47,23 +47,13 @@ export function AppliancesTable({ appliances }: AppliancesTableProps) {
                     <div className="flex min-w-0 flex-col">
                       <span className="truncate font-medium text-text-primary">{appliance.applianceName}</span>
                       <span className="text-xs text-text-muted">
-                        {getApplianceTypeLabel(appliance.applianceType)}
+                        {getApplianceDisplayName(appliance.applianceType, appliance.catalogDisplayName)}
                       </span>
                     </div>
                   </div>
                 </td>
                 <td className="px-3 py-2.5">
-                  {appliance.anomalous ? (
-                    <span
-                      className="inline-flex items-center gap-1 rounded-full bg-danger-soft px-2 py-0.5 text-xs font-semibold text-danger"
-                      data-testid="anomaly-badge"
-                    >
-                      <AlertTriangle className="h-3 w-3" aria-hidden="true" />
-                      Anomali
-                    </span>
-                  ) : (
-                    <span className="text-xs text-text-secondary">Normal</span>
-                  )}
+                  <ApplianceStatusBadge appliance={appliance} />
                 </td>
                 <td className="tabular-nums px-3 py-2.5 text-text-secondary">
                   {formatPower(appliance.currentPowerWatt)}

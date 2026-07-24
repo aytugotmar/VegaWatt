@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getHomeHealthStatus, getQuotaTone } from "./homeStatus";
+import { getApplianceHealthTone, getHomeHealthStatus, getQuotaTone } from "./homeStatus";
 
 function home(overrides: Partial<Parameters<typeof getHomeHealthStatus>[0]> = {}) {
   return {
@@ -40,5 +40,38 @@ describe("getQuotaTone", () => {
     expect(getQuotaTone(80)).toBe("warning");
     expect(getQuotaTone(50)).toBe("normal");
     expect(getQuotaTone(null)).toBe("normal");
+  });
+});
+
+function appliance(overrides: Partial<Parameters<typeof getApplianceHealthTone>[0]> = {}) {
+  return {
+    telemetryHealthStatus: "NORMAL" as const,
+    anomalous: false,
+    standbyAnomalyActive: false,
+    ...overrides,
+  };
+}
+
+describe("getApplianceHealthTone", () => {
+  it("returns offline when telemetry is OFFLINE regardless of other flags", () => {
+    expect(
+      getApplianceHealthTone(appliance({ telemetryHealthStatus: "OFFLINE", anomalous: true })),
+    ).toBe("offline");
+  });
+
+  it("returns stale when telemetry is STALE and not offline", () => {
+    expect(getApplianceHealthTone(appliance({ telemetryHealthStatus: "STALE", anomalous: true }))).toBe("stale");
+  });
+
+  it("returns anomalous when anomalous and telemetry is normal", () => {
+    expect(getApplianceHealthTone(appliance({ anomalous: true, standbyAnomalyActive: true }))).toBe("anomalous");
+  });
+
+  it("returns warning when only standbyAnomalyActive is set", () => {
+    expect(getApplianceHealthTone(appliance({ standbyAnomalyActive: true }))).toBe("warning");
+  });
+
+  it("returns normal otherwise", () => {
+    expect(getApplianceHealthTone(appliance())).toBe("normal");
   });
 });

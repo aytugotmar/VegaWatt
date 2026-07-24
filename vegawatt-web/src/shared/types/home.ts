@@ -19,6 +19,8 @@ export interface HomeLiveSummary {
   lastUpdatedAt: string;
 }
 
+export type TelemetryHealthStatus = "NORMAL" | "STALE" | "OFFLINE";
+
 export interface ApplianceLiveStatus {
   applianceId: string;
   applianceName: string;
@@ -28,6 +30,11 @@ export interface ApplianceLiveStatus {
   accumulatedEnergyKwh: DecimalValue;
   consecutiveBreachCount: number;
   anomalous: boolean;
+  standbyAnomalyActive: boolean;
+  telemetryHealthStatus: TelemetryHealthStatus;
+  catalogCode: string | null;
+  catalogDisplayName: string | null;
+  catalogIconKey: string | null;
   lastUpdatedAt: string;
 }
 
@@ -85,4 +92,14 @@ export interface RegisterHomeResponse {
   homeId: string;
   name: string;
   contactEmail: string;
+}
+
+export interface AddApplianceResponse {
+  applianceId: string;
+  name: string;
+  type: string;
+  catalogItemId: string | null;
+  safePowerLimitWatt: DecimalValue;
+  simulationMinWatt: DecimalValue;
+  simulationMaxWatt: DecimalValue;
 }

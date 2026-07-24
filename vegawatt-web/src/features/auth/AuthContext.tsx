@@ -15,6 +15,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateCurrentUser: (patch: Partial<CurrentUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -60,9 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
   }, [queryClient]);
 
+  const updateCurrentUser = useCallback((patch: Partial<CurrentUser>) => {
+    setUser((current) => (current ? { ...current, ...patch } : current));
+  }, []);
+
   const value = useMemo(
-    () => ({ user, isInitializing, login, register, logout }),
-    [user, isInitializing, login, register, logout],
+    () => ({ user, isInitializing, login, register, logout, updateCurrentUser }),
+    [user, isInitializing, login, register, logout, updateCurrentUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

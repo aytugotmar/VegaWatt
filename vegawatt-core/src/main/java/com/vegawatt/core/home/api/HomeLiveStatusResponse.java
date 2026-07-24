@@ -1,5 +1,6 @@
 package com.vegawatt.core.home.api;
 
+import com.vegawatt.core.home.application.ApplianceCatalogView;
 import com.vegawatt.core.home.application.HomeLiveStatus;
 import com.vegawatt.core.home.domain.ApplianceLiveState;
 import java.math.BigDecimal;
@@ -30,13 +31,21 @@ public record HomeLiveStatusResponse(
             BigDecimal accumulatedEnergyKwh,
             int consecutiveBreachCount,
             boolean anomalous,
+            boolean standbyAnomalyActive,
+            String telemetryHealthStatus,
+            String catalogCode,
+            String catalogDisplayName,
+            String catalogIconKey,
             Instant lastUpdatedAt) {
 
-        static ApplianceLiveStatusResponse from(ApplianceLiveState state) {
+        static ApplianceLiveStatusResponse from(ApplianceLiveState state, ApplianceCatalogView catalogView) {
             return new ApplianceLiveStatusResponse(state.applianceId(), state.applianceName(), state.applianceType(),
                     state.safePowerLimitWatt(), state.currentPowerWatt(),
                     state.operatingState() == null ? null : state.operatingState().name(), state.operatingMode(),
                     state.accumulatedEnergyKwh(), state.consecutiveBreachCount(), state.anomalous(),
+                    state.standbyAnomalyActive(),
+                    state.telemetryHealthStatus() == null ? null : state.telemetryHealthStatus().name(),
+                    catalogView.catalogCode(), catalogView.catalogDisplayName(), catalogView.catalogIconKey(),
                     state.lastUpdatedAt());
         }
     }
@@ -54,7 +63,9 @@ public record HomeLiveStatusResponse(
                 state.penaltyActive(),
                 state.lastUpdatedAt(),
                 status.appliances().stream()
-                        .map(ApplianceLiveStatusResponse::from)
+                        .map(applianceState -> ApplianceLiveStatusResponse.from(applianceState,
+                                status.catalogInfoByApplianceId()
+                                        .getOrDefault(applianceState.applianceId(), ApplianceCatalogView.EMPTY)))
                         .toList());
     }
 }

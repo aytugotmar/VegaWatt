@@ -1,6 +1,6 @@
-import { AlertTriangle } from "lucide-react";
 import type { ApplianceLiveStatus } from "../../shared/types/home";
-import { getApplianceIcon, getApplianceTypeLabel } from "../../shared/constants/applianceTypes";
+import { getApplianceDisplayName, getApplianceIcon } from "../../shared/constants/applianceTypes";
+import { ApplianceStatusBadge } from "../../shared/components/ApplianceStatusBadge";
 import { formatEnergy, formatPower, formatRelativeTime } from "../../shared/utils/format";
 import { ApplianceBreachIndicator } from "./ApplianceBreachIndicator";
 
@@ -9,7 +9,7 @@ interface MobileApplianceCardProps {
 }
 
 export function MobileApplianceCard({ appliance }: MobileApplianceCardProps) {
-  const Icon = getApplianceIcon(appliance.applianceType);
+  const Icon = getApplianceIcon(appliance.applianceType, appliance.catalogCode);
 
   return (
     <div
@@ -23,20 +23,12 @@ export function MobileApplianceCard({ appliance }: MobileApplianceCardProps) {
           <Icon className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
           <div className="flex min-w-0 flex-col">
             <span className="truncate font-medium text-text-primary">{appliance.applianceName}</span>
-            <span className="text-xs text-text-muted">{getApplianceTypeLabel(appliance.applianceType)}</span>
+            <span className="text-xs text-text-muted">
+              {getApplianceDisplayName(appliance.applianceType, appliance.catalogDisplayName)}
+            </span>
           </div>
         </div>
-        {appliance.anomalous ? (
-          <span
-            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-danger-soft px-2 py-0.5 text-xs font-semibold text-danger"
-            data-testid="anomaly-badge"
-          >
-            <AlertTriangle className="h-3 w-3" aria-hidden="true" />
-            Anomali
-          </span>
-        ) : (
-          <span className="shrink-0 text-xs text-text-secondary">Normal</span>
-        )}
+        <ApplianceStatusBadge appliance={appliance} className="shrink-0" />
       </div>
 
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">

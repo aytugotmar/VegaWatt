@@ -19,7 +19,7 @@ export function TopConsumersPanel({ consumers, linkToHomes = true }: TopConsumer
       ) : (
         <ol className="flex flex-col gap-3">
           {consumers.map((consumer) => {
-            const Icon = getApplianceIcon(consumer.appliance.applianceType);
+            const Icon = getApplianceIcon(consumer.appliance.applianceType, consumer.appliance.catalogCode);
             const nameBlock = (
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-text-primary">{consumer.appliance.applianceName}</p>
