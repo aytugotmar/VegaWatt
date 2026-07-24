@@ -7,6 +7,7 @@ import com.vegawatt.core.billing.domain.BillingAccount;
 import com.vegawatt.core.billing.domain.BillingAccountRepository;
 import com.vegawatt.core.billing.domain.QuotaTransition;
 import com.vegawatt.core.common.Money;
+import com.vegawatt.core.common.config.NotificationProperties;
 import com.vegawatt.core.common.events.OperationalEvent;
 import com.vegawatt.core.common.events.OperationalEventRepository;
 import com.vegawatt.core.common.events.OperationalEventType;
@@ -19,6 +20,7 @@ import com.vegawatt.core.notification.domain.NotificationJob;
 import com.vegawatt.core.notification.domain.NotificationJobRepository;
 import com.vegawatt.core.telemetry.domain.ProcessedTelemetryEventRepository;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -31,15 +33,18 @@ public class TelemetryBillingRecorder {
     private final OperationalEventRepository operationalEventRepository;
     private final ProcessedTelemetryEventRepository processedTelemetryEventRepository;
     private final NotificationJobRepository notificationJobRepository;
+    private final NotificationProperties notificationProperties;
 
     TelemetryBillingRecorder(BillingAccountRepository billingAccountRepository,
                               OperationalEventRepository operationalEventRepository,
                               ProcessedTelemetryEventRepository processedTelemetryEventRepository,
-                              NotificationJobRepository notificationJobRepository) {
+                              NotificationJobRepository notificationJobRepository,
+                              NotificationProperties notificationProperties) {
         this.billingAccountRepository = billingAccountRepository;
         this.operationalEventRepository = operationalEventRepository;
         this.processedTelemetryEventRepository = processedTelemetryEventRepository;
         this.notificationJobRepository = notificationJobRepository;
+        this.notificationProperties = notificationProperties;
     }
 
     @Transactional
@@ -136,8 +141,16 @@ public class TelemetryBillingRecorder {
         }
     }
 
+    // Suppresses the notification job (the email) during a flapping episode, but the caller has
+    // already saved the OperationalEvent unconditionally just above each call site — event history
+    // stays complete even while emails are cooled down.
     private void createNotificationJob(OperationalEvent triggerEvent, UUID homeId, AdvisoryTriggerType triggerType,
                                         Instant now) {
-        notificationJobRepository.save(NotificationJob.create(triggerEvent.id(), homeId, triggerType, now));
+        Instant since = now.minus(Duration.ofMinutes(notificationProperties.cooldownMinutes()));
+        if (notificationJobRepository.hasRecentJob(homeId, triggerEvent.applianceId(), triggerType, since)) {
+            return;
+        }
+        notificationJobRepository.save(
+                NotificationJob.create(triggerEvent.id(), homeId, triggerEvent.applianceId(), triggerType, now));
     }
 }

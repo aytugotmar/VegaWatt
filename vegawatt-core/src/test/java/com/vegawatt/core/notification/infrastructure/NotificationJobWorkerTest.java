@@ -32,9 +32,9 @@ class NotificationJobWorkerTest {
     @Test
     void processesEveryClaimedJob() {
         when(clockProvider.now()).thenReturn(NOW);
-        NotificationJob jobOne = NotificationJob.create(UUID.randomUUID(), UUID.randomUUID(),
+        NotificationJob jobOne = NotificationJob.create(UUID.randomUUID(), UUID.randomUUID(), null,
                 AdvisoryTriggerType.QUOTA_80, NOW);
-        NotificationJob jobTwo = NotificationJob.create(UUID.randomUUID(), UUID.randomUUID(),
+        NotificationJob jobTwo = NotificationJob.create(UUID.randomUUID(), UUID.randomUUID(), null,
                 AdvisoryTriggerType.ANOMALY, NOW);
         // The worker claims with a lease that ends LEASE_SECONDS after now; anything else here would
         // mean it was reserving jobs for a different window than the one it says it is.

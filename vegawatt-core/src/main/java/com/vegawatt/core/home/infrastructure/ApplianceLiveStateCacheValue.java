@@ -15,6 +15,7 @@ class ApplianceLiveStateCacheValue {
     private String operatingMode;
     private BigDecimal accumulatedEnergyKwh;
     private int consecutiveBreachCount;
+    private int consecutiveNormalCount;
     private boolean anomalous;
     private int standbyBreachCount;
     private int standbyRecoveryCount;
@@ -28,9 +29,9 @@ class ApplianceLiveStateCacheValue {
     ApplianceLiveStateCacheValue(String applianceName, String applianceType, BigDecimal safePowerLimitWatt,
                                   BigDecimal currentPowerWatt, ApplianceOperatingState operatingState,
                                   String operatingMode, BigDecimal accumulatedEnergyKwh, int consecutiveBreachCount,
-                                  boolean anomalous, int standbyBreachCount, int standbyRecoveryCount,
-                                  boolean standbyAnomalyActive, ApplianceHealthStatus telemetryHealthStatus,
-                                  Instant lastUpdatedAt) {
+                                  int consecutiveNormalCount, boolean anomalous, int standbyBreachCount,
+                                  int standbyRecoveryCount, boolean standbyAnomalyActive,
+                                  ApplianceHealthStatus telemetryHealthStatus, Instant lastUpdatedAt) {
         this.applianceName = applianceName;
         this.applianceType = applianceType;
         this.safePowerLimitWatt = safePowerLimitWatt;
@@ -39,6 +40,7 @@ class ApplianceLiveStateCacheValue {
         this.operatingMode = operatingMode;
         this.accumulatedEnergyKwh = accumulatedEnergyKwh;
         this.consecutiveBreachCount = consecutiveBreachCount;
+        this.consecutiveNormalCount = consecutiveNormalCount;
         this.anomalous = anomalous;
         this.standbyBreachCount = standbyBreachCount;
         this.standbyRecoveryCount = standbyRecoveryCount;
@@ -77,6 +79,10 @@ class ApplianceLiveStateCacheValue {
 
     int getConsecutiveBreachCount() {
         return consecutiveBreachCount;
+    }
+
+    int getConsecutiveNormalCount() {
+        return consecutiveNormalCount;
     }
 
     boolean isAnomalous() {

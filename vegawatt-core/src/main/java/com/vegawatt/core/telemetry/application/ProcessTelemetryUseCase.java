@@ -121,8 +121,8 @@ public class ProcessTelemetryUseCase {
                                     appliance.type(), appliance.safePowerLimitWatt(), occurredAt);
 
                     AnomalyEvaluationResult result = evaluateApplianceAnomalyUseCase.evaluate(
-                            existing.consecutiveBreachCount(), existing.anomalous(), reading.powerWatt(),
-                            appliance.safePowerLimitWatt());
+                            existing.consecutiveBreachCount(), existing.consecutiveNormalCount(), existing.anomalous(),
+                            reading.powerWatt(), appliance.safePowerLimitWatt());
                     anomalyResultRef.set(result);
 
                     StandbyAnomalyEvaluationResult standbyResult = EvaluateStandbyConsumptionPolicy.isEligible(
@@ -144,9 +144,9 @@ public class ProcessTelemetryUseCase {
                     return new ApplianceLiveState(reading.homeId(), reading.applianceId(), existing.applianceName(),
                             existing.applianceType(), existing.safePowerLimitWatt(), reading.powerWatt(),
                             reading.operatingState(), reading.operatingMode(), newAccumulatedEnergyKwh,
-                            result.consecutiveBreachCount(), result.anomalous(), standbyResult.standbyBreachCount(),
-                            standbyResult.standbyRecoveryCount(), standbyResult.standbyAnomalyActive(),
-                            ApplianceHealthStatus.NORMAL, occurredAt);
+                            result.consecutiveBreachCount(), result.consecutiveNormalCount(), result.anomalous(),
+                            standbyResult.standbyBreachCount(), standbyResult.standbyRecoveryCount(),
+                            standbyResult.standbyAnomalyActive(), ApplianceHealthStatus.NORMAL, occurredAt);
                 });
 
         HomeUpdateOutcome homeOutcome = homeOutcomeRef.get();

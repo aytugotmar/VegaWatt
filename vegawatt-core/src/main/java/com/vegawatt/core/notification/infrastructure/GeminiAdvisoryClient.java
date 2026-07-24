@@ -36,7 +36,7 @@ class GeminiAdvisoryClient implements EnergyAdvisoryPort {
     // full URL, key included. With the key in a header that cannot happen regardless of
     // which handler catches what.
     private static final String ENDPOINT_TEMPLATE =
-            "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s";
+            "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent";
 
     private static final String API_KEY_HEADER = "x-goog-api-key";
 
@@ -84,7 +84,7 @@ class GeminiAdvisoryClient implements EnergyAdvisoryPort {
 
     private String callGemini(String apiKey, String prompt) throws IOException, InterruptedException {
         String requestBody = objectMapper.writeValueAsString(GeminiGenerateContentRequest.ofPrompt(prompt));
-        String url = ENDPOINT_TEMPLATE.formatted(properties.model(), apiKey);
+        String url = ENDPOINT_TEMPLATE.formatted(properties.model());
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))

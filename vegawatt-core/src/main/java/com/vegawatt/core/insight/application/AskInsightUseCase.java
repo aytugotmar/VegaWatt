@@ -40,7 +40,7 @@ public class AskInsightUseCase {
             "Şu an detaylı AI analizi yapılamıyor. Lütfen evinizin güncel tüketim grafiklerini ve cihaz listesini panel üzerinden inceleyin.";
 
     private static final String ENDPOINT_TEMPLATE =
-            "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s";
+            "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent";
 
     private final HomeRepository homeRepository;
     private final HomeLiveStatePort homeLiveStatePort;
@@ -191,7 +191,7 @@ public class AskInsightUseCase {
                 java.util.Map.of("contents", List.of(java.util.Map.of("parts", List.of(java.util.Map.of("text", prompt))))));
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(ENDPOINT_TEMPLATE.formatted(modelName, apiKey)))
+                .uri(URI.create(ENDPOINT_TEMPLATE.formatted(modelName)))
                 .timeout(Duration.ofMillis(properties.readTimeoutMs()))
                 .header("Content-Type", "application/json")
                 .header("x-goog-api-key", apiKey)

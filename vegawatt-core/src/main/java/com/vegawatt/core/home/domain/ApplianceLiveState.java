@@ -16,6 +16,7 @@ public record ApplianceLiveState(
         String operatingMode,
         BigDecimal accumulatedEnergyKwh,
         int consecutiveBreachCount,
+        int consecutiveNormalCount,
         boolean anomalous,
         int standbyBreachCount,
         int standbyRecoveryCount,
@@ -26,7 +27,7 @@ public record ApplianceLiveState(
     public static ApplianceLiveState zero(UUID homeId, UUID applianceId, String applianceName, String applianceType,
                                            BigDecimal safePowerLimitWatt, Instant now) {
         return new ApplianceLiveState(homeId, applianceId, applianceName, applianceType, safePowerLimitWatt,
-                BigDecimal.ZERO, null, null, BigDecimal.ZERO.setScale(9), 0, false, 0, 0, false,
+                BigDecimal.ZERO, null, null, BigDecimal.ZERO.setScale(9), 0, 0, false, 0, 0, false,
                 ApplianceHealthStatus.NORMAL, now);
     }
 }

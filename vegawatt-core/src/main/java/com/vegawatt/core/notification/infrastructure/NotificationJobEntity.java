@@ -20,6 +20,9 @@ class NotificationJobEntity {
     @Column(name = "home_id", nullable = false)
     private UUID homeId;
 
+    @Column(name = "appliance_id")
+    private UUID applianceId;
+
     @Column(name = "trigger_type", nullable = false)
     private String triggerType;
 
@@ -41,11 +44,13 @@ class NotificationJobEntity {
     protected NotificationJobEntity() {
     }
 
-    NotificationJobEntity(UUID id, UUID triggerEventId, UUID homeId, String triggerType, String status,
-                          int attemptCount, Instant nextAttemptAt, String lastError, Instant createdAt) {
+    NotificationJobEntity(UUID id, UUID triggerEventId, UUID homeId, UUID applianceId, String triggerType,
+                          String status, int attemptCount, Instant nextAttemptAt, String lastError,
+                          Instant createdAt) {
         this.id = id;
         this.triggerEventId = triggerEventId;
         this.homeId = homeId;
+        this.applianceId = applianceId;
         this.triggerType = triggerType;
         this.status = status;
         this.attemptCount = attemptCount;
@@ -64,6 +69,10 @@ class NotificationJobEntity {
 
     UUID getHomeId() {
         return homeId;
+    }
+
+    UUID getApplianceId() {
+        return applianceId;
     }
 
     String getTriggerType() {

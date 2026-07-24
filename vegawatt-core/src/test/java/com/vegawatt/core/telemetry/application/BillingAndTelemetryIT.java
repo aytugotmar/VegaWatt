@@ -12,6 +12,7 @@ import com.vegawatt.core.billing.domain.BillingAccount;
 import com.vegawatt.core.billing.domain.BillingAccountRepository;
 import com.vegawatt.core.common.Money;
 import com.vegawatt.core.common.config.AnomalyProperties;
+import com.vegawatt.core.common.config.NotificationProperties;
 import com.vegawatt.core.common.config.StandbyAnomalyProperties;
 import com.vegawatt.core.common.events.OperationalEventRepository;
 import com.vegawatt.core.common.time.BillingPeriodResolver;
@@ -43,7 +44,7 @@ import org.junit.jupiter.api.Test;
  * {@link TelemetryBillingRecorder} still wire together correctly after the billing-period-rollover +
  * home/appliance compensation refactor.
  */
-class BillingAndTelemetryIntegrationTest {
+class BillingAndTelemetryIT {
 
     private HomeRepository homeRepository;
     private ApplianceRepository applianceRepository;
@@ -86,13 +87,13 @@ class BillingAndTelemetryIntegrationTest {
                 new BigDecimal("500"), new BigDecimal("1500"), true, null, null, null, null, null);
 
         evaluateHomeBillingUseCase = new EvaluateHomeBillingUseCase(billingAccountRepository);
-        AnomalyProperties anomalyProperties = new AnomalyProperties(3);
+        AnomalyProperties anomalyProperties = new AnomalyProperties(3, 3, new BigDecimal("0.90"));
         evaluateApplianceAnomalyUseCase = new EvaluateApplianceAnomalyUseCase(anomalyProperties);
         evaluateStandbyConsumptionUseCase = new EvaluateStandbyConsumptionUseCase(
                 new StandbyAnomalyProperties(new BigDecimal("3"), new BigDecimal("2"), 3, 3));
 
         telemetryBillingRecorder = new TelemetryBillingRecorder(billingAccountRepository, operationalEventRepository,
-                processedTelemetryEventRepository, notificationJobRepository);
+                processedTelemetryEventRepository, notificationJobRepository, new NotificationProperties(30));
 
         processTelemetryUseCase = new ProcessTelemetryUseCase(homeRepository, applianceRepository,
                 homeLiveStatePort, telemetryLiveStatePort, evaluateHomeBillingUseCase,

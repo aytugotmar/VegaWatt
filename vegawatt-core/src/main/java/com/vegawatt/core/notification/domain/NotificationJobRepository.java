@@ -2,6 +2,7 @@ package com.vegawatt.core.notification.domain;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 public interface NotificationJobRepository {
 
@@ -16,4 +17,12 @@ public interface NotificationJobRepository {
      * lost either.
      */
     List<NotificationJob> claimDue(Instant now, Instant leaseUntil, int limit);
+
+    /**
+     * True if a job for this exact home+appliance+triggerType combination (appliance {@code null}
+     * for home-level triggers like a quota event) was created at or after {@code since} — the
+     * notification-spam cooldown check. Callers still record the underlying {@code OperationalEvent}
+     * regardless of this result; only the email-triggering job creation is gated.
+     */
+    boolean hasRecentJob(UUID homeId, UUID applianceId, AdvisoryTriggerType triggerType, Instant since);
 }

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.vegawatt.core.common.ApplianceHealthStatus;
+import com.vegawatt.core.common.config.NotificationProperties;
 import com.vegawatt.core.common.config.TelemetryHealthProperties;
 import com.vegawatt.core.common.events.OperationalEvent;
 import com.vegawatt.core.common.events.OperationalEventRepository;
@@ -53,7 +54,8 @@ class TelemetryHealthSchedulerTest {
     @BeforeEach
     void setUp() {
         lenient().when(clockProvider.now()).thenReturn(NOW);
-        transitionRecorder = new TelemetryHealthTransitionRecorder(operationalEventRepository, notificationJobRepository);
+        transitionRecorder = new TelemetryHealthTransitionRecorder(operationalEventRepository, notificationJobRepository,
+                new NotificationProperties(30));
         scheduler = new TelemetryHealthScheduler(applianceLiveStatePort, transitionRecorder, clockProvider, PROPERTIES);
         lenient().when(operationalEventRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -61,7 +63,7 @@ class TelemetryHealthSchedulerTest {
     private static ApplianceLiveState liveState(UUID applianceId, ApplianceHealthStatus status,
                                                  Instant lastUpdatedAt) {
         return new ApplianceLiveState(HOME_ID, applianceId, "TV", "TELEVISION", new BigDecimal("180"),
-                new BigDecimal("1"), null, null, BigDecimal.ZERO.setScale(9), 0, false, 0, 0, false, status,
+                new BigDecimal("1"), null, null, BigDecimal.ZERO.setScale(9), 0, 0, false, 0, 0, false, status,
                 lastUpdatedAt);
     }
 

@@ -107,16 +107,17 @@ class IgniteApplianceLiveStateAdapter implements ApplianceLiveStatePort {
     private static ApplianceLiveStateCacheValue toCacheValue(ApplianceLiveState state) {
         return new ApplianceLiveStateCacheValue(state.applianceName(), state.applianceType(),
                 state.safePowerLimitWatt(), state.currentPowerWatt(), state.operatingState(), state.operatingMode(),
-                state.accumulatedEnergyKwh(), state.consecutiveBreachCount(), state.anomalous(),
-                state.standbyBreachCount(), state.standbyRecoveryCount(), state.standbyAnomalyActive(),
-                state.telemetryHealthStatus(), state.lastUpdatedAt());
+                state.accumulatedEnergyKwh(), state.consecutiveBreachCount(), state.consecutiveNormalCount(),
+                state.anomalous(), state.standbyBreachCount(), state.standbyRecoveryCount(),
+                state.standbyAnomalyActive(), state.telemetryHealthStatus(), state.lastUpdatedAt());
     }
 
     private static ApplianceLiveState toDomain(UUID homeId, UUID applianceId, ApplianceLiveStateCacheValue value) {
         return new ApplianceLiveState(homeId, applianceId, value.getApplianceName(), value.getApplianceType(),
                 value.getSafePowerLimitWatt(), value.getCurrentPowerWatt(), value.getOperatingState(),
                 value.getOperatingMode(), value.getAccumulatedEnergyKwh(), value.getConsecutiveBreachCount(),
-                value.isAnomalous(), value.getStandbyBreachCount(), value.getStandbyRecoveryCount(),
-                value.isStandbyAnomalyActive(), value.getTelemetryHealthStatus(), value.getLastUpdatedAt());
+                value.getConsecutiveNormalCount(), value.isAnomalous(), value.getStandbyBreachCount(),
+                value.getStandbyRecoveryCount(), value.isStandbyAnomalyActive(), value.getTelemetryHealthStatus(),
+                value.getLastUpdatedAt());
     }
 }

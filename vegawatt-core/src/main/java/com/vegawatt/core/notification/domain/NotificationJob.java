@@ -14,6 +14,7 @@ public record NotificationJob(
         UUID id,
         UUID triggerEventId,
         UUID homeId,
+        UUID applianceId,
         AdvisoryTriggerType triggerType,
         NotificationJobStatus status,
         int attemptCount,
@@ -21,24 +22,24 @@ public record NotificationJob(
         String lastError,
         Instant createdAt) {
 
-    public static NotificationJob create(UUID triggerEventId, UUID homeId, AdvisoryTriggerType triggerType,
-                                          Instant now) {
-        return new NotificationJob(UUID.randomUUID(), triggerEventId, homeId, triggerType,
+    public static NotificationJob create(UUID triggerEventId, UUID homeId, UUID applianceId,
+                                          AdvisoryTriggerType triggerType, Instant now) {
+        return new NotificationJob(UUID.randomUUID(), triggerEventId, homeId, applianceId, triggerType,
                 NotificationJobStatus.PENDING, 0, now, null, now);
     }
 
     public NotificationJob markSent() {
-        return new NotificationJob(id, triggerEventId, homeId, triggerType, NotificationJobStatus.SENT, attemptCount,
-                nextAttemptAt, null, createdAt);
+        return new NotificationJob(id, triggerEventId, homeId, applianceId, triggerType, NotificationJobStatus.SENT,
+                attemptCount, nextAttemptAt, null, createdAt);
     }
 
     public NotificationJob markFailedForRetry(String error, Instant nextAttemptAt) {
-        return new NotificationJob(id, triggerEventId, homeId, triggerType, NotificationJobStatus.PENDING,
+        return new NotificationJob(id, triggerEventId, homeId, applianceId, triggerType, NotificationJobStatus.PENDING,
                 attemptCount + 1, nextAttemptAt, error, createdAt);
     }
 
     public NotificationJob markTerminallyFailed(String error) {
-        return new NotificationJob(id, triggerEventId, homeId, triggerType, NotificationJobStatus.FAILED,
+        return new NotificationJob(id, triggerEventId, homeId, applianceId, triggerType, NotificationJobStatus.FAILED,
                 attemptCount + 1, nextAttemptAt, error, createdAt);
     }
 }

@@ -83,7 +83,7 @@ class ProcessTelemetryUseCaseTest {
         EvaluateHomeBillingUseCase evaluateHomeBillingUseCase = new EvaluateHomeBillingUseCase(
                 billingAccountRepository);
         EvaluateApplianceAnomalyUseCase evaluateApplianceAnomalyUseCase = new EvaluateApplianceAnomalyUseCase(
-                new AnomalyProperties(3));
+                new AnomalyProperties(3, 3, new BigDecimal("0.90")));
         EvaluateStandbyConsumptionUseCase evaluateStandbyConsumptionUseCase = new EvaluateStandbyConsumptionUseCase(
                 new StandbyAnomalyProperties(new BigDecimal("3"), new BigDecimal("2"), 3, 3));
 
@@ -238,8 +238,8 @@ class ProcessTelemetryUseCaseTest {
     @Test
     void telemetryResumesAfterStaleStatusResetsHealthAndFlagsRecorderForResumedEvent() {
         applianceLiveStateSlot = new ApplianceLiveState(HOME_ID, APPLIANCE_ID, "Fridge", "REFRIGERATOR",
-                new BigDecimal("200"), new BigDecimal("0"), null, null, BigDecimal.ZERO.setScale(9), 0, false, 0, 0,
-                false, ApplianceHealthStatus.STALE, NOW.minusSeconds(60));
+                new BigDecimal("200"), new BigDecimal("0"), null, null, BigDecimal.ZERO.setScale(9), 0, 0, false, 0,
+                0, false, ApplianceHealthStatus.STALE, NOW.minusSeconds(60));
 
         useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
 

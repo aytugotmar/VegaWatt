@@ -65,7 +65,7 @@ class NotificationOrchestratorTest {
     }
 
     private static NotificationJob pendingJob(int attemptCount) {
-        NotificationJob fresh = NotificationJob.create(UUID.randomUUID(), HOME_ID, AdvisoryTriggerType.QUOTA_80, NOW);
+        NotificationJob fresh = NotificationJob.create(UUID.randomUUID(), HOME_ID, null, AdvisoryTriggerType.QUOTA_80, NOW);
         NotificationJob withAttempts = fresh;
         for (int i = 0; i < attemptCount; i++) {
             withAttempts = withAttempts.markFailedForRetry("previous failure", NOW);
@@ -99,7 +99,7 @@ class NotificationOrchestratorTest {
         UUID standbyAnomalousApplianceId = UUID.randomUUID();
         ApplianceLiveState standbyAnomalous = new ApplianceLiveState(HOME_ID, standbyAnomalousApplianceId, "TV",
                 "TELEVISION", new BigDecimal("180"), new BigDecimal("12"), null, null, BigDecimal.ZERO.setScale(9),
-                0, false, 3, 0, true, ApplianceHealthStatus.NORMAL, NOW);
+                0, 0, false, 3, 0, true, ApplianceHealthStatus.NORMAL, NOW);
         when(homeRepository.findById(HOME_ID)).thenReturn(Optional.of(home));
         when(homeLiveStatePort.get(HOME_ID)).thenReturn(Optional.of(HomeLiveState.zero(HOME_ID, "Test Ev", NOW)));
         when(applianceLiveStatePort.getByHomeId(HOME_ID)).thenReturn(List.of(standbyAnomalous));
@@ -107,7 +107,7 @@ class NotificationOrchestratorTest {
                 AiRecommendation.create(HOME_ID, AdvisoryTriggerType.STANDBY_ANOMALY, "content", true, NOW,
                         UUID.randomUUID()));
 
-        orchestrator.processJob(NotificationJob.create(UUID.randomUUID(), HOME_ID,
+        orchestrator.processJob(NotificationJob.create(UUID.randomUUID(), HOME_ID, standbyAnomalousApplianceId,
                 AdvisoryTriggerType.STANDBY_ANOMALY, NOW));
 
         ArgumentCaptor<AdvisoryContext> contextCaptor = ArgumentCaptor.forClass(AdvisoryContext.class);

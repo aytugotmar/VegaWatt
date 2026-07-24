@@ -54,15 +54,21 @@ cd VegaWatt
 
 ### 2. Stack'i Çalıştırın
 ```bash
-docker compose down -v
 docker compose up -d --build
 ```
 
+> ⚠️ **Tüm local verileri sıfırlamak isterseniz** (kullanıcılar, evler, cihazlar, billing geçmişi
+> dahil her şeyi siler — rutin başlatma komutu olarak kullanmayın):
+> ```bash
+> docker compose down -v
+> docker compose up -d --build
+> ```
+
 ### 3. Kullanıcı Bilgileri (Default Admin)
-Sistem başlatıldığında örnek evler, cihazlar ve verilerle hazır gelir:
+`SPRING_PROFILES_ACTIVE=dev` (varsayılan) ile sistem başlatıldığında örnek evler ve cihazlarla hazır gelir:
 - **E-posta:** `admin@vegawatt.com`
 - **Şifre:** `VegaWatt111!`
-- **Panel Adresi:** [http://localhost:3000](http://localhost:3000)
+- **Panel Adresi:** [http://localhost:5173](http://localhost:5173)
 - **Backend API:** [http://localhost:8080](http://localhost:8080)
 - **Swagger Documentation:** [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 

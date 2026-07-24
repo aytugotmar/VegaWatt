@@ -2,6 +2,7 @@ package com.vegawatt.core.telemetry.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -15,6 +16,7 @@ import com.vegawatt.core.billing.domain.BillingAccount;
 import com.vegawatt.core.billing.domain.BillingAccountRepository;
 import com.vegawatt.core.billing.domain.QuotaTransition;
 import com.vegawatt.core.common.Money;
+import com.vegawatt.core.common.config.NotificationProperties;
 import com.vegawatt.core.common.events.OperationalEvent;
 import com.vegawatt.core.common.events.OperationalEventRepository;
 import com.vegawatt.core.common.events.OperationalEventType;
@@ -66,12 +68,12 @@ class TelemetryBillingRecorderTest {
     @BeforeEach
     void setUp() {
         recorder = new TelemetryBillingRecorder(billingAccountRepository, operationalEventRepository,
-                processedTelemetryEventRepository, notificationJobRepository);
+                processedTelemetryEventRepository, notificationJobRepository, new NotificationProperties(30));
         home = Home.reconstitute(HOME_ID, "Test Ev", "test@example.com", new BigDecimal("500"),
                 new BigDecimal("1000"), new BigDecimal("2.10"), new BigDecimal("3.50"), NOW, NOW, List.of());
         appliance = new Appliance(APPLIANCE_ID, HOME_ID, "Fridge", "REFRIGERATOR", new BigDecimal("200"),
                 new BigDecimal("50"), new BigDecimal("150"), true, null, null, null, null, null);
-        noAnomalyChange = new AnomalyEvaluationResult(0, false, false, false);
+        noAnomalyChange = new AnomalyEvaluationResult(0, 0, false, false, false);
         noStandbyChange = StandbyAnomalyEvaluationResult.unchanged(0, 0, false);
 
         lenient().when(billingAccountRepository.findByHomeIdAndBillingPeriod(HOME_ID, PERIOD))
@@ -156,7 +158,7 @@ class TelemetryBillingRecorderTest {
     void createsAnomalyNotificationJobOnTransitionToAnomalous() {
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("1"), new BigDecimal("2.1"), NO_TRANSITION,
                 NO_TRANSITION);
-        AnomalyEvaluationResult transitioned = new AnomalyEvaluationResult(3, true, true, false);
+        AnomalyEvaluationResult transitioned = new AnomalyEvaluationResult(3, 0, true, true, false);
 
         recorder.persist(UUID.randomUUID(), home, outcome, appliance, transitioned, noStandbyChange,
                 new BigDecimal("100"), null, false, NOW, NOW, BREACH_THRESHOLD);
@@ -168,10 +170,41 @@ class TelemetryBillingRecorderTest {
     }
 
     @Test
+    void suppressesNotificationJobDuringCooldownButStillRecordsTheEvent() {
+        HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("1"), new BigDecimal("2.1"), NO_TRANSITION,
+                NO_TRANSITION);
+        AnomalyEvaluationResult transitioned = new AnomalyEvaluationResult(3, 0, true, true, false);
+        when(notificationJobRepository.hasRecentJob(eq(HOME_ID), eq(APPLIANCE_ID), eq(AdvisoryTriggerType.ANOMALY),
+                any())).thenReturn(true);
+
+        recorder.persist(UUID.randomUUID(), home, outcome, appliance, transitioned, noStandbyChange,
+                new BigDecimal("100"), null, false, NOW, NOW, BREACH_THRESHOLD);
+
+        verify(operationalEventRepository).save(argThatEventType(OperationalEventType.APPLIANCE_ANOMALY_DETECTED));
+        verify(notificationJobRepository, never()).save(any());
+    }
+
+    @Test
+    void createsNewNotificationJobOnceTheCooldownWindowHasElapsed() {
+        HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("1"), new BigDecimal("2.1"), NO_TRANSITION,
+                NO_TRANSITION);
+        AnomalyEvaluationResult transitioned = new AnomalyEvaluationResult(3, 0, true, true, false);
+        when(notificationJobRepository.hasRecentJob(eq(HOME_ID), eq(APPLIANCE_ID), eq(AdvisoryTriggerType.ANOMALY),
+                any())).thenReturn(false);
+
+        recorder.persist(UUID.randomUUID(), home, outcome, appliance, transitioned, noStandbyChange,
+                new BigDecimal("100"), null, false, NOW, NOW, BREACH_THRESHOLD);
+
+        ArgumentCaptor<NotificationJob> jobCaptor = ArgumentCaptor.forClass(NotificationJob.class);
+        verify(notificationJobRepository).save(jobCaptor.capture());
+        assertThat(jobCaptor.getValue().triggerType()).isEqualTo(AdvisoryTriggerType.ANOMALY);
+    }
+
+    @Test
     void savesRecoveryEventWithoutCreatingNotificationJob() {
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(new BigDecimal("1"), new BigDecimal("2.1"), NO_TRANSITION,
                 NO_TRANSITION);
-        AnomalyEvaluationResult recovered = new AnomalyEvaluationResult(0, false, false, true);
+        AnomalyEvaluationResult recovered = new AnomalyEvaluationResult(0, 0, false, false, true);
 
         recorder.persist(UUID.randomUUID(), home, outcome, appliance, recovered, noStandbyChange,
                 new BigDecimal("100"), null, false, NOW, NOW, BREACH_THRESHOLD);

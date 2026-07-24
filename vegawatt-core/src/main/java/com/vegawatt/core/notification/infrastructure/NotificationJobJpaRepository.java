@@ -31,4 +31,20 @@ interface NotificationJobJpaRepository extends JpaRepository<NotificationJobEnti
     @Modifying(clearAutomatically = true)
     @Query("UPDATE NotificationJobEntity j SET j.nextAttemptAt = :leaseUntil WHERE j.id IN :ids")
     void extendLease(@Param("ids") List<UUID> ids, @Param("leaseUntil") Instant leaseUntil);
+
+    @Query("""
+            SELECT COUNT(j) > 0 FROM NotificationJobEntity j
+            WHERE j.homeId = :homeId AND j.applianceId = :applianceId AND j.triggerType = :triggerType
+                AND j.createdAt >= :since
+            """)
+    boolean existsRecentApplianceJob(@Param("homeId") UUID homeId, @Param("applianceId") UUID applianceId,
+                                     @Param("triggerType") String triggerType, @Param("since") Instant since);
+
+    @Query("""
+            SELECT COUNT(j) > 0 FROM NotificationJobEntity j
+            WHERE j.homeId = :homeId AND j.applianceId IS NULL AND j.triggerType = :triggerType
+                AND j.createdAt >= :since
+            """)
+    boolean existsRecentHomeLevelJob(@Param("homeId") UUID homeId, @Param("triggerType") String triggerType,
+                                     @Param("since") Instant since);
 }

@@ -20,10 +20,12 @@ public class EvaluateApplianceAnomalyUseCase {
         this.anomalyProperties = anomalyProperties;
     }
 
-    public AnomalyEvaluationResult evaluate(int previousConsecutiveBreachCount, boolean previouslyAnomalous,
-                                             BigDecimal currentPowerWatt, BigDecimal safePowerLimitWatt) {
-        return EvaluateApplianceAnomalyPolicy.evaluate(previousConsecutiveBreachCount, previouslyAnomalous,
-                currentPowerWatt, safePowerLimitWatt, anomalyProperties.breachThreshold());
+    public AnomalyEvaluationResult evaluate(int previousConsecutiveBreachCount, int previousConsecutiveNormalCount,
+                                             boolean previouslyAnomalous, BigDecimal currentPowerWatt,
+                                             BigDecimal safePowerLimitWatt) {
+        return EvaluateApplianceAnomalyPolicy.evaluate(previousConsecutiveBreachCount, previousConsecutiveNormalCount,
+                previouslyAnomalous, currentPowerWatt, safePowerLimitWatt, anomalyProperties.breachThreshold(),
+                anomalyProperties.recoveryThreshold(), anomalyProperties.recoveryRatio());
     }
 
     public int breachThreshold() {

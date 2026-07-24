@@ -26,7 +26,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * exists: an in-memory or H2 stand-in would not lock rows the way this depends on. These are the
  * tests that would have caught the duplicate-advisory bug that item 3 fixes.
  */
-class NotificationJobClaimIntegrationTest extends AbstractIntegrationTest {
+class NotificationJobClaimIT extends AbstractIntegrationTest {
 
     private static final int JOB_COUNT = 20;
     private static final int WORKER_THREADS = 4;
@@ -96,7 +96,7 @@ class NotificationJobClaimIntegrationTest extends AbstractIntegrationTest {
                     VALUES (?, ?, 'ANOMALY', now())
                     """, eventId, homeId);
             NotificationJob job = repository.save(
-                    NotificationJob.create(eventId, homeId, AdvisoryTriggerType.ANOMALY, dueSince));
+                    NotificationJob.create(eventId, homeId, null, AdvisoryTriggerType.ANOMALY, dueSince));
             jobIds.add(job.id());
         }
         return jobIds.stream().collect(Collectors.toUnmodifiableSet());

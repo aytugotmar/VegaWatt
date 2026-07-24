@@ -1,12 +1,14 @@
 package com.vegawatt.core.anomaly.application;
 
 import com.vegawatt.core.common.ApplianceHealthStatus;
+import com.vegawatt.core.common.config.NotificationProperties;
 import com.vegawatt.core.common.events.OperationalEvent;
 import com.vegawatt.core.common.events.OperationalEventRepository;
 import com.vegawatt.core.common.events.OperationalEventType;
 import com.vegawatt.core.notification.domain.AdvisoryTriggerType;
 import com.vegawatt.core.notification.domain.NotificationJob;
 import com.vegawatt.core.notification.domain.NotificationJobRepository;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -17,11 +19,14 @@ public class TelemetryHealthTransitionRecorder {
 
     private final OperationalEventRepository operationalEventRepository;
     private final NotificationJobRepository notificationJobRepository;
+    private final NotificationProperties notificationProperties;
 
     public TelemetryHealthTransitionRecorder(OperationalEventRepository operationalEventRepository,
-                                             NotificationJobRepository notificationJobRepository) {
+                                             NotificationJobRepository notificationJobRepository,
+                                             NotificationProperties notificationProperties) {
         this.operationalEventRepository = operationalEventRepository;
         this.notificationJobRepository = notificationJobRepository;
+        this.notificationProperties = notificationProperties;
     }
 
     @Transactional
@@ -35,6 +40,11 @@ public class TelemetryHealthTransitionRecorder {
 
         OperationalEvent saved = operationalEventRepository.save(
                 OperationalEvent.create(homeId, applianceId, eventType, now, details));
-        notificationJobRepository.save(NotificationJob.create(saved.id(), homeId, triggerType, now));
+
+        Instant since = now.minus(Duration.ofMinutes(notificationProperties.cooldownMinutes()));
+        if (notificationJobRepository.hasRecentJob(homeId, applianceId, triggerType, since)) {
+            return;
+        }
+        notificationJobRepository.save(NotificationJob.create(saved.id(), homeId, applianceId, triggerType, now));
     }
 }
