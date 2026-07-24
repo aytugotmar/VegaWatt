@@ -37,14 +37,13 @@ class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    // Only the Authorization header is accepted — a query-parameter fallback would put the token
+    // in the URL, where it lands in browser history, proxy access logs, and anything that echoes
+    // the request URI back (e.g. an unhandled exception logging the full request).
     private static Optional<String> extractToken(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith(BEARER_PREFIX)) {
             return Optional.of(header.substring(BEARER_PREFIX.length()));
-        }
-        String tokenParam = request.getParameter("token");
-        if (tokenParam != null && !tokenParam.isBlank()) {
-            return Optional.of(tokenParam);
         }
         return Optional.empty();
     }

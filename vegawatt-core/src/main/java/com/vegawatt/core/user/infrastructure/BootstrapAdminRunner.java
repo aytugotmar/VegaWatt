@@ -4,6 +4,7 @@ import com.vegawatt.core.common.config.BootstrapAdminProperties;
 import com.vegawatt.core.common.time.ClockProvider;
 import com.vegawatt.core.user.domain.User;
 import com.vegawatt.core.user.domain.UserRepository;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -34,12 +35,21 @@ class BootstrapAdminRunner implements CommandLineRunner {
         if (!StringUtils.hasText(properties.email()) || !StringUtils.hasText(properties.password())) {
             return;
         }
-        User admin = userRepository.findByEmail(properties.email())
-                .map(existing -> User.reconstitute(existing.id(), existing.email(),
-                        passwordEncoder.encode(properties.password()), existing.role(), existing.createdAt()))
+
+        Optional<User> existing = userRepository.findByEmail(properties.email());
+        if (existing.isPresent() && !properties.forcePasswordReset()) {
+            log.info("Bootstrap admin {} already exists; leaving its password untouched", properties.email());
+            return;
+        }
+
+        User admin = existing
+                .map(current -> User.reconstitute(current.id(), current.email(),
+                        passwordEncoder.encode(properties.password()), current.role(), current.createdAt()))
                 .orElseGet(() -> User.bootstrapAdmin(properties.email(),
                         passwordEncoder.encode(properties.password()), clockProvider.now()));
         userRepository.save(admin);
-        log.info("Bootstrapped admin user {} with verified password hash", properties.email());
+        log.info(existing.isPresent()
+                ? "Force-reset bootstrap admin {} password (BOOTSTRAP_ADMIN_FORCE_PASSWORD_RESET=true)"
+                : "Bootstrapped admin user {} with verified password hash", properties.email());
     }
 }

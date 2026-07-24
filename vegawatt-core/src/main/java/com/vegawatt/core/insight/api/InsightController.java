@@ -1,6 +1,7 @@
 package com.vegawatt.core.insight.api;
 
 import com.vegawatt.core.common.security.CurrentUser;
+import com.vegawatt.core.common.config.RateLimitProperties;
 import com.vegawatt.core.common.rate.RateLimiter;
 import com.vegawatt.core.insight.application.AskInsightUseCase;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,10 +22,13 @@ class InsightController {
 
     private final AskInsightUseCase askInsightUseCase;
     private final RateLimiter rateLimiter;
+    private final RateLimitProperties rateLimitProperties;
 
-    InsightController(AskInsightUseCase askInsightUseCase, RateLimiter rateLimiter) {
+    InsightController(AskInsightUseCase askInsightUseCase, RateLimiter rateLimiter,
+                       RateLimitProperties rateLimitProperties) {
         this.askInsightUseCase = askInsightUseCase;
         this.rateLimiter = rateLimiter;
+        this.rateLimitProperties = rateLimitProperties;
     }
 
     @PostMapping("/ask")
@@ -35,7 +39,7 @@ class InsightController {
             HttpServletRequest httpRequest) {
 
         String rateKey = "ask_insight:" + currentUser.userId() + ":" + homeId;
-        rateLimiter.tryAcquire(rateKey, 60, Duration.ofMinutes(1));
+        rateLimiter.tryAcquire(rateKey, rateLimitProperties.insightPerMinute(), Duration.ofMinutes(1));
 
         AskInsightResponse response = askInsightUseCase.execute(currentUser, homeId, request);
         return ResponseEntity.ok(response);

@@ -9,7 +9,7 @@ interface ProfileSettingsModalProps {
 }
 
 export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onClose }) => {
-  const { user } = useAuth();
+  const { user, updateCurrentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<"password" | "email">("password");
 
   // Password state
@@ -19,6 +19,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
 
   // Email state
   const [newEmail, setNewEmail] = useState(user?.email || "");
+  const [currentPasswordForEmail, setCurrentPasswordForEmail] = useState("");
 
   // Feedback state
   const [loading, setLoading] = useState(false);
@@ -67,14 +68,20 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
       setErrorMsg("Geçerli bir e-posta adresi giriniz.");
       return;
     }
+    if (!currentPasswordForEmail) {
+      setErrorMsg("Mevcut şifrenizi girmelisiniz.");
+      return;
+    }
 
     try {
       setLoading(true);
       const res = await apiFetch<{ success: boolean; message: string }>("/api/v1/users/me/email", {
         method: "POST",
-        body: JSON.stringify({ newEmail }),
+        body: JSON.stringify({ newEmail, currentPassword: currentPasswordForEmail }),
       });
+      updateCurrentUser({ email: newEmail });
       setSuccessMsg(res.message || "E-posta adresiniz güncellendi.");
+      setCurrentPasswordForEmail("");
     } catch (err: any) {
       setErrorMsg(err.message || "E-posta değiştirme başarısız oldu.");
     } finally {
@@ -221,6 +228,17 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
                 onChange={(e) => setNewEmail(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
                 placeholder="ornek@domain.com"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Mevcut Şifre</label>
+              <input
+                type="password"
+                required
+                value={currentPasswordForEmail}
+                onChange={(e) => setCurrentPasswordForEmail(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+                placeholder="••••••••"
               />
             </div>
 

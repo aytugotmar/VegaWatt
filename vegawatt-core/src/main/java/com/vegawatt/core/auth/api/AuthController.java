@@ -7,6 +7,7 @@ import com.vegawatt.core.auth.application.RefreshTokenUseCase;
 import com.vegawatt.core.auth.application.RegisterUserUseCase;
 import com.vegawatt.core.auth.domain.InvalidRefreshTokenException;
 import com.vegawatt.core.common.config.JwtProperties;
+import com.vegawatt.core.common.config.RateLimitProperties;
 import com.vegawatt.core.user.domain.User;
 import jakarta.validation.Valid;
 import java.time.Duration;
@@ -32,6 +33,7 @@ class AuthController {
     private final RefreshTokenUseCase refreshTokenUseCase;
     private final LogoutUseCase logoutUseCase;
     private final JwtProperties jwtProperties;
+    private final RateLimitProperties rateLimitProperties;
     private final com.vegawatt.core.common.rate.RateLimiter rateLimiter;
 
     @org.springframework.beans.factory.annotation.Value("${vegawatt.auth.cookie-secure:false}")
@@ -39,20 +41,21 @@ class AuthController {
 
     AuthController(RegisterUserUseCase registerUserUseCase, LoginUseCase loginUseCase,
                     RefreshTokenUseCase refreshTokenUseCase, LogoutUseCase logoutUseCase,
-                    JwtProperties jwtProperties,
+                    JwtProperties jwtProperties, RateLimitProperties rateLimitProperties,
                     com.vegawatt.core.common.rate.RateLimiter rateLimiter) {
         this.registerUserUseCase = registerUserUseCase;
         this.loginUseCase = loginUseCase;
         this.refreshTokenUseCase = refreshTokenUseCase;
         this.logoutUseCase = logoutUseCase;
         this.jwtProperties = jwtProperties;
+        this.rateLimitProperties = rateLimitProperties;
         this.rateLimiter = rateLimiter;
     }
 
     @PostMapping("/register")
     ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterUserRequest request, jakarta.servlet.http.HttpServletRequest httpRequest) {
         String clientKey = extractClientKey(httpRequest, request.email());
-        rateLimiter.tryAcquire("register:" + clientKey, 10, Duration.ofMinutes(1));
+        rateLimiter.tryAcquire("register:" + clientKey, rateLimitProperties.registerPerMinute(), Duration.ofMinutes(1));
 
         User user = registerUserUseCase.execute(request.email(), request.password());
         AuthSession session = loginUseCase.issueSession(user);
@@ -64,7 +67,7 @@ class AuthController {
     @PostMapping("/login")
     ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request, jakarta.servlet.http.HttpServletRequest httpRequest) {
         String clientKey = extractClientKey(httpRequest, request.email());
-        rateLimiter.tryAcquire("login:" + clientKey, 30, Duration.ofMinutes(1));
+        rateLimiter.tryAcquire("login:" + clientKey, rateLimitProperties.loginPerMinute(), Duration.ofMinutes(1));
 
         AuthSession session = loginUseCase.execute(request.email(), request.password());
         return ResponseEntity.ok()
@@ -76,7 +79,7 @@ class AuthController {
     ResponseEntity<AuthResponse> refresh(@CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken,
                                          jakarta.servlet.http.HttpServletRequest httpRequest) {
         String clientKey = extractClientKey(httpRequest, "refresh");
-        rateLimiter.tryAcquire("refresh:" + clientKey, 20, Duration.ofMinutes(1));
+        rateLimiter.tryAcquire("refresh:" + clientKey, rateLimitProperties.refreshPerMinute(), Duration.ofMinutes(1));
 
         if (refreshToken == null) {
             throw new InvalidRefreshTokenException();
@@ -117,9 +120,13 @@ class AuthController {
                 .build();
     }
 
+    // Deliberately NOT reading X-Forwarded-For: nothing in this stack currently sits in front of
+    // Spring Boot as a trusted reverse proxy, so that header is fully attacker-controlled and would
+    // let anyone spoof their rate-limit key by sending a different value on every request. If a real
+    // reverse proxy is added later, this needs a ForwardedHeaderFilter plus an explicit trusted-proxy
+    // allowlist — not a blind header read.
     private String extractClientKey(jakarta.servlet.http.HttpServletRequest request, String identifier) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        String ip = (xForwardedFor != null && !xForwardedFor.isBlank()) ? xForwardedFor.split(",")[0].trim() : request.getRemoteAddr();
+        String ip = request.getRemoteAddr();
         return ip + ":" + (identifier != null ? identifier.toLowerCase().trim() : "anonymous");
     }
 }

@@ -49,6 +49,8 @@ vegawatt:
     addresses: ${IGNITE_ADDRESSES:localhost:10800}
   anomaly:
     breach-threshold: ${ANOMALY_BREACH_THRESHOLD:3}
+    recovery-threshold: ${ANOMALY_RECOVERY_THRESHOLD:3}
+    recovery-ratio: ${ANOMALY_RECOVERY_RATIO:0.90}
   standby-anomaly:
     threshold-multiplier: ${STANDBY_ANOMALY_THRESHOLD_MULTIPLIER:3}
     minimum-excess-watt: ${STANDBY_ANOMALY_MINIMUM_EXCESS_WATT:2}
@@ -69,6 +71,11 @@ vegawatt:
     allowed-origin: ${FRONTEND_DEV_ORIGIN:http://localhost:5173}
   auth:
     cookie-secure: ${COOKIE_SECURE:false}
+  rate-limit:
+    register-per-minute: ${RATE_LIMIT_REGISTER_PER_MINUTE:5}
+    login-per-minute: ${RATE_LIMIT_LOGIN_PER_MINUTE:10}
+    refresh-per-minute: ${RATE_LIMIT_REFRESH_PER_MINUTE:20}
+    insight-per-minute: ${RATE_LIMIT_INSIGHT_PER_MINUTE:5}
   jwt:
     secret: ${JWT_SIGNING_SECRET}
     access-token-ttl-minutes: ${JWT_ACCESS_TOKEN_TTL_MINUTES:15}
@@ -76,12 +83,14 @@ vegawatt:
   bootstrap-admin:
     email: ${BOOTSTRAP_ADMIN_EMAIL:}
     password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+    force-password-reset: ${BOOTSTRAP_ADMIN_FORCE_PASSWORD_RESET:false}
   outbox:
     relay-interval-ms: 2000
     send-timeout-ms: ${OUTBOX_SEND_TIMEOUT_MS:10000}
   notification:
     worker-interval-ms: ${NOTIFICATION_WORKER_INTERVAL_MS:2000}
     claim-lease-seconds: ${NOTIFICATION_CLAIM_LEASE_SECONDS:120}
+    cooldown-minutes: ${NOTIFICATION_COOLDOWN_MINUTES:30}
   scheduling:
     snapshot-interval-seconds: ${SNAPSHOT_INTERVAL:60}
     telemetry-interval-seconds: ${TELEMETRY_INTERVAL:5}

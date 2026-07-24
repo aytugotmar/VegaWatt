@@ -47,6 +47,20 @@ class RegisterUserUseCaseTest {
     }
 
     @Test
+    void normalizesEmailCaseAndWhitespaceBeforeCheckingAndSaving() {
+        when(userRepository.existsByEmail("ayse@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("s3cret-pass")).thenReturn("encoded-hash");
+        when(clockProvider.now()).thenReturn(Instant.parse("2026-07-20T10:00:00Z"));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        RegisterUserUseCase useCase = new RegisterUserUseCase(userRepository, passwordEncoder, clockProvider);
+        User result = useCase.execute("  Ayse@Example.com  ", "s3cret-pass");
+
+        assertThat(result.email()).isEqualTo("ayse@example.com");
+        verify(userRepository).existsByEmail("ayse@example.com");
+    }
+
+    @Test
     void rejectsRegistrationWhenEmailAlreadyExists() {
         when(userRepository.existsByEmail("ayse@example.com")).thenReturn(true);
 

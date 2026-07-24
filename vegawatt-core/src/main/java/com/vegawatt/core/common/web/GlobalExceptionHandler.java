@@ -6,8 +6,10 @@ import com.vegawatt.core.common.ResourceNotFoundException;
 import com.vegawatt.core.common.UnauthorizedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -45,8 +47,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler(com.vegawatt.core.common.rate.RateLimitExceededException.class)
-    public ProblemDetail handleRateLimitExceeded(com.vegawatt.core.common.rate.RateLimitExceededException ex) {
-        return problem(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", ex.getMessage());
+    public ResponseEntity<ProblemDetail> handleRateLimitExceeded(
+            com.vegawatt.core.common.rate.RateLimitExceededException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.retryAfterSeconds()))
+                .body(problem(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", ex.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)

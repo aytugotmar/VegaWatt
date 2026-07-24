@@ -4,6 +4,7 @@ import com.vegawatt.core.common.time.ClockProvider;
 import com.vegawatt.core.user.domain.EmailAlreadyRegisteredException;
 import com.vegawatt.core.user.domain.User;
 import com.vegawatt.core.user.domain.UserRepository;
+import java.util.Locale;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,10 +25,11 @@ public class RegisterUserUseCase {
 
     @Transactional
     public User execute(String email, String rawPassword) {
-        if (userRepository.existsByEmail(email)) {
-            throw new EmailAlreadyRegisteredException(email);
+        String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+        if (userRepository.existsByEmail(normalizedEmail)) {
+            throw new EmailAlreadyRegisteredException(normalizedEmail);
         }
-        User user = User.register(email, passwordEncoder.encode(rawPassword), clockProvider.now());
+        User user = User.register(normalizedEmail, passwordEncoder.encode(rawPassword), clockProvider.now());
         return userRepository.save(user);
     }
 }

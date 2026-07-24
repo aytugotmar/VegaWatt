@@ -2,8 +2,11 @@ package com.vegawatt.core.session.infrastructure;
 
 import com.vegawatt.core.session.domain.RefreshSession;
 import com.vegawatt.core.session.domain.RefreshSessionRepository;
+import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 class RefreshSessionRepositoryAdapter implements RefreshSessionRepository {
@@ -23,6 +26,12 @@ class RefreshSessionRepositoryAdapter implements RefreshSessionRepository {
     @Override
     public Optional<RefreshSession> findByTokenHash(String tokenHash) {
         return jpaRepository.findByTokenHash(tokenHash).map(RefreshSessionRepositoryAdapter::toDomain);
+    }
+
+    @Override
+    @Transactional
+    public void revokeAllByUserId(UUID userId, Instant now) {
+        jpaRepository.revokeAllByUserId(userId, now);
     }
 
     private static RefreshSessionEntity toEntity(RefreshSession session) {
