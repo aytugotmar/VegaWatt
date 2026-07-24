@@ -1,6 +1,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import {
+  addAppliance,
   fetchHomeEvents,
   fetchHomeHistory,
   fetchHomeRecommendations,
@@ -8,7 +9,7 @@ import {
   fetchLiveHomes,
   registerHome,
 } from "../api/homesApi";
-import type { HomeLiveStatus } from "../types/home";
+import type { ApplianceRegistration, HomeLiveStatus } from "../types/home";
 
 const LIVE_HOMES_INTERVAL_MS = 2000;
 const RECOMMENDATIONS_INTERVAL_MS = 20_000;
@@ -108,6 +109,24 @@ export function useRegisterHomeMutation() {
   return useMutation({
     mutationFn: registerHome,
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["homes", "live"] });
+    },
+  });
+}
+
+/** Adds one or more forgotten devices to an already-registered home. Submits sequentially since
+ * the backend only accepts one appliance per request; if a later item fails, the earlier ones
+ * have already been persisted (surfaced to the user as a partial-success error). */
+export function useAddAppliancesMutation(homeId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (appliances: ApplianceRegistration[]) => {
+      for (const appliance of appliances) {
+        await addAppliance(homeId, appliance);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["homes", homeId, "live"] });
       queryClient.invalidateQueries({ queryKey: ["homes", "live"] });
     },
   });

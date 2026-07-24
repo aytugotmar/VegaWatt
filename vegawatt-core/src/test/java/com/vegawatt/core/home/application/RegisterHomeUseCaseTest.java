@@ -63,7 +63,7 @@ class RegisterHomeUseCaseTest {
     private RegisterHomeUseCase useCase() {
         return new RegisterHomeUseCase(homeRepository, billingAccountRepository, homeLiveStatePort,
                 applianceLiveStatePort, assetRegistrationPublisher, homeAccessService, clockProvider,
-                applianceCatalogRepository);
+                new ApplianceFactory(applianceCatalogRepository));
     }
 
     private static ApplianceCatalogItem coffeeMachineCatalogItem() {

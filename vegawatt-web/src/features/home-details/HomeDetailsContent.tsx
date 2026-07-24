@@ -1,5 +1,6 @@
-import { Volume2, VolumeX, X } from "lucide-react";
+import { Plus, Volume2, VolumeX, X } from "lucide-react";
 import { useId, useMemo, useState } from "react";
+import { Button } from "../../shared/components/Button";
 import { InlineError } from "../../shared/components/InlineError";
 import { Spinner } from "../../shared/components/Skeleton";
 import { StatusBadge } from "../../shared/components/StatusBadge";
@@ -21,6 +22,7 @@ import { ConsumptionChart } from "../history/ConsumptionChart";
 import { EnergyHeatmap } from "../history/EnergyHeatmap";
 import { computeHistoryRange, HistoryRangeSelector, type HistoryRangeKey } from "../history/HistoryRangeSelector";
 import { RecommendationsPanel } from "../recommendations/RecommendationsPanel";
+import { AddApplianceModal } from "./AddApplianceModal";
 import { AppliancesTable } from "./AppliancesTable";
 import { EventTimeline } from "./EventTimeline";
 import { HomeOverviewSection } from "./HomeOverviewSection";
@@ -56,6 +58,8 @@ export function HomeDetailsContent({ homeId, titleId, onClose, scrollable = true
     refetch: refetchRecommendations,
   } = useRecommendationsQuery(homeId);
   const { data: events, isError: eventsIsError, refetch: refetchEvents } = useHomeEventsQuery(homeId);
+
+  const [addApplianceOpen, setAddApplianceOpen] = useState(false);
 
   const [soundEnabled, setSoundEnabled] = useState(() => readAlertSoundPreference());
   useApplianceAnomalySound(home?.appliances, soundEnabled);
@@ -168,7 +172,16 @@ export function HomeDetailsContent({ homeId, titleId, onClose, scrollable = true
 
             {activeTab === "devices" && (
               <div role="tabpanel" id={panelId("devices")} aria-labelledby={tabId("devices")}>
+                <div className="mb-3 flex justify-end">
+                  <Button variant="secondary" onClick={() => setAddApplianceOpen(true)}>
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Cihaz Ekle
+                  </Button>
+                </div>
                 <AppliancesTable appliances={home.appliances} />
+                {addApplianceOpen && (
+                  <AddApplianceModal homeId={homeId} onClose={() => setAddApplianceOpen(false)} />
+                )}
               </div>
             )}
 

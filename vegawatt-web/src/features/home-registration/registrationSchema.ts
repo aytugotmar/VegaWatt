@@ -19,6 +19,18 @@ export interface CustomAppliance {
   simulationMaxWatt: string;
 }
 
+let customIdSeq = 0;
+export function newCustomAppliance(): CustomAppliance {
+  return {
+    id: customIdSeq++,
+    name: "",
+    type: "OTHER",
+    safePowerLimitWatt: "500",
+    simulationMinWatt: "100",
+    simulationMaxWatt: "500",
+  };
+}
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type FieldErrors = Record<string, string>;

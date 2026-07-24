@@ -4,11 +4,12 @@ import { Dialog } from "../../shared/components/Dialog";
 import { Button } from "../../shared/components/Button";
 import { ApiError } from "../../shared/api/client";
 import { useRegisterHomeMutation } from "../../shared/hooks/useHomesQueries";
-import type { ApplianceRegistration } from "../../shared/types/home";
 import { useCatalogSelection } from "../appliance-catalog/hooks/useCatalogSelection";
+import { buildApplianceRegistrations } from "../appliance-catalog/model/buildApplianceRegistrations";
 import { AppliancesStep } from "./AppliancesStep";
 import { HomeInfoStep } from "./HomeInfoStep";
 import {
+  newCustomAppliance,
   validateCustomAppliance,
   validateHomeInfo,
   validateTargets,
@@ -33,18 +34,6 @@ const INITIAL_TARGETS: TargetsValues = {
   baseTariffPerKwh: "2.10",
   penaltyTariffPerKwh: "3.50",
 };
-
-let customIdSeq = 0;
-function newCustomAppliance(): CustomAppliance {
-  return {
-    id: customIdSeq++,
-    name: "",
-    type: "OTHER",
-    safePowerLimitWatt: "500",
-    simulationMinWatt: "100",
-    simulationMaxWatt: "500",
-  };
-}
 
 export function AddHomeWizard({ onClose }: AddHomeWizardProps) {
   const titleId = useId();
@@ -78,26 +67,8 @@ export function AddHomeWizard({ onClose }: AddHomeWizardProps) {
     Object.values(catalogSelection.errors).every((errors) => Object.keys(errors).length === 0) &&
     Object.values(customErrors).every((errors) => Object.keys(errors).length === 0);
 
-  function buildAppliances(): ApplianceRegistration[] {
-    const fromCatalog = catalogSelection.selectedAppliances.map((instance) => ({
-      name: instance.name,
-      type: instance.catalogCode,
-      catalogItemId: instance.catalogItemId,
-      safePowerLimitWatt: instance.overridden.safePowerLimitWatt ? Number(instance.safePowerLimitWatt) : null,
-      simulationMinWatt: instance.overridden.simulationMinWatt ? Number(instance.simulationMinWatt) : null,
-      simulationMaxWatt: instance.overridden.simulationMaxWatt ? Number(instance.simulationMaxWatt) : null,
-    }));
-
-    const fromCustom = customAppliances.map((appliance) => ({
-      name: appliance.name,
-      type: appliance.type,
-      catalogItemId: null,
-      safePowerLimitWatt: Number(appliance.safePowerLimitWatt),
-      simulationMinWatt: Number(appliance.simulationMinWatt),
-      simulationMaxWatt: Number(appliance.simulationMaxWatt),
-    }));
-
-    return [...fromCatalog, ...fromCustom];
+  function buildAppliances() {
+    return buildApplianceRegistrations(catalogSelection.selectedAppliances, customAppliances);
   }
 
   function goNext() {

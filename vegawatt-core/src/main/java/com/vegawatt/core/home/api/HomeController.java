@@ -3,10 +3,13 @@ package com.vegawatt.core.home.api;
 import com.vegawatt.core.access.domain.HomeAccessService;
 import com.vegawatt.core.access.domain.HomeAuthorizationService;
 import com.vegawatt.core.common.security.CurrentUser;
+import com.vegawatt.core.home.application.AddApplianceCommand;
+import com.vegawatt.core.home.application.AddApplianceUseCase;
 import com.vegawatt.core.home.application.GetAllLiveHomesQuery;
 import com.vegawatt.core.home.application.GetLiveHomeStatusQuery;
 import com.vegawatt.core.home.application.RegisterHomeCommand;
 import com.vegawatt.core.home.application.RegisterHomeUseCase;
+import com.vegawatt.core.home.domain.Appliance;
 import com.vegawatt.core.home.domain.Home;
 import com.vegawatt.core.home.domain.HomeNotFoundException;
 import com.vegawatt.core.user.domain.UserRole;
@@ -28,15 +31,17 @@ import org.springframework.web.bind.annotation.RestController;
 class HomeController {
 
     private final RegisterHomeUseCase registerHomeUseCase;
+    private final AddApplianceUseCase addApplianceUseCase;
     private final GetAllLiveHomesQuery getAllLiveHomesQuery;
     private final GetLiveHomeStatusQuery getLiveHomeStatusQuery;
     private final HomeAccessService homeAccessService;
     private final HomeAuthorizationService homeAuthorizationService;
 
-    HomeController(RegisterHomeUseCase registerHomeUseCase, GetAllLiveHomesQuery getAllLiveHomesQuery,
-                    GetLiveHomeStatusQuery getLiveHomeStatusQuery, HomeAccessService homeAccessService,
-                    HomeAuthorizationService homeAuthorizationService) {
+    HomeController(RegisterHomeUseCase registerHomeUseCase, AddApplianceUseCase addApplianceUseCase,
+                    GetAllLiveHomesQuery getAllLiveHomesQuery, GetLiveHomeStatusQuery getLiveHomeStatusQuery,
+                    HomeAccessService homeAccessService, HomeAuthorizationService homeAuthorizationService) {
         this.registerHomeUseCase = registerHomeUseCase;
+        this.addApplianceUseCase = addApplianceUseCase;
         this.getAllLiveHomesQuery = getAllLiveHomesQuery;
         this.getLiveHomeStatusQuery = getLiveHomeStatusQuery;
         this.homeAccessService = homeAccessService;
@@ -49,6 +54,17 @@ class HomeController {
                                    @AuthenticationPrincipal CurrentUser currentUser) {
         Home home = registerHomeUseCase.execute(toCommand(request, currentUser.userId()));
         return RegisterHomeResponse.from(home);
+    }
+
+    @PostMapping("/{homeId}/appliances")
+    @ResponseStatus(HttpStatus.CREATED)
+    AddApplianceResponse addAppliance(@PathVariable UUID homeId, @Valid @RequestBody AddApplianceRequest request,
+                                       @AuthenticationPrincipal CurrentUser currentUser) {
+        homeAuthorizationService.requireAccess(currentUser, homeId);
+        Appliance appliance = addApplianceUseCase.execute(new AddApplianceCommand(homeId, request.name(),
+                request.type(), request.safePowerLimitWatt(), request.simulationMinWatt(),
+                request.simulationMaxWatt(), request.catalogItemId()));
+        return AddApplianceResponse.from(appliance);
     }
 
     @GetMapping("/live")

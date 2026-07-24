@@ -1,5 +1,7 @@
 import { apiFetch } from "./client";
 import type {
+  AddApplianceResponse,
+  ApplianceRegistration,
   ConsumptionHistoryPoint,
   HomeLiveStatus,
   HomeLiveSummary,
@@ -37,5 +39,12 @@ export function registerHome(request: RegisterHomeRequest): Promise<RegisterHome
   return apiFetch<RegisterHomeResponse>("/api/v1/homes", {
     method: "POST",
     body: JSON.stringify(request),
+  });
+}
+
+export function addAppliance(homeId: string, appliance: ApplianceRegistration): Promise<AddApplianceResponse> {
+  return apiFetch<AddApplianceResponse>(`/api/v1/homes/${homeId}/appliances`, {
+    method: "POST",
+    body: JSON.stringify(appliance),
   });
 }
