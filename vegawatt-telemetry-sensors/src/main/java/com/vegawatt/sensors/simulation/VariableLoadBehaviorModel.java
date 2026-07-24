@@ -11,8 +11,10 @@ import org.springframework.stereotype.Component;
  * Devices with a usage window during which their load fluctuates rather than staying flat — a
  * cooktop burner being raised/lowered, a desktop or gaming PC's CPU/GPU load varying with what's
  * running. Uses the same dwell-time-until-{@code expectedStateEndAt} approach as
- * {@link ManualSwitchBehaviorModel} to pick realistic usage-session lengths, but power is redrawn
- * within range every tick while active instead of a single fixed value for the whole session.
+ * {@link ManualSwitchBehaviorModel} to pick realistic usage-session lengths. While active, power
+ * follows {@link DiurnalCurve#smoothedNoise01} — a deterministic, gradually-varying function of
+ * elapsed dwell time — instead of a fresh uniform-random value across the whole range every tick,
+ * since a real load doesn't teleport between its minimum and maximum every 5 seconds.
  */
 @Component
 public class VariableLoadBehaviorModel implements ApplianceBehaviorModel {
@@ -69,7 +71,9 @@ public class VariableLoadBehaviorModel implements ApplianceBehaviorModel {
             state = ApplianceOperatingState.ACTIVE;
             BigDecimal min = config.simulationMinWatt() != null ? config.simulationMinWatt() : BigDecimal.ZERO;
             BigDecimal max = config.simulationMaxWatt() != null ? config.simulationMaxWatt() : min;
-            powerWatt = TelemetryGenerator.randomInRange(min, max, random);
+            Duration elapsedInDwell = Duration.between(stateStartedAt, now);
+            double noise = DiurnalCurve.smoothedNoise01(elapsedInDwell, config.applianceId());
+            powerWatt = min.add(max.subtract(min).multiply(BigDecimal.valueOf(noise)));
         } else {
             state = ApplianceOperatingState.STANDBY;
             powerWatt = config.standbyMaxWatt() != null ? config.standbyMaxWatt() : BigDecimal.ZERO;

@@ -8,10 +8,14 @@ import java.time.ZonedDateTime;
 
 /**
  * Refrigerators and freezers: compressor cycles on/off to hold temperature, with an occasional
- * defrost cycle. This is the original {@code ThermostaticCycleBehaviorModel} logic, unchanged —
- * it was already correct for this device family.
+ * defrost cycle. A fridge runs continuously regardless of time of day — no OFF excursion here —
+ * but ambient kitchen warmth still mildly modulates the cycle timing (a slightly higher afternoon
+ * ambient temperature means marginally longer compressor runs and shorter idle stretches).
  */
 final class RefrigerationThermostatModel {
+
+    private static final double AMBIENT_PEAK_HOUR = 15.5; // afternoon kitchen warmth
+    private static final double HALF_WIDTH_HOURS = 9;
 
     private RefrigerationThermostatModel() {
     }
@@ -19,6 +23,8 @@ final class RefrigerationThermostatModel {
     static ApplianceBehaviorModel.GeneratedReading generate(ApplianceConfig config, ApplianceRuntimeState previousState,
                                                              ZonedDateTime measuredAt, RandomSource random) {
         Instant now = measuredAt.toInstant();
+        double demand = DiurnalCurve.demandIntensity(measuredAt, config.applianceId(), HALF_WIDTH_HOURS,
+                AMBIENT_PEAK_HOUR);
 
         String currentMode = previousState != null && previousState.operatingMode() != null
                 ? previousState.operatingMode() : "COMPRESSOR_ON";
@@ -27,12 +33,14 @@ final class RefrigerationThermostatModel {
 
         String nextMode = currentMode;
         if ("COMPRESSOR_ON".equals(currentMode)) {
-            if (elapsedInState > 900 && random.nextDouble() < 0.2) { // 15 mins
+            double toIdleProbability = 0.20 - 0.10 * demand; // warmer ambient -> runs a bit longer
+            if (elapsedInState > 900 && random.nextDouble() < toIdleProbability) { // 15 mins
                 nextMode = "IDLE";
                 stateStartedAt = now;
             }
         } else if ("IDLE".equals(currentMode)) {
-            if (elapsedInState > 1200 && random.nextDouble() < 0.2) { // 20 mins
+            double toCompressorProbability = 0.20 + 0.10 * demand; // warmer ambient -> resumes a bit sooner
+            if (elapsedInState > 1200 && random.nextDouble() < toCompressorProbability) { // 20 mins
                 nextMode = (random.nextDouble() < 0.1) ? "DEFROST" : "COMPRESSOR_ON";
                 stateStartedAt = now;
             }
@@ -43,8 +51,9 @@ final class RefrigerationThermostatModel {
             }
         }
 
-        BigDecimal minW = config.simulationMinWatt() != null ? config.simulationMinWatt() : new BigDecimal("40");
         BigDecimal maxW = config.simulationMaxWatt() != null ? config.simulationMaxWatt() : new BigDecimal("180");
+        BigDecimal standbyMin = config.standbyMinWatt() != null ? config.standbyMinWatt() : new BigDecimal("1");
+        BigDecimal standbyMax = config.standbyMaxWatt() != null ? config.standbyMaxWatt() : new BigDecimal("3");
 
         ApplianceOperatingState operatingState;
         BigDecimal powerWatt;
@@ -57,7 +66,7 @@ final class RefrigerationThermostatModel {
             powerWatt = maxW.multiply(new BigDecimal("1.4")); // Defrost heater spike
         } else { // IDLE
             operatingState = ApplianceOperatingState.STANDBY;
-            powerWatt = minW;
+            powerWatt = TelemetryGenerator.randomInRange(standbyMin, standbyMax, random);
         }
 
         ApplianceRuntimeState nextRuntimeState = new ApplianceRuntimeState(

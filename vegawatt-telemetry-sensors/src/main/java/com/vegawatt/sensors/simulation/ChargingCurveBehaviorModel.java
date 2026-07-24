@@ -10,26 +10,27 @@ import org.springframework.stereotype.Component;
 /**
  * Battery-charged devices (laptops, phones, tablets): a charge session starts at higher (bulk)
  * power and tapers down toward a trickle as the session progresses — a real charge curve, not a
- * flat draw for the whole plugged-in period. Capped at a realistic number of charge sessions per
- * day.
+ * flat draw for the whole plugged-in period. Session starts are scheduled via
+ * {@link DiurnalCurve#plannedSessionStartHour} — a deterministic, per-day, spread-out plan —
+ * instead of a flat per-tick probability.
  */
 @Component
 public class ChargingCurveBehaviorModel implements ApplianceBehaviorModel {
 
-    private record UsageProfile(int dailyCap, double minSessionSeconds, double maxSessionSeconds,
-                                 double startProbability) {
+    private record UsageProfile(int minCount, int maxCount, double minSessionSeconds,
+                                 double maxSessionSeconds, double windowStartHour, double windowEndHour) {
     }
 
-    private static final UsageProfile DEFAULT_PROFILE = new UsageProfile(2, 1800, 7200, 0.003);
+    private static final UsageProfile DEFAULT_PROFILE = new UsageProfile(1, 2, 1800, 7200, 0, 24);
 
     private static UsageProfile profileFor(String catalogCode) {
         if (catalogCode == null) {
             return DEFAULT_PROFILE;
         }
         return switch (catalogCode) {
-            case "LAPTOP" -> new UsageProfile(2, 3600, 10800, 0.003); // 1-3h charge sessions
-            case "PHONE_CHARGER" -> new UsageProfile(2, 3600, 21600, 0.002); // overnight-capable
-            case "TABLET_CHARGER" -> new UsageProfile(1, 3600, 14400, 0.0015);
+            case "LAPTOP" -> new UsageProfile(1, 2, 3600, 10800, 8, 24); // daytime/evening use
+            case "PHONE_CHARGER" -> new UsageProfile(1, 2, 3600, 21600, 0, 24); // overnight-capable
+            case "TABLET_CHARGER" -> new UsageProfile(1, 2, 3600, 14400, 0, 24); // overnight-capable
             default -> DEFAULT_PROFILE;
         };
     }
@@ -66,8 +67,11 @@ public class ChargingCurveBehaviorModel implements ApplianceBehaviorModel {
             powerWatt = chargeCurvePower(stateStartedAt, expectedStateEndAt, now, max, trickle);
         } else {
             int todaysSessions = previousState == null ? 0 : previousState.sessionsTodayAt(measuredAt.toLocalDate());
-            boolean startsNewSession = todaysSessions < profile.dailyCap()
-                    && random.nextDouble() < profile.startProbability();
+            double plannedStart = DiurnalCurve.plannedSessionStartHour(measuredAt, config.applianceId(),
+                    todaysSessions, profile.windowStartHour(), profile.windowEndHour(), profile.minCount(),
+                    profile.maxCount());
+            boolean startsNewSession = !Double.isNaN(plannedStart)
+                    && DiurnalCurve.fractionalHour(measuredAt) >= plannedStart;
 
             if (startsNewSession) {
                 nextState = ApplianceOperatingState.ACTIVE;

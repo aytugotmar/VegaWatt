@@ -51,4 +51,27 @@ class VariableLoadBehaviorModelTest {
 
         assertThat(reading.powerWatt()).isBetween(config.simulationMinWatt(), config.simulationMaxWatt());
     }
+
+    @Test
+    void activePowerRampsGraduallyInsteadOfTeleportingBetweenExtremesEveryTick() {
+        ApplianceConfig config = gamingComputerConfig();
+        BigDecimal fullRange = config.simulationMaxWatt().subtract(config.simulationMinWatt());
+        BigDecimal maxAllowedTickDelta = fullRange.multiply(new BigDecimal("0.5"));
+
+        var state = MODEL.generate(config, null, EVENING, Duration.ofSeconds(5), () -> 0.0).nextState();
+        BigDecimal previousPower = null;
+        for (int tick = 1; tick <= 20; tick++) {
+            var reading = MODEL.generate(config, state, EVENING.plusSeconds(5L * tick), Duration.ofSeconds(5),
+                    () -> 0.5);
+            if (previousPower != null) {
+                BigDecimal delta = reading.powerWatt().subtract(previousPower).abs();
+                assertThat(delta)
+                        .as("tick %d: power must not jump more than half the full range between consecutive ticks",
+                                tick)
+                        .isLessThanOrEqualTo(maxAllowedTickDelta);
+            }
+            previousPower = reading.powerWatt();
+            state = reading.nextState();
+        }
+    }
 }

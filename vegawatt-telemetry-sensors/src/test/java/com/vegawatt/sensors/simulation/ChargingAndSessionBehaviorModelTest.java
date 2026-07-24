@@ -11,7 +11,12 @@ import org.junit.jupiter.api.Test;
 
 class ChargingAndSessionBehaviorModelTest {
 
-    private static final ZonedDateTime MORNING = ZonedDateTime.now().withHour(9).withMinute(0).withSecond(0);
+    private static final ZonedDateTime DAY_START = ZonedDateTime.now().withHour(0).withMinute(0).withSecond(0)
+            .withNano(0);
+    private static final double WINDOW_START_HOUR = 8;
+    private static final double WINDOW_END_HOUR = 20;
+    private static final int MIN_DAILY_COUNT = 1;
+    private static final int MAX_DAILY_COUNT = 2;
     private static final ChargingAndSessionBehaviorModel MODEL = new ChargingAndSessionBehaviorModel();
 
     private static ApplianceConfig robotVacuumConfig() {
@@ -20,21 +25,33 @@ class ChargingAndSessionBehaviorModelTest {
                 new BigDecimal("1"));
     }
 
+    /** The clock instant when this config's first (index-0) cleaning run is scheduled to start
+     * today — derived from the same {@link DiurnalCurve#plannedSessionStartHour} the model itself
+     * calls, so the test stays correct regardless of the random appliance id or the day it runs on. */
+    private static ZonedDateTime firstPlannedCleaningStart(ApplianceConfig config) {
+        double hour = DiurnalCurve.plannedSessionStartHour(DAY_START, config.applianceId(), 0, WINDOW_START_HOUR,
+                WINDOW_END_HOUR, MIN_DAILY_COUNT, MAX_DAILY_COUNT);
+        // +1s margin: Math.round can land a fraction of a second before the threshold, which would
+        // make the model's own fractionalHour(measuredAt) >= plannedStart check fail by an epsilon.
+        return DAY_START.plusSeconds(Math.round(hour * 3600) + 1);
+    }
+
     @Test
     void progressesFromCleaningToChargingToDocked() {
         ApplianceConfig config = robotVacuumConfig();
+        ZonedDateTime plannedStart = firstPlannedCleaningStart(config);
 
-        var start = MODEL.generate(config, null, MORNING, Duration.ofSeconds(5), () -> 0.0); // starts cleaning
+        var start = MODEL.generate(config, null, plannedStart, Duration.ofSeconds(5), () -> 0.0); // starts cleaning
         assertThat(start.nextState().operatingMode()).isEqualTo("CLEANING");
         assertThat(start.nextState().operatingState()).isEqualTo(ApplianceOperatingState.ACTIVE);
 
         // Force straight past the cleaning stage's own end time.
         var afterCleaning = MODEL.generate(config, withPastEnd(start.nextState()),
-                MORNING.plusSeconds(5), Duration.ofSeconds(5), () -> 0.5);
+                plannedStart.plusSeconds(5), Duration.ofSeconds(5), () -> 0.5);
         assertThat(afterCleaning.nextState().operatingMode()).isEqualTo("CHARGING");
 
         var afterCharging = MODEL.generate(config, withPastEnd(afterCleaning.nextState()),
-                MORNING.plusSeconds(10), Duration.ofSeconds(5), () -> 0.5);
+                plannedStart.plusSeconds(10), Duration.ofSeconds(5), () -> 0.5);
         assertThat(afterCharging.nextState().operatingMode()).isEqualTo("DOCKED");
         assertThat(afterCharging.nextState().operatingState()).isEqualTo(ApplianceOperatingState.STANDBY);
         assertThat(afterCharging.powerWatt()).isLessThanOrEqualTo(config.standbyMaxWatt());
@@ -45,11 +62,12 @@ class ChargingAndSessionBehaviorModelTest {
         ApplianceConfig config = robotVacuumConfig();
 
         ApplianceRuntimeState chargingStart = new ApplianceRuntimeState(ApplianceOperatingState.ACTIVE, "CHARGING",
-                MORNING.toInstant(), MORNING.toInstant().plusSeconds(3600), null, null, null, MORNING.toInstant(),
-                null, null, null, 1, MORNING.toLocalDate());
+                DAY_START.toInstant(), DAY_START.toInstant().plusSeconds(3600), null, null, null,
+                DAY_START.toInstant(), null, null, null, 1, DAY_START.toLocalDate());
 
-        var early = MODEL.generate(config, chargingStart, MORNING.plusSeconds(60), Duration.ofSeconds(5), () -> 0.5);
-        var late = MODEL.generate(config, chargingStart, MORNING.plusSeconds(3000), Duration.ofSeconds(5), () -> 0.5);
+        var early = MODEL.generate(config, chargingStart, DAY_START.plusSeconds(60), Duration.ofSeconds(5), () -> 0.5);
+        var late = MODEL.generate(config, chargingStart, DAY_START.plusSeconds(3000), Duration.ofSeconds(5),
+                () -> 0.5);
 
         assertThat(late.powerWatt()).isLessThanOrEqualTo(early.powerWatt());
     }

@@ -10,25 +10,26 @@ import org.springframework.stereotype.Component;
 /**
  * Session-based devices used for a stretch of hours at a time, a few times a day at most —
  * humidifiers left running overnight or through a room session, projectors for an evening viewing.
- * Unlike {@link ShortHighPowerBehaviorModel} (minutes-long bursts), sessions here run for hours,
- * so both the daily cap and per-tick start probability are tuned much lower.
+ * Unlike {@link ShortHighPowerBehaviorModel} (minutes-long bursts), sessions here run for hours.
+ * Session starts are scheduled via {@link DiurnalCurve#plannedSessionStartHour} — a deterministic,
+ * per-day, spread-out plan — instead of a flat per-tick probability.
  */
 @Component
 public class ShortSessionBehaviorModel implements ApplianceBehaviorModel {
 
-    private record UsageProfile(int dailyCap, double minSessionSeconds, double maxSessionSeconds,
-                                 double startProbability, int windowStartHour, int windowEndHour) {
+    private record UsageProfile(int minCount, int maxCount, double minSessionSeconds,
+                                 double maxSessionSeconds, double windowStartHour, double windowEndHour) {
     }
 
-    private static final UsageProfile DEFAULT_PROFILE = new UsageProfile(2, 3600, 10800, 0.001, 0, 24);
+    private static final UsageProfile DEFAULT_PROFILE = new UsageProfile(1, 2, 3600, 10800, 0, 24);
 
     private static UsageProfile profileFor(String catalogCode) {
         if (catalogCode == null) {
             return DEFAULT_PROFILE;
         }
         return switch (catalogCode) {
-            case "HUMIDIFIER" -> new UsageProfile(3, 3600, 21600, 0.001, 0, 24);
-            case "PROJECTOR" -> new UsageProfile(2, 3600, 14400, 0.003, 18, 24);
+            case "HUMIDIFIER" -> new UsageProfile(1, 3, 3600, 21600, 0, 24);
+            case "PROJECTOR" -> new UsageProfile(0, 2, 3600, 14400, 18, 24);
             default -> DEFAULT_PROFILE;
         };
     }
@@ -64,11 +65,12 @@ public class ShortSessionBehaviorModel implements ApplianceBehaviorModel {
             sessionsToday = previousState.sessionsToday();
             powerWatt = TelemetryGenerator.randomInRange(min, max, random);
         } else {
-            int hour = measuredAt.getHour();
-            boolean inWindow = hour >= profile.windowStartHour() && hour < profile.windowEndHour();
             int todaysSessions = previousState == null ? 0 : previousState.sessionsTodayAt(measuredAt.toLocalDate());
-            boolean startsNewSession = todaysSessions < profile.dailyCap() && inWindow
-                    && random.nextDouble() < profile.startProbability();
+            double plannedStart = DiurnalCurve.plannedSessionStartHour(measuredAt, config.applianceId(),
+                    todaysSessions, profile.windowStartHour(), profile.windowEndHour(), profile.minCount(),
+                    profile.maxCount());
+            boolean startsNewSession = !Double.isNaN(plannedStart)
+                    && DiurnalCurve.fractionalHour(measuredAt) >= plannedStart;
 
             if (startsNewSession) {
                 nextState = ApplianceOperatingState.ACTIVE;

@@ -22,6 +22,12 @@ class ThermostaticCycleBehaviorModelTest {
                 new BigDecimal("40"), new BigDecimal("2000"), type, "THERMOSTATIC_CYCLE", null, null);
     }
 
+    private static ApplianceConfig configForWithStandby(String type, String standbyMin, String standbyMax) {
+        return new ApplianceConfig(UUID.randomUUID(), UUID.randomUUID(), type, new BigDecimal("2500"),
+                new BigDecimal("40"), new BigDecimal("2000"), type, "THERMOSTATIC_CYCLE",
+                new BigDecimal(standbyMin), new BigDecimal(standbyMax));
+    }
+
     @Test
     void refrigeratorUsesCompressorAndDefrostModes() {
         var reading = MODEL.generate(configFor("REFRIGERATOR"), null, NOON, Duration.ofSeconds(5), () -> 0.5);
@@ -71,5 +77,60 @@ class ThermostaticCycleBehaviorModelTest {
         var reading = MODEL.generate(configFor("SOME_FUTURE_TYPE"), null, NOON, Duration.ofSeconds(5), () -> 0.5);
 
         assertThat(reading.nextState().operatingMode()).isIn("COMPRESSOR_ON", "IDLE", "DEFROST");
+    }
+
+    @Test
+    void idlePowerUsesTheStandbyRangeNotTheActiveMinimum() {
+        ApplianceConfig config = configForWithStandby("REFRIGERATOR", "2", "5");
+        ApplianceRuntimeState idle = new ApplianceRuntimeState(ApplianceOperatingState.STANDBY, "IDLE",
+                NOON.toInstant(), null, null, null, null, NOON.toInstant(), null, null, null, 0, NOON.toLocalDate());
+
+        // Only 5s elapsed since entering IDLE, well under the 1200s minimum dwell, so this stays
+        // IDLE regardless of the random roll.
+        var reading = MODEL.generate(config, idle, NOON.plusSeconds(5), Duration.ofSeconds(5), () -> 0.5);
+
+        assertThat(reading.nextState().operatingMode()).isEqualTo("IDLE");
+        assertThat(reading.powerWatt()).isBetween(new BigDecimal("2"), new BigDecimal("5"));
+    }
+
+    @Test
+    void airConditionerCanTakeARealOffExcursionAtLowOvernightDemand() {
+        ApplianceConfig config = configForWithStandby("AIR_CONDITIONER", "1", "3");
+        ZonedDateTime trough = ZonedDateTime.now().withHour(3).withMinute(30).withSecond(0).withNano(0);
+        ApplianceRuntimeState idle = new ApplianceRuntimeState(ApplianceOperatingState.STANDBY, "IDLE",
+                trough.toInstant().minusSeconds(1201), null, null, null, null, trough.toInstant(), null, null, null,
+                0, trough.toLocalDate());
+
+        var reading = MODEL.generate(config, idle, trough, Duration.ofSeconds(5), () -> 0.0);
+
+        assertThat(reading.nextState().operatingMode()).isEqualTo("OFF");
+        assertThat(reading.nextState().operatingState()).isEqualTo(ApplianceOperatingState.OFF);
+    }
+
+    @Test
+    void roomHeaterCanTakeARealOffExcursionAtLowMiddayDemand() {
+        ApplianceConfig config = configForWithStandby("ELECTRIC_HEATER", "1", "3");
+        ZonedDateTime trough = ZonedDateTime.now().withHour(13).withMinute(30).withSecond(0).withNano(0);
+        ApplianceRuntimeState idle = new ApplianceRuntimeState(ApplianceOperatingState.STANDBY, "IDLE",
+                trough.toInstant().minusSeconds(901), null, null, null, null, trough.toInstant(), null, null, null,
+                0, trough.toLocalDate());
+
+        var reading = MODEL.generate(config, idle, trough, Duration.ofSeconds(5), () -> 0.0);
+
+        assertThat(reading.nextState().operatingMode()).isEqualTo("OFF");
+        assertThat(reading.nextState().operatingState()).isEqualTo(ApplianceOperatingState.OFF);
+    }
+
+    @Test
+    void refrigeratorNeverTakesAnOffExcursion() {
+        ApplianceConfig config = configForWithStandby("REFRIGERATOR", "1", "3");
+        ZonedDateTime anyTime = ZonedDateTime.now().withHour(3).withMinute(30).withSecond(0).withNano(0);
+        ApplianceRuntimeState idle = new ApplianceRuntimeState(ApplianceOperatingState.STANDBY, "IDLE",
+                anyTime.toInstant().minusSeconds(1300), null, null, null, null, anyTime.toInstant(), null, null,
+                null, 0, anyTime.toLocalDate());
+
+        var reading = MODEL.generate(config, idle, anyTime, Duration.ofSeconds(5), () -> 0.0);
+
+        assertThat(reading.nextState().operatingMode()).isNotEqualTo("OFF");
     }
 }

@@ -10,29 +10,30 @@ import org.springframework.stereotype.Component;
 /**
  * Short duration high-power devices like kettles, microwaves, coffee makers, toasters, and the
  * vacuum cleaner. Cycles between OFF (standby) and ACTIVE (high power) for a randomized session
- * duration, capped at a realistic number of uses per day — a kettle boiling every ~100 seconds
- * around the clock isn't how anyone actually uses one.
+ * duration. Session starts are scheduled via {@link DiurnalCurve#plannedSessionStartHour} — a
+ * deterministic, per-day, spread-out plan — instead of a flat per-tick probability, so sessions
+ * don't clump right at window-open and instead land at realistic, varied times across the day.
  */
 @Component
 public class ShortHighPowerBehaviorModel implements ApplianceBehaviorModel {
 
-    private record UsageProfile(int dailyCap, double minSessionSeconds, double maxSessionSeconds,
-                                 double dayStartProbability, double nightStartProbability, int windowStartHour,
-                                 int windowEndHour) {
+    private record UsageProfile(int minCount, int maxCount, double minSessionSeconds,
+                                 double maxSessionSeconds, double windowStartHour, double windowEndHour,
+                                 String activeMode) {
     }
 
-    private static final UsageProfile DEFAULT_PROFILE = new UsageProfile(5, 60, 300, 0.02, 0.002, 0, 24);
+    private static final UsageProfile DEFAULT_PROFILE = new UsageProfile(1, 5, 60, 300, 0, 24, "RUNNING");
 
     private static UsageProfile profileFor(String catalogCode) {
         if (catalogCode == null) {
             return DEFAULT_PROFILE;
         }
         return switch (catalogCode) {
-            case "KETTLE" -> new UsageProfile(8, 60, 180, 0.03, 0.003, 0, 24);
-            case "MICROWAVE" -> new UsageProfile(5, 30, 300, 0.02, 0.002, 0, 24);
-            case "TOASTER" -> new UsageProfile(3, 180, 600, 0.015, 0.001, 0, 24);
-            case "COFFEE_MACHINE" -> new UsageProfile(6, 60, 240, 0.05, 0.0, 6, 16);
-            case "VACUUM_CLEANER" -> new UsageProfile(2, 300, 1200, 0.01, 0.0005, 0, 24);
+            case "KETTLE" -> new UsageProfile(3, 8, 60, 180, 6, 23, "BOILING");
+            case "MICROWAVE" -> new UsageProfile(1, 5, 30, 300, 6, 23, "MICROWAVING");
+            case "TOASTER" -> new UsageProfile(0, 3, 180, 600, 6, 10, "TOASTING");
+            case "COFFEE_MACHINE" -> new UsageProfile(2, 6, 60, 240, 6, 16, "BREWING");
+            case "VACUUM_CLEANER" -> new UsageProfile(0, 2, 300, 1200, 8, 20, "CLEANING");
             default -> DEFAULT_PROFILE;
         };
     }
@@ -67,11 +68,12 @@ public class ShortHighPowerBehaviorModel implements ApplianceBehaviorModel {
             double jitter = 0.96 + random.nextDouble() * 0.08;
             powerWatt = base.multiply(BigDecimal.valueOf(jitter));
         } else {
-            int hour = measuredAt.getHour();
-            boolean inWindow = hour >= profile.windowStartHour() && hour < profile.windowEndHour();
             int todaysSessions = previousState == null ? 0 : previousState.sessionsTodayAt(measuredAt.toLocalDate());
-            double startProbability = inWindow ? profile.dayStartProbability() : profile.nightStartProbability();
-            boolean startsNewSession = todaysSessions < profile.dailyCap() && random.nextDouble() < startProbability;
+            double plannedStart = DiurnalCurve.plannedSessionStartHour(measuredAt, config.applianceId(),
+                    todaysSessions, profile.windowStartHour(), profile.windowEndHour(), profile.minCount(),
+                    profile.maxCount());
+            boolean startsNewSession = !Double.isNaN(plannedStart)
+                    && DiurnalCurve.fractionalHour(measuredAt) >= plannedStart;
 
             if (startsNewSession) {
                 nextState = ApplianceOperatingState.ACTIVE;
@@ -93,8 +95,9 @@ public class ShortHighPowerBehaviorModel implements ApplianceBehaviorModel {
         }
 
         ApplianceRuntimeState runtimeState = new ApplianceRuntimeState(
-                nextState, nextState == ApplianceOperatingState.ACTIVE ? "HEATING" : "STANDBY", stateStartedAt,
-                expectedStateEndAt, null, null, null, now, null, null, null, sessionsToday, measuredAt.toLocalDate()
+                nextState, nextState == ApplianceOperatingState.ACTIVE ? profile.activeMode() : "STANDBY",
+                stateStartedAt, expectedStateEndAt, null, null, null, now, null, null, null, sessionsToday,
+                measuredAt.toLocalDate()
         );
 
         return new GeneratedReading(powerWatt, runtimeState);

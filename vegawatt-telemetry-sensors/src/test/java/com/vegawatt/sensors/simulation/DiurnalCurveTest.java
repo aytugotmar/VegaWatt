@@ -3,6 +3,7 @@ package com.vegawatt.sensors.simulation;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -93,5 +94,74 @@ class DiurnalCurveTest {
         assertThat(DiurnalCurve.inDailySession(beforeSession, FIXED_ID, session)).isFalse();
         assertThat(DiurnalCurve.inDailySession(duringSession, FIXED_ID, session)).isTrue();
         assertThat(DiurnalCurve.inDailySession(afterSession, FIXED_ID, session)).isFalse();
+    }
+
+    @Test
+    void plannedSessionStartHourPlansExactlyMinCountSessionsWhenTheDaySeedOffsetIsZero() {
+        ZonedDateTime day = ZonedDateTime.of(LocalDate.ofEpochDay(0), LocalTime.NOON, ZoneOffset.UTC);
+
+        // FIXED_ID's hash is 0, and epoch day 0 makes the daySeed 0 too, so the planned count is
+        // exactly minCount (2) with zero slot jitter on the very first slot.
+        double first = DiurnalCurve.plannedSessionStartHour(day, FIXED_ID, 0, 6, 20, 2, 5);
+        double second = DiurnalCurve.plannedSessionStartHour(day, FIXED_ID, 1, 6, 20, 2, 5);
+        double third = DiurnalCurve.plannedSessionStartHour(day, FIXED_ID, 2, 6, 20, 2, 5);
+
+        assertThat(first).isCloseTo(6.0, within(1e-9));
+        assertThat(second).isGreaterThan(first).isLessThan(20.0);
+        assertThat(third).isNaN(); // only 2 sessions planned this day, so index 2 doesn't exist
+    }
+
+    @Test
+    void plannedSessionStartHourStaysWithinItsWindow() {
+        UUID someApplianceId = new UUID(123L, 456L);
+        for (int day = 0; day < 30; day++) {
+            ZonedDateTime time = ZonedDateTime.of(LocalDate.ofEpochDay(day), LocalTime.NOON, ZoneOffset.UTC);
+            for (int index = 0; index < 3; index++) {
+                double start = DiurnalCurve.plannedSessionStartHour(time, someApplianceId, index, 7, 22, 0, 3);
+                if (!Double.isNaN(start)) {
+                    assertThat(start).isGreaterThanOrEqualTo(7.0).isLessThan(22.0);
+                }
+            }
+        }
+    }
+
+    @Test
+    void demandIntensityPeaksAtThePeakHourAndVanishesAtTheEdgeOfItsHalfWidth() {
+        ZonedDateTime atPeak = ZonedDateTime.of(2026, 1, 1, 15, 0, 0, 0, ZoneOffset.UTC);
+        ZonedDateTime atEdge = ZonedDateTime.of(2026, 1, 1, 6, 0, 0, 0, ZoneOffset.UTC); // exactly 9h before the peak
+
+        assertThat(DiurnalCurve.demandIntensity(atPeak, FIXED_ID, 9, 15.0)).isCloseTo(1.0, within(1e-9));
+        assertThat(DiurnalCurve.demandIntensity(atEdge, FIXED_ID, 9, 15.0)).isCloseTo(0.0, within(1e-9));
+    }
+
+    @Test
+    void demandIntensityWithMultiplePeaksTakesTheHighestNearbyPeak() {
+        ZonedDateTime morningPeak = ZonedDateTime.of(2026, 1, 1, 7, 0, 0, 0, ZoneOffset.UTC);
+        ZonedDateTime eveningPeak = ZonedDateTime.of(2026, 1, 1, 19, 30, 0, 0, ZoneOffset.UTC);
+        ZonedDateTime midday = ZonedDateTime.of(2026, 1, 1, 13, 30, 0, 0, ZoneOffset.UTC);
+
+        assertThat(DiurnalCurve.demandIntensity(morningPeak, FIXED_ID, 4, 7.0, 19.5)).isCloseTo(1.0, within(1e-9));
+        assertThat(DiurnalCurve.demandIntensity(eveningPeak, FIXED_ID, 4, 7.0, 19.5)).isCloseTo(1.0, within(1e-9));
+        assertThat(DiurnalCurve.demandIntensity(midday, FIXED_ID, 4, 7.0, 19.5)).isCloseTo(0.0, within(1e-9));
+    }
+
+    @Test
+    void smoothedNoiseStaysWithinUnitRangeAndVariesOverTime() {
+        double atStart = DiurnalCurve.smoothedNoise01(Duration.ZERO, FIXED_ID);
+        double atOneMinute = DiurnalCurve.smoothedNoise01(Duration.ofMinutes(1), FIXED_ID);
+        double atFiveMinutes = DiurnalCurve.smoothedNoise01(Duration.ofMinutes(5), FIXED_ID);
+
+        assertThat(atStart).isBetween(0.0, 1.0);
+        assertThat(atOneMinute).isBetween(0.0, 1.0);
+        assertThat(atFiveMinutes).isBetween(0.0, 1.0);
+        assertThat(List.of(atStart, atOneMinute, atFiveMinutes)).doesNotHaveDuplicates();
+    }
+
+    @Test
+    void smoothedNoiseIsDeterministicForTheSameInputs() {
+        double first = DiurnalCurve.smoothedNoise01(Duration.ofSeconds(123), FIXED_ID);
+        double second = DiurnalCurve.smoothedNoise01(Duration.ofSeconds(123), FIXED_ID);
+
+        assertThat(first).isEqualTo(second);
     }
 }
