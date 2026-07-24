@@ -24,7 +24,7 @@ function buildBranches(appliances: ApplianceLiveStatus[]): FlowBranch[] {
     key: appliance.applianceId,
     label: appliance.applianceName,
     powerWatt: toSafeNumber(appliance.currentPowerWatt),
-    icon: getApplianceIcon(appliance.applianceType, appliance.catalogCode),
+    icon: getApplianceIcon(appliance.applianceType, appliance.catalogIconKey),
   }));
 
   if (rest.length > 0) {

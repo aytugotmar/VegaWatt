@@ -9,7 +9,7 @@ interface MobileApplianceCardProps {
 }
 
 export function MobileApplianceCard({ appliance }: MobileApplianceCardProps) {
-  const Icon = getApplianceIcon(appliance.applianceType, appliance.catalogCode);
+  const Icon = getApplianceIcon(appliance.applianceType, appliance.catalogIconKey);
 
   return (
     <div

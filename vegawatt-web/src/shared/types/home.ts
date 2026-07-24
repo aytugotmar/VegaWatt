@@ -27,6 +27,8 @@ export interface ApplianceLiveStatus {
   applianceType: string | null;
   safePowerLimitWatt: DecimalValue | null;
   currentPowerWatt: DecimalValue;
+  operatingState: string | null;
+  operatingMode: string | null;
   accumulatedEnergyKwh: DecimalValue;
   consecutiveBreachCount: number;
   anomalous: boolean;

@@ -1,7 +1,12 @@
 import { AlertTriangle, ArrowLeft } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { ApplianceBreachIndicator } from "../home-details/ApplianceBreachIndicator";
-import { getApplianceDisplayName, getApplianceIcon } from "../../shared/constants/applianceTypes";
+import {
+  getApplianceDisplayName,
+  getApplianceIcon,
+  getOperatingModeLabel,
+  getOperatingStateLabel,
+} from "../../shared/constants/applianceTypes";
 import { ApplianceStatusBadge } from "../../shared/components/ApplianceStatusBadge";
 import { RadialGauge } from "../../shared/components/RadialGauge";
 import { Spinner } from "../../shared/components/Skeleton";
@@ -57,11 +62,13 @@ export function DeviceDetailsPage() {
     );
   }
 
-  const Icon = getApplianceIcon(device.appliance.applianceType, device.appliance.catalogCode);
+  const Icon = getApplianceIcon(device.appliance.applianceType, device.appliance.catalogIconKey);
   const tone = limitBarTone(device.limitUsagePercentage);
   const limitWidth = device.limitUsagePercentage === null ? 0 : Math.min(100, device.limitUsagePercentage);
   const healthTone = getApplianceHealthTone(device.appliance);
   const isLive = healthTone !== "offline" && healthTone !== "stale";
+  const operatingStateLabel = getOperatingStateLabel(device.appliance.operatingState);
+  const operatingModeLabel = getOperatingModeLabel(device.appliance.operatingMode);
 
   return (
     <div className="mx-auto max-w-[1400px] px-8 py-8">
@@ -162,6 +169,26 @@ export function DeviceDetailsPage() {
           </div>
         </div>
       </div>
+
+      {(operatingStateLabel || operatingModeLabel) && (
+        <div className="mt-4 rounded-input border border-border bg-surface p-4">
+          <span className="text-xs font-medium uppercase tracking-wide text-text-muted">Çalışma Bilgisi</span>
+          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+            {operatingStateLabel && (
+              <>
+                <span className="text-text-muted">Çalışma durumu</span>
+                <span className="text-right font-medium text-text-primary">{operatingStateLabel}</span>
+              </>
+            )}
+            {operatingModeLabel && (
+              <>
+                <span className="text-text-muted">Çalışma modu</span>
+                <span className="text-right font-medium text-text-primary">{operatingModeLabel}</span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

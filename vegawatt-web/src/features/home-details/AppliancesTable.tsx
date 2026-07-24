@@ -32,7 +32,7 @@ export function AppliancesTable({ appliances }: AppliancesTableProps) {
         </thead>
         <tbody>
           {appliances.map((appliance) => {
-            const Icon = getApplianceIcon(appliance.applianceType, appliance.catalogCode);
+            const Icon = getApplianceIcon(appliance.applianceType, appliance.catalogIconKey);
             return (
               <tr
                 key={appliance.applianceId}

@@ -106,9 +106,9 @@ export function getAppliancePresetByType(type: string | null | undefined): Appli
 
 import { getApplianceCatalogIcon } from "./applianceCatalogIcons";
 
-export function getApplianceIcon(type: string | null | undefined, catalogCodeSnapshot?: string | null): LucideIcon {
-  if (catalogCodeSnapshot) {
-    return getApplianceCatalogIcon(catalogCodeSnapshot);
+export function getApplianceIcon(type: string | null | undefined, catalogIconKey?: string | null): LucideIcon {
+  if (catalogIconKey) {
+    return getApplianceCatalogIcon(catalogIconKey);
   }
   const preset = getAppliancePresetByType(type);
   if (preset) return preset.icon;
@@ -138,4 +138,40 @@ export function getApplianceDisplayName(
   catalogDisplayName?: string | null,
 ): string {
   return catalogDisplayName ?? getApplianceTypeLabel(type);
+}
+
+const OPERATING_STATE_LABELS: Record<string, string> = {
+  OFF: "Kapalı",
+  STANDBY: "Beklemede",
+  IDLE: "Boşta",
+  ACTIVE: "Aktif",
+  PAUSED: "Duraklatıldı",
+};
+
+const OPERATING_MODE_LABELS: Record<string, string> = {
+  NORMAL: "Normal",
+  IN_USE: "Kullanımda",
+  STANDBY: "Beklemede",
+  OFF: "Kapalı",
+  ON: "Açık",
+  IDLE: "Boşta",
+  WASHING: "Yıkama",
+  RINSING: "Durulama",
+  SPINNING: "Sıkma",
+  PREHEATING: "Ön Isıtma",
+  BAKING: "Pişirme",
+  KEEP_WARM: "Sıcak Tutma",
+  COMPRESSOR_ON: "Kompresör Çalışıyor",
+  DEFROST: "Buz Çözme",
+  HEATING: "Isıtma",
+};
+
+export function getOperatingStateLabel(state: string | null | undefined): string | null {
+  if (!state) return null;
+  return OPERATING_STATE_LABELS[state] ?? titleCaseFallback(state);
+}
+
+export function getOperatingModeLabel(mode: string | null | undefined): string | null {
+  if (!mode) return null;
+  return OPERATING_MODE_LABELS[mode] ?? titleCaseFallback(mode);
 }
