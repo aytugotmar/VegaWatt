@@ -42,7 +42,8 @@ public class ScheduledSwitchBehaviorModel implements ApplianceBehaviorModel {
                 ? previousState.stateStartedAt() : now;
 
         ApplianceRuntimeState nextRuntimeState = new ApplianceRuntimeState(
-                state, isNight ? "SCHEDULED_ON" : "SCHEDULED_OFF", stateStartedAt, null, null, null, null, now, null, null, null
+                state, isNight ? "SCHEDULED_ON" : "SCHEDULED_OFF", stateStartedAt, null, null, null, null, now, null, null, null,
+                0, null
         );
 
         return new GeneratedReading(basePower, nextRuntimeState);

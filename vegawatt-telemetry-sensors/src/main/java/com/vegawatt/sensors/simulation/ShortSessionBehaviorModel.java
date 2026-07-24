@@ -8,38 +8,34 @@ import java.time.ZonedDateTime;
 import org.springframework.stereotype.Component;
 
 /**
- * Short duration high-power devices like kettles, microwaves, coffee makers, toasters, and the
- * vacuum cleaner. Cycles between OFF (standby) and ACTIVE (high power) for a randomized session
- * duration, capped at a realistic number of uses per day — a kettle boiling every ~100 seconds
- * around the clock isn't how anyone actually uses one.
+ * Session-based devices used for a stretch of hours at a time, a few times a day at most —
+ * humidifiers left running overnight or through a room session, projectors for an evening viewing.
+ * Unlike {@link ShortHighPowerBehaviorModel} (minutes-long bursts), sessions here run for hours,
+ * so both the daily cap and per-tick start probability are tuned much lower.
  */
 @Component
-public class ShortHighPowerBehaviorModel implements ApplianceBehaviorModel {
+public class ShortSessionBehaviorModel implements ApplianceBehaviorModel {
 
     private record UsageProfile(int dailyCap, double minSessionSeconds, double maxSessionSeconds,
-                                 double dayStartProbability, double nightStartProbability, int windowStartHour,
-                                 int windowEndHour) {
+                                 double startProbability, int windowStartHour, int windowEndHour) {
     }
 
-    private static final UsageProfile DEFAULT_PROFILE = new UsageProfile(5, 60, 300, 0.02, 0.002, 0, 24);
+    private static final UsageProfile DEFAULT_PROFILE = new UsageProfile(2, 3600, 10800, 0.001, 0, 24);
 
     private static UsageProfile profileFor(String catalogCode) {
         if (catalogCode == null) {
             return DEFAULT_PROFILE;
         }
         return switch (catalogCode) {
-            case "KETTLE" -> new UsageProfile(8, 60, 180, 0.03, 0.003, 0, 24);
-            case "MICROWAVE" -> new UsageProfile(5, 30, 300, 0.02, 0.002, 0, 24);
-            case "TOASTER" -> new UsageProfile(3, 180, 600, 0.015, 0.001, 0, 24);
-            case "COFFEE_MACHINE" -> new UsageProfile(6, 60, 240, 0.05, 0.0, 6, 16);
-            case "VACUUM_CLEANER" -> new UsageProfile(2, 300, 1200, 0.01, 0.0005, 0, 24);
+            case "HUMIDIFIER" -> new UsageProfile(3, 3600, 21600, 0.001, 0, 24);
+            case "PROJECTOR" -> new UsageProfile(2, 3600, 14400, 0.003, 18, 24);
             default -> DEFAULT_PROFILE;
         };
     }
 
     @Override
     public ApplianceBehaviorProfile supportedProfile() {
-        return ApplianceBehaviorProfile.SHORT_HIGH_POWER;
+        return ApplianceBehaviorProfile.SHORT_SESSION;
     }
 
     @Override
@@ -58,20 +54,21 @@ public class ShortHighPowerBehaviorModel implements ApplianceBehaviorModel {
         Instant expectedStateEndAt;
         int sessionsToday;
 
+        BigDecimal min = config.simulationMinWatt() != null ? config.simulationMinWatt() : BigDecimal.ZERO;
+        BigDecimal max = config.simulationMaxWatt() != null ? config.simulationMaxWatt() : min;
+
         if (sessionStillActive) {
             nextState = ApplianceOperatingState.ACTIVE;
             stateStartedAt = previousState.stateStartedAt();
             expectedStateEndAt = previousState.expectedStateEndAt();
             sessionsToday = previousState.sessionsToday();
-            BigDecimal base = config.simulationMaxWatt() != null ? config.simulationMaxWatt() : config.safePowerLimitWatt();
-            double jitter = 0.96 + random.nextDouble() * 0.08;
-            powerWatt = base.multiply(BigDecimal.valueOf(jitter));
+            powerWatt = TelemetryGenerator.randomInRange(min, max, random);
         } else {
             int hour = measuredAt.getHour();
             boolean inWindow = hour >= profile.windowStartHour() && hour < profile.windowEndHour();
             int todaysSessions = previousState == null ? 0 : previousState.sessionsTodayAt(measuredAt.toLocalDate());
-            double startProbability = inWindow ? profile.dayStartProbability() : profile.nightStartProbability();
-            boolean startsNewSession = todaysSessions < profile.dailyCap() && random.nextDouble() < startProbability;
+            boolean startsNewSession = todaysSessions < profile.dailyCap() && inWindow
+                    && random.nextDouble() < profile.startProbability();
 
             if (startsNewSession) {
                 nextState = ApplianceOperatingState.ACTIVE;
@@ -80,9 +77,7 @@ public class ShortHighPowerBehaviorModel implements ApplianceBehaviorModel {
                         + random.nextDouble() * (profile.maxSessionSeconds() - profile.minSessionSeconds());
                 expectedStateEndAt = now.plusSeconds(Math.round(sessionSeconds));
                 sessionsToday = todaysSessions + 1;
-                BigDecimal base = config.simulationMaxWatt() != null ? config.simulationMaxWatt() : config.safePowerLimitWatt();
-                double jitter = 0.96 + random.nextDouble() * 0.08;
-                powerWatt = base.multiply(BigDecimal.valueOf(jitter));
+                powerWatt = TelemetryGenerator.randomInRange(min, max, random);
             } else {
                 nextState = ApplianceOperatingState.OFF;
                 stateStartedAt = previousState == null ? now : previousState.stateStartedAt();
@@ -93,7 +88,7 @@ public class ShortHighPowerBehaviorModel implements ApplianceBehaviorModel {
         }
 
         ApplianceRuntimeState runtimeState = new ApplianceRuntimeState(
-                nextState, nextState == ApplianceOperatingState.ACTIVE ? "HEATING" : "STANDBY", stateStartedAt,
+                nextState, nextState == ApplianceOperatingState.ACTIVE ? "RUNNING" : "OFF", stateStartedAt,
                 expectedStateEndAt, null, null, null, now, null, null, null, sessionsToday, measuredAt.toLocalDate()
         );
 

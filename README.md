@@ -22,7 +22,7 @@ graph TD
 ### Temel Servisler ve Teknolojiler
 
 - **`vegawatt-core`**: Ana backend REST API, auth (JWT), ev/cihaz yönetimi, anomali/standby/telemetry-health değerlendirme motoru, outbox relay, bildirim işleme ve Gemini AI entegrasyonu. (Java 17, Spring Boot 3.3, Flyway, JPA).
-- **`vegawatt-telemetry-sensors`**: 45 farklı katalog cihazı ve 14 davranış profili (Thermostatic Cycle, Program Cycle, Short High Power, Manual Switch vb.) için deterministik simülatör ve telemetri jeneratörü.
+- **`vegawatt-telemetry-sensors`**: 45 farklı katalog cihazı ve 14 davranış profili (Thermostatic Cycle, Program Cycle, Short High Power, Manual Switch vb.) için deterministik simülatör ve telemetri jeneratörü — 13 profilin kendine özgü native modeli var, kullanılmayan tek profil (`FLOW_TRIGGERED`) güvenli bir genel varsayılan davranışa düşer.
 - **`vegawatt-web`**: Modern, responsive dashboard UI. Canlı güç akışları, tüketim detayları, cihaz detay grafikleri, bildirim merkezi ve AI Insight soru-cevap paneli. (React 18, TypeScript, Tailwind CSS, Lucide icons).
 - **PostgreSQL 16**: İşlemsel veritabanı (Evler, Cihazlar, Katalog, Kullanıcılar, Olaylar, Bildirim Job'ları).
 - **Apache Kafka**: Telemetri ve cihaz kayıt olaylarının iletildiği düşük gecikmeli event-bus.
@@ -32,7 +32,7 @@ graph TD
 
 ## ⚡ Temel Özellikler
 
-1. **45 Cihazlık Zengin Katalog & Davranış Profilleri:** Beyaz eşyalardan küçük ev aletlerine, ısıtma/soğutma sistemlerinden aydınlatmaya kadar tüm cihaz tipleri için özelleştirilmiş 14 native davranış modeli.
+1. **45 Cihazlık Zengin Katalog & Davranış Profilleri:** Beyaz eşyalardan küçük ev aletlerine, ısıtma/soğutma sistemlerinden aydınlatmaya kadar tüm cihaz tipleri için özelleştirilmiş 13 native davranış modeli (14 profilden yalnızca kullanılmayan biri genel bir varsayılana düşer).
 2. **Akıllı Anomali ve Güvenli Limit Takibi:** Aşırı güç çekimi, standby tüketim ihlali ve telemetri kesintilerini (Stale / Offline) anlık tespit eder.
 3. **Flapping & Mail Spam Koruması:** Simetrik recovery eşikleri (3 ihlal / 3 normal okuma) ve minimum bildirim cooldown süreleri ile gereksiz bildirimleri engeller.
 4. **AI Insight & Enerji Asistanı (`Gemini AI`):** Bütçe ve tüketim verilerini analiz eder, "Bu ay ne kadar harcadım?", "Bütçemi aşar mıyım?" gibi sorulara insan diliyle anlık yanıt verir.
