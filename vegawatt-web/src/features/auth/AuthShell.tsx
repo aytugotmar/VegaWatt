@@ -1,5 +1,7 @@
-import { CheckCircle2, Zap } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import type { ReactNode } from "react";
+import { BrandMark } from "../../shared/components/BrandMark";
+import { DemoStatStrip } from "../landing/DemoStatStrip";
 
 interface AuthShellProps {
   title: string;
@@ -27,16 +29,15 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
           aria-hidden="true"
         />
 
-        <div className="relative flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-input bg-primary text-white">
-            <Zap className="h-4 w-4" aria-hidden="true" />
-          </span>
-          <span className="text-base font-semibold text-text-primary">VegaWatt</span>
+        <div className="relative">
+          <BrandMark />
         </div>
 
         <div className="relative max-w-sm">
-          <h2 className="text-3xl font-semibold leading-tight tracking-tight text-text-primary">
-            Enerjiyi yalnız izlemeyin. Nereye gittiğini anlayın.
+          <h2 className="text-4xl font-bold leading-tight tracking-tight text-text-primary">
+            Enerjiyi yalnız izlemeyin.
+            <br />
+            <span className="text-gradient-flow">Nereye gittiğini anlayın.</span>
           </h2>
           <p className="mt-3 text-sm text-text-secondary">
             Canlı tüketim, bütçe tahmini ve cihaz bazlı akıllı öneriler tek panelde.
@@ -49,6 +50,9 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
               </li>
             ))}
           </ul>
+          <div className="mt-8">
+            <DemoStatStrip />
+          </div>
         </div>
 
         <p className="relative text-xs text-text-muted">© {new Date().getFullYear()} VegaWatt. Tüm hakları saklıdır.</p>
@@ -56,11 +60,8 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
 
       <div className="flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-16">
         <div className="mx-auto w-full max-w-sm">
-          <div className="mb-8 flex items-center gap-2 lg:hidden">
-            <span className="flex h-8 w-8 items-center justify-center rounded-input bg-primary text-white">
-              <Zap className="h-4 w-4" aria-hidden="true" />
-            </span>
-            <span className="text-base font-semibold text-text-primary">VegaWatt</span>
+          <div className="mb-8 lg:hidden">
+            <BrandMark />
           </div>
 
           <h1 className="text-3xl font-semibold tracking-tight text-text-primary">{title}</h1>

@@ -9,16 +9,16 @@ import { formatDateTime, toSafeNumber } from "../../shared/utils/format";
 type MetricKey = "energy" | "cost";
 
 const SERIES_COLOR: Record<MetricKey, { light: string; dark: string }> = {
-  energy: { light: "#1D7A64", dark: "#66D0AA" },
-  cost: { light: "#D09333", dark: "#DFAC58" },
+  energy: { light: "#2F6FED", dark: "#6AB4FF" },
+  cost: { light: "#C6821A", dark: "#F0B25E" },
 };
 
 const INK = {
-  muted: { light: "#8a948d", dark: "#718078" },
-  grid: { light: "#dce2dc", dark: "#24332b" },
-  surface: { light: "#ffffff", dark: "#131b17" },
-  secondary: { light: "#66716a", dark: "#a5b2aa" },
-  danger: { light: "#b84a3d", dark: "#ef7b70" },
+  muted: { light: "#8891ac", dark: "#667195" },
+  grid: { light: "#dde3ef", dark: "#24304f" },
+  surface: { light: "#ffffff", dark: "#121a38" },
+  secondary: { light: "#5b6785", dark: "#9aa7c7" },
+  danger: { light: "#d1453a", dark: "#ff7a6b" },
 };
 
 interface ChartPoint {

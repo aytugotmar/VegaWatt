@@ -103,12 +103,12 @@ export function AIInsightWidget({ homeId }: AIInsightWidgetProps) {
           onChange={(e) => setQuestion(e.target.value)}
           placeholder={homeId ? "Örn: Ay sonunda faturam ne olur?" : "Lütfen bir ev seçin..."}
           disabled={loading || !homeId}
-          className="flex-1 rounded-input border border-border bg-background px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none disabled:opacity-60"
+          className="flex-1 rounded-input border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none disabled:opacity-60"
         />
         <button
           type="submit"
           disabled={loading || !question.trim() || !homeId}
-          className="flex items-center gap-1.5 rounded-input bg-primary px-4 py-2 text-sm font-medium text-white shadow hover:bg-primary-hover disabled:opacity-50 transition"
+          className="flex items-center gap-1.5 rounded-input bg-primary px-4 py-2 text-sm font-medium text-on-primary shadow hover:bg-primary-hover disabled:opacity-50 transition"
         >
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Bell, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useAllHomesLiveStatus } from "../../shared/hooks/useHomesQueries";
 import { formatRelativeTime } from "../../shared/utils/format";
-import { AIInsightWidget } from "./AIInsightWidget";
 
 export function NotificationsPage() {
   const { homes, isLoading } = useAllHomesLiveStatus();
@@ -15,8 +14,8 @@ export function NotificationsPage() {
     <div className="mx-auto max-w-[1400px] px-8 py-8">
       <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Bildirim ve Analiz Merkezi</h1>
-          <p className="text-sm text-text-muted">Tüm evlerinizdeki anomali, uyarı ve AI öneri geçmişini inceleyin</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Bildirimler</h1>
+          <p className="text-sm text-text-muted">Tüm evlerinizdeki anomali ve uyarı geçmişini inceleyin</p>
         </div>
 
         {homes.length > 1 && (
@@ -32,10 +31,6 @@ export function NotificationsPage() {
             ))}
           </select>
         )}
-      </div>
-
-      <div className="mb-8">
-        <AIInsightWidget homeId={currentHomeId} />
       </div>
 
       <div className="rounded-input border border-border bg-surface p-6">

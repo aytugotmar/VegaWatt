@@ -19,24 +19,18 @@ function renderLandingPage() {
 }
 
 describe("LandingPage", () => {
-  it("points each header/CTA anchor at its own distinct, existing section — not a shared one", async () => {
+  it("keeps the header nav to just the brand and login link, and points the demo CTA at an existing section", async () => {
     renderLandingPage();
     await screen.findByText("Canlı tüketim takibi");
 
-    const howItWorksLink = screen.getByRole("link", { name: "Nasıl Çalışır" });
-    const featuresLink = screen.getByRole("link", { name: "Özellikler" });
+    // The header intentionally no longer links directly to the "Nasıl Çalışır"/"Özellikler"
+    // sections — they're still reachable by scrolling, but the top nav stays minimal.
+    expect(screen.queryByRole("link", { name: "Nasıl Çalışır" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Özellikler" })).not.toBeInTheDocument();
+
     const demoLink = screen.getByRole("link", { name: "Demoyu incele" });
-
-    const targets = [howItWorksLink, featuresLink, demoLink].map((link) => link.getAttribute("href"));
-    // Every anchor must target a different section — this is exactly the bug that made "Özellikler"
-    // and "Demoyu incele" feel broken: both pointed at #ozellikler, which sat on content already
-    // visible in the hero, so clicking either produced no perceptible scroll.
-    expect(new Set(targets).size).toBe(targets.length);
-
-    for (const href of targets) {
-      const id = href!.slice(1);
-      expect(document.getElementById(id)).not.toBeNull();
-    }
+    const href = demoLink.getAttribute("href");
+    expect(document.getElementById(href!.slice(1))).not.toBeNull();
   });
 
   it("renders a real Özellikler section distinct from the demo preview and the how-it-works steps", async () => {
