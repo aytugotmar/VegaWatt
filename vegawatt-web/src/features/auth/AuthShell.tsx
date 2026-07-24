@@ -1,7 +1,6 @@
 import { CheckCircle2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { BrandMark } from "../../shared/components/BrandMark";
-import { DemoStatStrip } from "../landing/DemoStatStrip";
 
 interface AuthShellProps {
   title: string;
@@ -50,9 +49,6 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
               </li>
             ))}
           </ul>
-          <div className="mt-8">
-            <DemoStatStrip />
-          </div>
         </div>
 
         <p className="relative text-xs text-text-muted">© {new Date().getFullYear()} VegaWatt. Tüm hakları saklıdır.</p>

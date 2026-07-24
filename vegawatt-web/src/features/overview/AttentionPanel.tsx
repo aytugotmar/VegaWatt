@@ -4,7 +4,7 @@ import type { AttentionItem } from "./useOverviewData";
 
 export function AttentionPanel({ items }: { items: AttentionItem[] }) {
   return (
-    <div className="flex flex-col gap-2 rounded-input border border-border bg-surface p-5">
+    <div className="card-glass flex flex-col gap-2 rounded-input border border-border p-5">
       <span className="text-xs font-medium uppercase tracking-wide text-text-muted">Dikkat Gerektirenler</span>
       {items.length === 0 ? (
         <div className="flex items-center gap-2 py-2 text-sm text-text-secondary">

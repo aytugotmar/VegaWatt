@@ -16,7 +16,7 @@ export function MobileHomeCard({ home, onSelect }: MobileHomeCardProps) {
     <button
       type="button"
       onClick={() => onSelect(home.homeId)}
-      className="flex w-full flex-col gap-3 rounded-card border border-border bg-surface p-4 text-left shadow-[var(--shadow-card)] transition hover:shadow-[var(--shadow-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="card-glass flex w-full flex-col gap-3 rounded-card border border-border p-4 text-left shadow-[var(--shadow-card)] transition hover:shadow-[var(--shadow-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       data-testid="mobile-home-card"
     >
       <div className="flex items-center justify-between gap-2">

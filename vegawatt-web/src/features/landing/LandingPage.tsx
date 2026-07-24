@@ -1,6 +1,6 @@
 import { AlertTriangle, Cpu, Gauge, LineChart, Sparkles, Wallet } from "lucide-react";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { BrandMark } from "../../shared/components/BrandMark";
 import { TONE_BADGE_CLASSES, type Tone } from "../../shared/utils/toneClasses";
 import { LoginForm } from "../auth/LoginForm";
@@ -60,13 +60,8 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
+      <header className="mx-auto flex max-w-6xl items-center px-6 py-6">
         <BrandMark />
-        <nav className="flex items-center gap-6 text-sm font-medium text-text-secondary">
-          <Link to="/login" className="hover:text-text-primary">
-            Giriş Yap
-          </Link>
-        </nav>
       </header>
 
       <main className="relative mx-auto grid max-w-6xl grid-cols-1 gap-10 overflow-hidden px-6 py-10 lg:grid-cols-2 lg:items-center lg:py-16">
@@ -83,18 +78,6 @@ export function LandingPage() {
           <p className="mt-4 text-lg text-text-secondary">
             Canlı tüketim, bütçe tahmini ve cihaz bazlı akıllı öneriler tek panelde.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => setTab("register")}
-              className="btn-primary h-11 px-5 text-sm"
-            >
-              Ücretsiz başla
-            </button>
-            <a href="#demo" className="btn-secondary h-11 px-5 text-sm">
-              Demoyu incele
-            </a>
-          </div>
           <div className="mt-8 max-w-sm" id="demo">
             <DemoStatStrip />
           </div>

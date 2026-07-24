@@ -1,5 +1,18 @@
-import { AlertTriangle, Gauge, Wallet } from "lucide-react";
+import { AlertTriangle, Fan, Gauge, Refrigerator, Wallet, WashingMachine, type LucideIcon } from "lucide-react";
 import { RadialGauge } from "../../shared/components/RadialGauge";
+
+interface DemoDevice {
+  name: string;
+  icon: LucideIcon;
+  power: string;
+  anomalous: boolean;
+}
+
+const DEMO_DEVICES: DemoDevice[] = [
+  { name: "Buzdolabı", icon: Refrigerator, power: "145 W", anomalous: false },
+  { name: "Klima", icon: Fan, power: "1.240 W", anomalous: true },
+  { name: "Çamaşır Makinesi", icon: WashingMachine, power: "610 W", anomalous: false },
+];
 
 /**
  * Static demo numbers for marketing surfaces (landing hero, auth panels) — intentionally not
@@ -47,6 +60,31 @@ export function DemoStatStrip() {
       <div className="mt-3 flex items-center gap-2 rounded-input bg-danger-soft px-3 py-2 text-danger">
         <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="text-xs font-medium">1 cihazda anomali tespit edildi — anında bildirim gönderildi</span>
+      </div>
+
+      <div className="mt-3 flex flex-col gap-1.5">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Cihazlar</p>
+        {DEMO_DEVICES.map((device) => (
+          <div
+            key={device.name}
+            className="flex items-center justify-between gap-2 rounded-input bg-surface-subtle px-2.5 py-1.5"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <device.icon className="h-3.5 w-3.5 shrink-0 text-text-secondary" aria-hidden="true" />
+              <span className="truncate text-xs font-medium text-text-primary">{device.name}</span>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="tabular-nums text-xs text-text-secondary">{device.power}</span>
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                  device.anomalous ? "bg-danger-soft text-danger" : "bg-success-soft text-success"
+                }`}
+              >
+                {device.anomalous ? "Anomali" : "Normal"}
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

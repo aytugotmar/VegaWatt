@@ -54,7 +54,7 @@ export function UserOverviewPage() {
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col justify-center rounded-input border border-border bg-surface p-5">
+        <div className="card-glass flex flex-col justify-center rounded-input border border-border p-5">
           <span className="text-xs font-medium uppercase tracking-wide text-text-muted">Evlerimin Durumu</span>
           <p className="mt-1 text-sm text-text-primary">
             {data.liveCount} canlı{data.staleCount > 0 ? ` · ${data.staleCount} stale` : ""} · {data.homeCount} ev
