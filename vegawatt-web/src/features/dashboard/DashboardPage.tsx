@@ -95,23 +95,25 @@ export function DashboardPage({ mode = "ADMIN" }: DashboardPageProps = {}) {
 
   return (
     <div className="min-h-screen">
-      {mode === "ADMIN" ? (
+      {mode === "ADMIN" && (
         <DashboardHeader
           isConnected={!isError}
           lastUpdatedAt={dataUpdatedAt}
           onAddHome={() => setWizardOpen(true)}
         />
-      ) : (
-        <div className="flex items-center justify-between border-b border-border px-8 py-4">
-          <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Evlerim</h1>
-          <Button variant="primary" onClick={() => setWizardOpen(true)}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Yeni Ev
-          </Button>
-        </div>
       )}
 
-      <main className={mode === "ADMIN" ? "mx-auto max-w-6xl px-6 py-6" : "mx-auto max-w-[1400px] px-8 py-6"}>
+      <main className={mode === "ADMIN" ? "mx-auto max-w-6xl px-6 py-6" : "mx-auto max-w-[1400px] px-8 py-8"}>
+        {mode === "USER" && (
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Evlerim</h1>
+            <Button variant="primary" onClick={() => setWizardOpen(true)}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Yeni Ev
+            </Button>
+          </div>
+        )}
+
         {isError && hasHomes && (
           <div className="mb-4 flex items-center justify-between gap-3 rounded-input border border-danger/30 bg-danger-soft px-4 py-2.5 text-sm text-danger">
             <span>Sunucuyla bağlantı kurulamadı, son bilinen veriler gösteriliyor.</span>

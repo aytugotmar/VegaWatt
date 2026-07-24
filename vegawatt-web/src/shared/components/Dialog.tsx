@@ -70,7 +70,7 @@ export function Dialog({ open, onClose, title, labelledBy, children, maxWidthCla
 
   return (
     <div
-      className="animate-fade-in fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-0 sm:p-4"
+      className="animate-fade-in fixed inset-0 z-40 flex items-center justify-center bg-black/65 p-0 backdrop-blur-sm sm:p-4"
       onClick={onClose}
     >
       <div
@@ -80,7 +80,7 @@ export function Dialog({ open, onClose, title, labelledBy, children, maxWidthCla
         aria-label={labelledBy ? undefined : title}
         aria-labelledby={labelledBy}
         tabIndex={-1}
-        className={`animate-fade-scale-in relative flex h-full w-full flex-col overflow-hidden bg-surface shadow-[var(--shadow-modal)] outline-none sm:h-auto sm:max-h-[calc(100vh-48px)] sm:rounded-modal ${maxWidthClassName}`}
+        className={`animate-fade-scale-in dialog-glass relative flex h-full w-full flex-col overflow-hidden shadow-[var(--shadow-modal)] outline-none sm:h-auto sm:max-h-[calc(100vh-48px)] sm:rounded-modal ${maxWidthClassName}`}
         onClick={(event) => event.stopPropagation()}
       >
         {children}

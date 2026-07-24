@@ -59,7 +59,7 @@ export function AddApplianceModal({ homeId, onClose }: AddApplianceModalProps) {
     : null;
 
   return (
-    <Dialog open onClose={onClose} labelledBy={titleId} maxWidthClassName="max-w-2xl">
+    <Dialog open onClose={onClose} labelledBy={titleId} maxWidthClassName="max-w-4xl">
       <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
         <h2 id={titleId} className="text-lg font-semibold text-text-primary">
           Cihaz Ekle

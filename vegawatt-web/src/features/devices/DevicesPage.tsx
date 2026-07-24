@@ -1,10 +1,15 @@
-import { Cpu } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Cpu, Plus, X } from "lucide-react";
+import { useId, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { getApplianceDisplayName, getApplianceIcon, getApplianceTypeLabel } from "../../shared/constants/applianceTypes";
+import { Button } from "../../shared/components/Button";
+import { Dialog } from "../../shared/components/Dialog";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Skeleton";
+import { useLiveHomesQuery } from "../../shared/hooks/useHomesQueries";
 import { formatPercentage, formatPower, formatRelativeTime } from "../../shared/utils/format";
+import { getApplianceHealthTone } from "../../shared/utils/homeStatus";
+import { AddApplianceModal } from "../home-details/AddApplianceModal";
 import { useAllAppliances, type DeviceRow } from "./useAllAppliances";
 
 type StatusFilter = "ALL" | "ANOMALOUS" | "NORMAL";
@@ -22,11 +27,67 @@ const BAR_TONE_CLASS: Record<"normal" | "warning" | "critical", string> = {
   critical: "bg-danger",
 };
 
+/** Cihaz eklemek bir eve bağlı bir işlem — kullanıcının birden fazla evi varsa hangisine
+ * ekleneceğini önce sormamız gerekiyor. */
+function HomePickerDialog({
+  homes,
+  onSelect,
+  onClose,
+}: {
+  homes: { homeId: string; homeName: string }[];
+  onSelect: (homeId: string) => void;
+  onClose: () => void;
+}) {
+  const titleId = useId();
+  return (
+    <Dialog open onClose={onClose} labelledBy={titleId} maxWidthClassName="max-w-sm">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+        <h2 id={titleId} className="text-lg font-semibold text-text-primary">
+          Hangi eve ekleyelim?
+        </h2>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Kapat"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted transition hover:bg-surface-subtle hover:text-text-primary"
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
+      <div className="flex flex-col gap-1 px-3 py-3">
+        {homes.map((home) => (
+          <button
+            key={home.homeId}
+            type="button"
+            onClick={() => onSelect(home.homeId)}
+            className="rounded-input px-3 py-2.5 text-left text-sm font-medium text-text-primary transition hover:bg-surface-subtle"
+          >
+            {home.homeName}
+          </button>
+        ))}
+      </div>
+    </Dialog>
+  );
+}
+
 export function DevicesPage() {
   const { devices, isLoading, isError } = useAllAppliances();
+  const { data: liveHomes } = useLiveHomesQuery();
   const [homeFilter, setHomeFilter] = useState("ALL");
   const [typeFilter, setTypeFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [homePickerOpen, setHomePickerOpen] = useState(false);
+  const [addApplianceHomeId, setAddApplianceHomeId] = useState<string | null>(null);
+
+  const homes = useMemo(() => liveHomes ?? [], [liveHomes]);
+
+  function handleAddApplianceClick() {
+    if (homes.length === 1) {
+      setAddApplianceHomeId(homes[0].homeId);
+    } else if (homes.length > 1) {
+      setHomePickerOpen(true);
+    }
+  }
 
   const homeOptions = useMemo(() => {
     const seen = new Map<string, string>();
@@ -44,8 +105,9 @@ export function DevicesPage() {
     return devices.filter((device) => {
       if (homeFilter !== "ALL" && device.homeId !== homeFilter) return false;
       if (typeFilter !== "ALL" && device.appliance.applianceType !== typeFilter) return false;
-      if (statusFilter === "ANOMALOUS" && !device.appliance.anomalous) return false;
-      if (statusFilter === "NORMAL" && device.appliance.anomalous) return false;
+      const isNormal = getApplianceHealthTone(device.appliance) === "normal";
+      if (statusFilter === "ANOMALOUS" && isNormal) return false;
+      if (statusFilter === "NORMAL" && !isNormal) return false;
       return true;
     });
   }, [devices, homeFilter, typeFilter, statusFilter]);
@@ -61,14 +123,47 @@ export function DevicesPage() {
   if (!isError && devices.length === 0) {
     return (
       <div className="mx-auto max-w-[1400px] px-8 py-10">
-        <EmptyState icon={Cpu} title="Henüz cihaz yok" description="Evlerinize cihaz ekleyince burada listelenecek." />
+        <EmptyState
+          icon={Cpu}
+          title="Henüz cihaz yok"
+          description="Evlerinize cihaz ekleyince burada listelenecek."
+          action={
+            homes.length > 0 ? (
+              <Button variant="primary" onClick={handleAddApplianceClick}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Cihaz Ekle
+              </Button>
+            ) : undefined
+          }
+        />
+        {homePickerOpen && (
+          <HomePickerDialog
+            homes={homes}
+            onClose={() => setHomePickerOpen(false)}
+            onSelect={(homeId) => {
+              setHomePickerOpen(false);
+              setAddApplianceHomeId(homeId);
+            }}
+          />
+        )}
+        {addApplianceHomeId && (
+          <AddApplianceModal homeId={addApplianceHomeId} onClose={() => setAddApplianceHomeId(null)} />
+        )}
       </div>
     );
   }
 
   return (
     <div className="mx-auto max-w-[1400px] px-8 py-8">
-      <h1 className="mb-5 text-2xl font-semibold tracking-tight text-text-primary">Cihazlarım</h1>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Cihazlarım</h1>
+        {homes.length > 0 && (
+          <Button variant="primary" onClick={handleAddApplianceClick}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Cihaz Ekle
+          </Button>
+        )}
+      </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <select
@@ -123,7 +218,7 @@ export function DevicesPage() {
           </thead>
           <tbody>
             {filtered.map((device: DeviceRow) => {
-              const Icon = getApplianceIcon(device.appliance.applianceType, device.appliance.catalogCode);
+              const Icon = getApplianceIcon(device.appliance.applianceType, device.appliance.catalogIconKey);
               const tone = limitBarTone(device.limitUsagePercentage);
               return (
                 <tr
@@ -186,6 +281,20 @@ export function DevicesPage() {
           </tbody>
         </table>
       </div>
+
+      {homePickerOpen && (
+        <HomePickerDialog
+          homes={homes}
+          onClose={() => setHomePickerOpen(false)}
+          onSelect={(homeId) => {
+            setHomePickerOpen(false);
+            setAddApplianceHomeId(homeId);
+          }}
+        />
+      )}
+      {addApplianceHomeId && (
+        <AddApplianceModal homeId={addApplianceHomeId} onClose={() => setAddApplianceHomeId(null)} />
+      )}
     </div>
   );
 }
