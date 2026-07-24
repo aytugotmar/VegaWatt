@@ -17,11 +17,12 @@ public record HomeLiveState(
         TariffState tariffState,
         boolean penaltyActive,
         String billingPeriod,
-        Instant lastUpdatedAt) {
+        Instant lastUpdatedAt,
+        UUID lastEventId) {
 
     public static HomeLiveState zero(UUID homeId, String homeName, String billingPeriod, Instant now) {
         return new HomeLiveState(homeId, homeName, BigDecimal.ZERO.setScale(9), Money.zero(), BigDecimal.ZERO,
-                BigDecimal.ZERO, TariffState.BASE, false, billingPeriod, now);
+                BigDecimal.ZERO, TariffState.BASE, false, billingPeriod, now, null);
     }
 
     public static HomeLiveState zero(UUID homeId, String homeName, Instant now) {

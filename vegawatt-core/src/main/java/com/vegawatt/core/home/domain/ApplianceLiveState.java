@@ -22,12 +22,13 @@ public record ApplianceLiveState(
         int standbyRecoveryCount,
         boolean standbyAnomalyActive,
         ApplianceHealthStatus telemetryHealthStatus,
-        Instant lastUpdatedAt) {
+        Instant lastUpdatedAt,
+        UUID lastEventId) {
 
     public static ApplianceLiveState zero(UUID homeId, UUID applianceId, String applianceName, String applianceType,
                                            BigDecimal safePowerLimitWatt, Instant now) {
         return new ApplianceLiveState(homeId, applianceId, applianceName, applianceType, safePowerLimitWatt,
                 BigDecimal.ZERO, null, null, BigDecimal.ZERO.setScale(9), 0, 0, false, 0, 0, false,
-                ApplianceHealthStatus.NORMAL, now);
+                ApplianceHealthStatus.NORMAL, now, null);
     }
 }

@@ -36,7 +36,7 @@ export function LivePowerPulse({ totalPowerWatt, isLoading }: LivePowerPulseProp
       : null;
 
   return (
-    <div className="glow-card flex h-full flex-col gap-1 rounded-input border border-border bg-surface p-6 transition">
+    <div className="glow-card card-glass flex h-full flex-col gap-1 rounded-input border border-border p-6 transition">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium uppercase tracking-wide text-text-muted">Canlı Güç</span>
         <span className="flex items-center gap-1 text-xs font-medium text-success">

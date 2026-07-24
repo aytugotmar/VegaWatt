@@ -56,7 +56,7 @@ class GetLiveHomeStatusQueryTest {
     private static ApplianceLiveState liveState(UUID applianceId) {
         return new ApplianceLiveState(HOME_ID, applianceId, "Buzdolabı", "REFRIGERATOR", new BigDecimal("250"),
                 new BigDecimal("120"), null, null, BigDecimal.ZERO.setScale(9), 0, 0, false, 0, 0, false,
-                ApplianceHealthStatus.NORMAL, NOW);
+                ApplianceHealthStatus.NORMAL, NOW, null);
     }
 
     @Test

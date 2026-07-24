@@ -1,6 +1,7 @@
 package com.vegawatt.sensors.simulation;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 /**
  * Per-appliance simulation state, held in {@link ApplianceRuntimeStateStore} between ticks. The
@@ -25,9 +26,21 @@ public record ApplianceRuntimeState(
         Instant nextFaultEvaluationAt,
         /** While non-null and in the future, a fault that just ended blocks a new one from
          * starting, even if {@link #nextFaultEvaluationAt} says an evaluation is due. */
-        Instant faultCooldownUntil) {
+        Instant faultCooldownUntil,
+        /** How many sessions/programs/activations this appliance has started on
+         * {@link #sessionsCountedOnDate}. Read via {@link #sessionsTodayAt(LocalDate)}, which
+         * auto-rolls over to 0 once the simulation date advances — there's no separate reset step. */
+        int sessionsToday,
+        LocalDate sessionsCountedOnDate) {
 
     public static ApplianceRuntimeState initial(Instant now) {
-        return new ApplianceRuntimeState(ApplianceOperatingState.OFF, "STANDBY", now, null, null, null, null, now, null, null, null);
+        return new ApplianceRuntimeState(ApplianceOperatingState.OFF, "STANDBY", now, null, null, null, null, now, null,
+                null, null, 0, null);
+    }
+
+    /** The effective daily session count as of {@code today} — 0 if the last counted session was
+     * on an earlier date (day rollover), otherwise {@link #sessionsToday}. */
+    public int sessionsTodayAt(LocalDate today) {
+        return today.equals(sessionsCountedOnDate) ? sessionsToday : 0;
     }
 }

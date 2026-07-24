@@ -12,7 +12,7 @@ interface TopConsumersPanelProps {
 
 export function TopConsumersPanel({ consumers, linkToHomes = true }: TopConsumersPanelProps) {
   return (
-    <div className="flex flex-col gap-3 rounded-input border border-border bg-surface p-5">
+    <div className="card-glass flex flex-col gap-3 rounded-input border border-border p-5">
       <span className="text-xs font-medium uppercase tracking-wide text-text-muted">En Çok Tüketen Cihazlar</span>
       {consumers.length === 0 ? (
         <p className="py-2 text-sm text-text-muted">Henüz veri yok.</p>

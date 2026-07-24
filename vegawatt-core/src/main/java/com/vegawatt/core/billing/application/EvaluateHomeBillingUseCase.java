@@ -12,6 +12,7 @@ import com.vegawatt.core.home.domain.HomeLiveState;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 /**
@@ -33,7 +34,7 @@ public class EvaluateHomeBillingUseCase {
     }
 
     public HomeBillingEvaluation evaluate(Home home, HomeLiveState current, BigDecimal energyIncrementKwh,
-                                           Instant now) {
+                                           Instant now, UUID eventId) {
         String currentPeriod = BillingPeriodResolver.currentPeriod(now);
         HomeLiveState existing;
         if (current == null || current.billingPeriod() == null || !currentPeriod.equals(current.billingPeriod())) {
@@ -61,7 +62,7 @@ public class EvaluateHomeBillingUseCase {
 
         HomeLiveState newState = new HomeLiveState(home.id(), home.name(), newEnergyKwh, newCost,
                 newEnergyPercentage, newBudgetPercentage, newTariffState, newTariffState == TariffState.PENALTY,
-                currentPeriod, now);
+                currentPeriod, now, eventId);
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(energyIncrementKwh, costIncrement.amount(),
                 energyTransition, budgetTransition);
 
@@ -84,7 +85,7 @@ public class EvaluateHomeBillingUseCase {
                             home.budgetQuotaTry());
                     return new HomeLiveState(home.id(), home.name(), billingAccount.accumulatedEnergyKwh(),
                             billingAccount.accumulatedCost(), energyPercentage, budgetPercentage, tariffState,
-                            billingAccount.penaltyActive(), currentPeriod, now);
+                            billingAccount.penaltyActive(), currentPeriod, now, null);
                 })
                 .orElseGet(() -> HomeLiveState.zero(home.id(), home.name(), currentPeriod, now));
     }

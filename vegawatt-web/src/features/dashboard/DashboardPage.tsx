@@ -13,6 +13,7 @@ import { toSafeNumber } from "../../shared/utils/format";
 import { getHomeHealthStatus } from "../../shared/utils/homeStatus";
 import { DashboardHeader } from "./DashboardHeader";
 import { DashboardKpis } from "./DashboardKpis";
+import { HomeCard } from "./HomeCard";
 import { HomeFilters, type SortOption, type StatusFilter, type TariffFilter } from "./HomeFilters";
 import { HomeTable } from "./HomeTable";
 import { MobileHomeCard } from "./MobileHomeCard";
@@ -123,14 +124,21 @@ export function DashboardPage({ mode = "ADMIN" }: DashboardPageProps = {}) {
           </div>
         )}
 
-        {isLoading && (
+        {isLoading && mode === "USER" && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <HomeCardSkeleton key={index} />
+            ))}
+          </div>
+        )}
+        {isLoading && mode === "ADMIN" && (
           <div className="grid grid-cols-1 gap-3 sm:hidden">
             {Array.from({ length: 3 }).map((_, index) => (
               <HomeCardSkeleton key={index} />
             ))}
           </div>
         )}
-        {isLoading && <HomeTable homes={[]} onSelect={() => {}} loadingRowCount={4} />}
+        {isLoading && mode === "ADMIN" && <HomeTable homes={[]} onSelect={() => {}} loadingRowCount={4} />}
 
         {!isLoading && hasHomes && (
           <>
@@ -158,6 +166,12 @@ export function DashboardPage({ mode = "ADMIN" }: DashboardPageProps = {}) {
                 title="Sonuç bulunamadı"
                 description="Arama veya filtre kriterlerinize uyan bir ev yok."
               />
+            ) : mode === "USER" ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {visibleHomes.map((home) => (
+                  <HomeCard key={home.homeId} home={home} onSelect={selectHome} />
+                ))}
+              </div>
             ) : (
               <>
                 <HomeTable homes={visibleHomes} onSelect={selectHome} />

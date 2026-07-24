@@ -8,11 +8,32 @@ import java.time.ZonedDateTime;
 import org.springframework.stereotype.Component;
 
 /**
- * Manually switched devices (LED bulbs, desk lamps, fans).
- * Toggles between OFF and ACTIVE according to hour of day (higher evening usage).
+ * Manually switched devices (LED bulbs, desk lamps, fans, range hoods).
+ * Toggles between OFF and ACTIVE according to hour of day (higher evening usage), but — unlike a
+ * naive per-tick reroll — holds whichever state it's in for a randomized minimum dwell period
+ * ({@link ApplianceRuntimeState#expectedStateEndAt()}) so a lamp doesn't flicker on/off every 5s.
  */
 @Component
 public class ManualSwitchBehaviorModel implements ApplianceBehaviorModel {
+
+    private static final DwellRange DEFAULT_DWELL = new DwellRange(15, 90, 15, 90);
+
+    /** on-min, on-max, off-min, off-max dwell minutes, per catalog code. */
+    private record DwellRange(double onMinMinutes, double onMaxMinutes, double offMinMinutes, double offMaxMinutes) {
+    }
+
+    private static DwellRange dwellRangeFor(String catalogCode) {
+        if (catalogCode == null) {
+            return DEFAULT_DWELL;
+        }
+        return switch (catalogCode) {
+            case "LED_BULB", "CHANDELIER" -> new DwellRange(15, 120, 15, 120);
+            case "DESK_LAMP" -> new DwellRange(10, 90, 10, 90);
+            case "FAN" -> new DwellRange(20, 180, 20, 180);
+            case "RANGE_HOOD" -> new DwellRange(5, 30, 30, 240);
+            default -> DEFAULT_DWELL;
+        };
+    }
 
     @Override
     public ApplianceBehaviorProfile supportedProfile() {
@@ -23,16 +44,27 @@ public class ManualSwitchBehaviorModel implements ApplianceBehaviorModel {
     public GeneratedReading generate(ApplianceConfig config, ApplianceRuntimeState previousState,
                                       ZonedDateTime measuredAt, Duration elapsed, RandomSource random) {
         Instant now = measuredAt.toInstant();
-        int hour = measuredAt.getHour();
+        boolean dwellStillActive = previousState != null && previousState.expectedStateEndAt() != null
+                && now.isBefore(previousState.expectedStateEndAt());
 
-        boolean isEvening = (hour >= 18 && hour <= 23);
-        boolean isMorning = (hour >= 6 && hour <= 9);
+        boolean isActive;
+        Instant stateStartedAt;
+        Instant expectedStateEndAt;
+        if (dwellStillActive) {
+            isActive = previousState.operatingState() == ApplianceOperatingState.ACTIVE;
+            stateStartedAt = previousState.stateStartedAt();
+            expectedStateEndAt = previousState.expectedStateEndAt();
+        } else {
+            isActive = random.nextDouble() < activeProbability(measuredAt.getHour());
+            stateStartedAt = now;
+            DwellRange dwell = dwellRangeFor(config.catalogCode());
+            double dwellMinutes = isActive
+                    ? dwell.onMinMinutes() + random.nextDouble() * (dwell.onMaxMinutes() - dwell.onMinMinutes())
+                    : dwell.offMinMinutes() + random.nextDouble() * (dwell.offMaxMinutes() - dwell.offMinMinutes());
+            expectedStateEndAt = now.plusSeconds(Math.round(dwellMinutes * 60));
+        }
 
-        double activeProbability = isEvening ? 0.85 : (isMorning ? 0.40 : 0.10);
-
-        boolean isActive = random.nextDouble() < activeProbability;
         ApplianceOperatingState state = isActive ? ApplianceOperatingState.ACTIVE : ApplianceOperatingState.OFF;
-
         BigDecimal basePower = config.simulationMinWatt() != null ? config.simulationMinWatt() : new BigDecimal("10");
         if (isActive && config.simulationMaxWatt() != null) {
             double jitter = 0.97 + random.nextDouble() * 0.06;
@@ -41,13 +73,17 @@ public class ManualSwitchBehaviorModel implements ApplianceBehaviorModel {
             basePower = config.standbyMaxWatt() != null ? config.standbyMaxWatt() : BigDecimal.ZERO;
         }
 
-        Instant stateStartedAt = (previousState != null && previousState.operatingState() == state)
-                ? previousState.stateStartedAt() : now;
-
         ApplianceRuntimeState nextRuntimeState = new ApplianceRuntimeState(
-                state, isActive ? "ON" : "OFF", stateStartedAt, null, null, null, null, now, null, null, null
+                state, isActive ? "ON" : "OFF", stateStartedAt, expectedStateEndAt, null, null, null, now, null, null,
+                null, 0, null
         );
 
         return new GeneratedReading(basePower, nextRuntimeState);
+    }
+
+    private static double activeProbability(int hour) {
+        boolean isEvening = (hour >= 18 && hour <= 23);
+        boolean isMorning = (hour >= 6 && hour <= 9);
+        return isEvening ? 0.85 : (isMorning ? 0.40 : 0.10);
     }
 }

@@ -77,7 +77,7 @@ class ApplianceSimulationSchedulerTest {
         when(homeRegistry.find(applianceId)).thenReturn(Optional.of(config));
 
         ApplianceRuntimeState fixedState = new ApplianceRuntimeState(ApplianceOperatingState.ACTIVE, "NORMAL",
-                Instant.now(), null, null, null, null, Instant.now(), null, null, null);
+                Instant.now(), null, null, null, null, Instant.now(), null, null, null, 0, null);
         ApplianceBehaviorModel model = mock(ApplianceBehaviorModel.class);
         when(model.generate(eq(config), any(), any(), any(), eq(randomSource)))
                 .thenReturn(new ApplianceBehaviorModel.GeneratedReading(new BigDecimal("12345.00"), fixedState));

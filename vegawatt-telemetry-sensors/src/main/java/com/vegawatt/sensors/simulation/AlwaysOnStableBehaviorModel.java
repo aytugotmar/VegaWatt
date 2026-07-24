@@ -88,7 +88,7 @@ class AlwaysOnStableBehaviorModel implements ApplianceBehaviorModel {
         Instant stateStartedAt = previousState == null ? now : previousState.stateStartedAt();
         ApplianceRuntimeState nextState = new ApplianceRuntimeState(ApplianceOperatingState.ACTIVE, "NORMAL",
                 stateStartedAt, null, faultCode, faultStartedAt, faultExpectedEndAt, now, null,
-                nextFaultEvaluationAt, cooldownUntil);
+                nextFaultEvaluationAt, cooldownUntil, 0, null);
 
         return new GeneratedReading(powerWatt, nextState);
     }

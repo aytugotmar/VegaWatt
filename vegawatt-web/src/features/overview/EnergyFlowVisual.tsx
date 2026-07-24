@@ -57,7 +57,7 @@ export function EnergyFlowVisual({
   const isFlowing = totalPowerWatt > 0;
 
   return (
-    <div className="flex flex-col gap-3 rounded-input border border-border bg-surface p-5">
+    <div className="card-glass flex flex-col gap-3 rounded-input border border-border p-5">
       <span className="text-xs font-medium uppercase tracking-wide text-text-muted">Enerji Akışı</span>
 
       <div className="flex flex-col items-center">

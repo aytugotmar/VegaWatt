@@ -4,6 +4,7 @@ import com.vegawatt.core.common.ApplianceHealthStatus;
 import com.vegawatt.core.home.domain.ApplianceOperatingState;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 
 class ApplianceLiveStateCacheValue {
 
@@ -22,6 +23,7 @@ class ApplianceLiveStateCacheValue {
     private boolean standbyAnomalyActive;
     private ApplianceHealthStatus telemetryHealthStatus;
     private Instant lastUpdatedAt;
+    private UUID lastEventId;
 
     ApplianceLiveStateCacheValue() {
     }
@@ -31,7 +33,8 @@ class ApplianceLiveStateCacheValue {
                                   String operatingMode, BigDecimal accumulatedEnergyKwh, int consecutiveBreachCount,
                                   int consecutiveNormalCount, boolean anomalous, int standbyBreachCount,
                                   int standbyRecoveryCount, boolean standbyAnomalyActive,
-                                  ApplianceHealthStatus telemetryHealthStatus, Instant lastUpdatedAt) {
+                                  ApplianceHealthStatus telemetryHealthStatus, Instant lastUpdatedAt,
+                                  UUID lastEventId) {
         this.applianceName = applianceName;
         this.applianceType = applianceType;
         this.safePowerLimitWatt = safePowerLimitWatt;
@@ -47,6 +50,7 @@ class ApplianceLiveStateCacheValue {
         this.standbyAnomalyActive = standbyAnomalyActive;
         this.telemetryHealthStatus = telemetryHealthStatus;
         this.lastUpdatedAt = lastUpdatedAt;
+        this.lastEventId = lastEventId;
     }
 
     String getApplianceName() {
@@ -107,5 +111,9 @@ class ApplianceLiveStateCacheValue {
 
     Instant getLastUpdatedAt() {
         return lastUpdatedAt;
+    }
+
+    UUID getLastEventId() {
+        return lastEventId;
     }
 }

@@ -27,7 +27,7 @@ export function BudgetTrajectory({
   const tone = getQuotaTone(maxBudgetQuotaPercentage);
 
   return (
-    <div className="flex h-full flex-col gap-1 rounded-input border border-border bg-surface p-6">
+    <div className="card-glass flex h-full flex-col gap-1 rounded-input border border-border p-6">
       <span className="text-xs font-medium uppercase tracking-wide text-text-muted">Bütçe Gidişatı</span>
       <p className={`text-3xl font-semibold tracking-tight tabular-nums ${TONE_CLASS[tone]}`}>
         {formatCurrency(totalCurrentCost)}

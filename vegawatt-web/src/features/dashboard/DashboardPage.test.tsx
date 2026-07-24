@@ -85,4 +85,19 @@ describe("DashboardPage", () => {
       expect(screen.getByRole("dialog")).toBeInTheDocument();
     });
   });
+
+  it("renders homes as cards in USER mode and navigates to the home's own page on click", async () => {
+    vi.mocked(fetchLiveHomes).mockResolvedValue([makeHome({ homeName: "Bahçelievler" })]);
+    const user = userEvent.setup();
+    renderWithProviders(<DashboardPage mode="USER" />);
+
+    const card = await screen.findByRole("button", { name: "Bahçelievler detaylarını görüntüle" });
+    expect(card).toHaveAttribute("data-testid", "home-card");
+
+    await user.click(card);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
 });

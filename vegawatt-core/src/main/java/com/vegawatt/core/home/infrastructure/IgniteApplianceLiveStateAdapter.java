@@ -109,7 +109,8 @@ class IgniteApplianceLiveStateAdapter implements ApplianceLiveStatePort {
                 state.safePowerLimitWatt(), state.currentPowerWatt(), state.operatingState(), state.operatingMode(),
                 state.accumulatedEnergyKwh(), state.consecutiveBreachCount(), state.consecutiveNormalCount(),
                 state.anomalous(), state.standbyBreachCount(), state.standbyRecoveryCount(),
-                state.standbyAnomalyActive(), state.telemetryHealthStatus(), state.lastUpdatedAt());
+                state.standbyAnomalyActive(), state.telemetryHealthStatus(), state.lastUpdatedAt(),
+                state.lastEventId());
     }
 
     private static ApplianceLiveState toDomain(UUID homeId, UUID applianceId, ApplianceLiveStateCacheValue value) {
@@ -118,6 +119,6 @@ class IgniteApplianceLiveStateAdapter implements ApplianceLiveStatePort {
                 value.getOperatingMode(), value.getAccumulatedEnergyKwh(), value.getConsecutiveBreachCount(),
                 value.getConsecutiveNormalCount(), value.isAnomalous(), value.getStandbyBreachCount(),
                 value.getStandbyRecoveryCount(), value.isStandbyAnomalyActive(), value.getTelemetryHealthStatus(),
-                value.getLastUpdatedAt());
+                value.getLastUpdatedAt(), value.getLastEventId());
     }
 }
