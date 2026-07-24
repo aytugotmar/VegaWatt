@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /** Dev-only convenience: seeds two demo homes with realistic appliances under the bootstrap admin
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Component;
  * this replaces, it never deletes or touches existing data. Reuses {@link RegisterHomeUseCase} (the
  * same path the real registration endpoint uses) so catalog defaults and snapshot fields are
  * resolved correctly instead of being hand-rolled in SQL. */
+@Order(2)
 @Profile("dev")
 @Component
 class DemoDataSeeder implements CommandLineRunner {
