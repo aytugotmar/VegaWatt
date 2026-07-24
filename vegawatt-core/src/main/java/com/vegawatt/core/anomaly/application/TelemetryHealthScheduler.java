@@ -110,6 +110,7 @@ public class TelemetryHealthScheduler {
                 state.applianceType(), state.safePowerLimitWatt(), state.currentPowerWatt(), state.operatingState(),
                 state.operatingMode(), state.accumulatedEnergyKwh(), state.consecutiveBreachCount(),
                 state.consecutiveNormalCount(), state.anomalous(), state.standbyBreachCount(),
-                state.standbyRecoveryCount(), state.standbyAnomalyActive(), status, state.lastUpdatedAt());
+                state.standbyRecoveryCount(), state.standbyAnomalyActive(), status, state.lastUpdatedAt(),
+                state.lastEventId());
     }
 }

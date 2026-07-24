@@ -110,7 +110,7 @@ public class ProcessTelemetryUseCase {
                 current -> {
                     previousHomeRef.set(current);
                     HomeBillingEvaluation evaluation = evaluateHomeBillingUseCase.evaluate(home, current,
-                            energyIncrementKwh, occurredAt);
+                            energyIncrementKwh, occurredAt, reading.eventId());
                     homeOutcomeRef.set(evaluation.outcome());
                     return evaluation.newState();
                 },
@@ -146,7 +146,8 @@ public class ProcessTelemetryUseCase {
                             reading.operatingState(), reading.operatingMode(), newAccumulatedEnergyKwh,
                             result.consecutiveBreachCount(), result.consecutiveNormalCount(), result.anomalous(),
                             standbyResult.standbyBreachCount(), standbyResult.standbyRecoveryCount(),
-                            standbyResult.standbyAnomalyActive(), ApplianceHealthStatus.NORMAL, occurredAt);
+                            standbyResult.standbyAnomalyActive(), ApplianceHealthStatus.NORMAL, occurredAt,
+                            reading.eventId());
                 });
 
         HomeUpdateOutcome homeOutcome = homeOutcomeRef.get();
@@ -161,12 +162,14 @@ public class ProcessTelemetryUseCase {
         } catch (DataIntegrityViolationException duplicateEx) {
             log.warn("Duplicate telemetry event {} detected during DB persist; restoring Ignite state and skipping",
                     reading.eventId());
-            compensateLiveState(home.id(), appliance.id(), previousHomeRef.get(), previousApplianceRef.get());
+            compensateLiveState(home.id(), appliance.id(), reading.eventId(), previousHomeRef.get(),
+                    previousApplianceRef.get());
         } catch (RuntimeException e) {
             log.error("Failed to persist billing/event log for telemetry event {} (home={}, appliance={}) after " +
                             "Ignite update; compensating both home and appliance Ignite states back to pre-event truth",
                     reading.eventId(), home.id(), appliance.id(), e);
-            compensateLiveState(home.id(), appliance.id(), previousHomeRef.get(), previousApplianceRef.get());
+            compensateLiveState(home.id(), appliance.id(), reading.eventId(), previousHomeRef.get(),
+                    previousApplianceRef.get());
             throw e;
         }
     }
@@ -175,12 +178,14 @@ public class ProcessTelemetryUseCase {
      * A failed PostgreSQL persist leaves Ignite's live state ahead of the permanent ledger (the
      * energy/cost increment was already applied in Ignite but never durably recorded). Rebuilding
      * both the home's and appliance's live states back to their pre-event values in a single atomic
-     * Ignite transaction undoes that drift cleanly.
+     * Ignite transaction undoes that drift cleanly — but only for whichever side's current cache
+     * entry is still stamped with this event's ID; see {@link com.vegawatt.core.home.domain.TelemetryLiveStatePort#restore}
+     * for why a plain unconditional restore would be unsafe under concurrent processing.
      */
-    private void compensateLiveState(UUID homeId, UUID applianceId, HomeLiveState previousHome,
+    private void compensateLiveState(UUID homeId, UUID applianceId, UUID eventId, HomeLiveState previousHome,
                                      ApplianceLiveState previousAppliance) {
         try {
-            telemetryLiveStatePort.restore(homeId, applianceId, previousHome, previousAppliance);
+            telemetryLiveStatePort.restore(homeId, applianceId, eventId, previousHome, previousAppliance);
         } catch (RuntimeException compensationFailure) {
             log.error("Failed to compensate Ignite live state for home {} and appliance {}", homeId, applianceId,
                     compensationFailure);

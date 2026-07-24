@@ -87,12 +87,13 @@ class IgniteHomeLiveStateAdapter implements HomeLiveStatePort {
     private static HomeLiveStateCacheValue toCacheValue(HomeLiveState state) {
         return new HomeLiveStateCacheValue(state.homeName(), state.currentEnergyKwh(), state.currentCost().amount(),
                 state.energyQuotaPercentage(), state.budgetQuotaPercentage(), state.tariffState(),
-                state.penaltyActive(), state.billingPeriod(), state.lastUpdatedAt());
+                state.penaltyActive(), state.billingPeriod(), state.lastUpdatedAt(), state.lastEventId());
     }
 
     private static HomeLiveState toDomain(UUID homeId, HomeLiveStateCacheValue value) {
         return new HomeLiveState(homeId, value.getHomeName(), value.getCurrentEnergyKwh(),
                 Money.of(value.getCurrentCost()), value.getEnergyQuotaPercentage(), value.getBudgetQuotaPercentage(),
-                value.getTariffState(), value.isPenaltyActive(), value.getBillingPeriod(), value.getLastUpdatedAt());
+                value.getTariffState(), value.isPenaltyActive(), value.getBillingPeriod(), value.getLastUpdatedAt(),
+                value.getLastEventId());
     }
 }

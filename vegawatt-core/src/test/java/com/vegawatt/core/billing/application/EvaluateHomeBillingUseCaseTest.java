@@ -42,9 +42,10 @@ class EvaluateHomeBillingUseCaseTest {
     void evaluate_sameBillingPeriod_accumulatesEnergyAndCost() {
         String currentPeriod = BillingPeriodResolver.currentPeriod(now);
         HomeLiveState current = new HomeLiveState(homeId, "Test Home", new BigDecimal("10.00"), Money.of(new BigDecimal("25.00")),
-                new BigDecimal("10.00"), new BigDecimal("5.00"), TariffState.BASE, false, currentPeriod, now);
+                new BigDecimal("10.00"), new BigDecimal("5.00"), TariffState.BASE, false, currentPeriod, now, null);
 
-        HomeBillingEvaluation evaluation = evaluateHomeBillingUseCase.evaluate(home, current, new BigDecimal("5.00"), now);
+        HomeBillingEvaluation evaluation = evaluateHomeBillingUseCase.evaluate(home, current, new BigDecimal("5.00"), now,
+                UUID.randomUUID());
 
         assertThat(evaluation.newState().billingPeriod()).isEqualTo(currentPeriod);
         assertThat(evaluation.newState().currentEnergyKwh()).isEqualByComparingTo("15.00");
@@ -59,12 +60,13 @@ class EvaluateHomeBillingUseCaseTest {
 
         // Previous month was in penalty state with high energy and cost
         HomeLiveState oldState = new HomeLiveState(homeId, "Test Home", new BigDecimal("150.00"), Money.of(new BigDecimal("750.00")),
-                new BigDecimal("150.00"), new BigDecimal("150.00"), TariffState.PENALTY, true, oldPeriod, now);
+                new BigDecimal("150.00"), new BigDecimal("150.00"), TariffState.PENALTY, true, oldPeriod, now, null);
 
         when(billingAccountRepository.findByHomeIdAndBillingPeriod(eq(home.id()), eq(newPeriod)))
                 .thenReturn(Optional.empty());
 
-        HomeBillingEvaluation evaluation = evaluateHomeBillingUseCase.evaluate(home, oldState, new BigDecimal("2.00"), now);
+        HomeBillingEvaluation evaluation = evaluateHomeBillingUseCase.evaluate(home, oldState, new BigDecimal("2.00"), now,
+                UUID.randomUUID());
 
         assertThat(evaluation.newState().billingPeriod()).isEqualTo(newPeriod);
         // Energy starts fresh for August: 0 + 2 = 2 kWh

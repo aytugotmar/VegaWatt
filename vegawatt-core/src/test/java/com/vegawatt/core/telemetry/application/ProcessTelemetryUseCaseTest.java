@@ -239,7 +239,7 @@ class ProcessTelemetryUseCaseTest {
     void telemetryResumesAfterStaleStatusResetsHealthAndFlagsRecorderForResumedEvent() {
         applianceLiveStateSlot = new ApplianceLiveState(HOME_ID, APPLIANCE_ID, "Fridge", "REFRIGERATOR",
                 new BigDecimal("200"), new BigDecimal("0"), null, null, BigDecimal.ZERO.setScale(9), 0, 0, false, 0,
-                0, false, ApplianceHealthStatus.STALE, NOW.minusSeconds(60));
+                0, false, ApplianceHealthStatus.STALE, NOW.minusSeconds(60), null);
 
         useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
 
@@ -287,10 +287,11 @@ class ProcessTelemetryUseCaseTest {
                 .when(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), any(),
                         anyBoolean(), any(), any(), anyInt());
 
-        assertThatThrownBy(() -> useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000"))))
+        UUID eventId = UUID.randomUUID();
+        assertThatThrownBy(() -> useCase.execute(reading(eventId, new BigDecimal("1000"))))
                 .isInstanceOf(RuntimeException.class);
 
-        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), any(), any());
+        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), any(), any());
     }
 
     @Test
@@ -301,8 +302,28 @@ class ProcessTelemetryUseCaseTest {
                         anyBoolean(), any(), any(), anyInt());
 
         // Should not throw, but restore Ignite state and skip the duplicate gracefully.
-        useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
+        UUID eventId = UUID.randomUUID();
+        useCase.execute(reading(eventId, new BigDecimal("1000")));
 
-        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), any(), any());
+        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), any(), any());
+    }
+
+    @Test
+    void secondDeliveryOfTheSameEventIsSkippedWithoutAnyStateOrBillingMutation() {
+        UUID eventId = UUID.randomUUID();
+
+        useCase.execute(reading(eventId, new BigDecimal("1000")));
+        HomeLiveState homeStateAfterFirstDelivery = homeLiveStateSlot;
+        ApplianceLiveState applianceStateAfterFirstDelivery = applianceLiveStateSlot;
+        verify(telemetryBillingRecorder).persist(eq(eventId), any(), any(), any(), any(), any(), any(), any(),
+                anyBoolean(), any(), any(), anyInt());
+
+        when(processedTelemetryEventRepository.existsByEventId(eventId)).thenReturn(true);
+        useCase.execute(reading(eventId, new BigDecimal("1000")));
+
+        assertThat(homeLiveStateSlot).isSameAs(homeStateAfterFirstDelivery);
+        assertThat(applianceLiveStateSlot).isSameAs(applianceStateAfterFirstDelivery);
+        verify(telemetryBillingRecorder, org.mockito.Mockito.times(1)).persist(eq(eventId), any(), any(), any(),
+                any(), any(), any(), any(), anyBoolean(), any(), any(), anyInt());
     }
 }
