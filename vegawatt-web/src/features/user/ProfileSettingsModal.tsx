@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { X, Lock, Mail, KeyRound, CheckCircle2, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -31,15 +31,45 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
 
   const [successMsg, setSuccessMsg] = useState("");
 
+  const logoutTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (logoutTimerRef.current) {
+        window.clearTimeout(logoutTimerRef.current);
+      }
+    };
+  }, []);
+
   // Password/email changes revoke every session server-side, including the current one — the
   // access token stays technically valid until its own TTL expires, but the refresh token behind
   // it is already dead, so we force a clean logout instead of leaving the user in a half-signed-in
   // state until they hit a 401 on some unrelated action.
   const forceReLoginAfterSessionRevoke = () => {
-    window.setTimeout(() => {
+    logoutTimerRef.current = window.setTimeout(() => {
       onClose();
       void logout().then(() => navigate("/login"));
     }, SESSION_REVOKED_REDIRECT_DELAY_MS);
+  };
+
+  // Clears every sensitive/transient field so a password typed into this modal doesn't linger in
+  // React state after it closes, and so reopening it doesn't show a stale success/error message
+  // from the last time it was used.
+  const resetFormState = () => {
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordFormError("");
+    setNewEmail(user?.email || "");
+    setCurrentPasswordForEmail("");
+    setEmailFormError("");
+    setSuccessMsg("");
+    passwordMutation.reset();
+    emailMutation.reset();
+  };
+
+  const handleClose = () => {
+    resetFormState();
+    onClose();
   };
 
   const passwordMutation = useMutation({
@@ -102,7 +132,7 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
   const emailErrorMsg = emailFormError || (emailMutation.isError ? emailMutation.error.message : "");
 
   return (
-    <Dialog open={isOpen} onClose={onClose} title="Hesap Ayarları" maxWidthClassName="max-w-md">
+    <Dialog open={isOpen} onClose={handleClose} title="Hesap Ayarları" maxWidthClassName="max-w-md">
       <div className="p-6">
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-border pb-4">
@@ -116,7 +146,7 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Kapat"
             className="rounded-lg p-1.5 text-text-muted hover:bg-surface-subtle hover:text-text-primary"
           >
@@ -205,7 +235,7 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
             <div className="mt-6 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="rounded-lg border border-border px-4 py-2 text-xs font-semibold text-text-muted hover:bg-surface-subtle"
               >
                 İptal
@@ -243,7 +273,7 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
             <div className="mt-6 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="rounded-lg border border-border px-4 py-2 text-xs font-semibold text-text-muted hover:bg-surface-subtle"
               >
                 İptal

@@ -35,6 +35,8 @@ export function AdminUserManagementModal({ isOpen, onClose }: AdminUserManagemen
   };
 
   const filteredUsers = users.filter((u) => u.email.toLowerCase().includes(searchQuery.toLowerCase()));
+  // Only for the full-table skeleton: true on the very first load, not on a background refetch of
+  // already-cached data (which must keep showing the existing rows, not flash back to a spinner).
   const loading = isLoading || (isFetching && users.length === 0);
 
   return (
@@ -79,11 +81,11 @@ export function AdminUserManagementModal({ isOpen, onClose }: AdminUserManagemen
             </span>
             <button
               onClick={() => refetch()}
-              disabled={loading}
-              className="rounded-lg border border-border bg-surface p-1.5 text-text-muted hover:text-text-primary"
+              disabled={isFetching}
+              className="rounded-lg border border-border bg-surface p-1.5 text-text-muted hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
               title="Yenile"
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             </button>
           </div>
         </div>
@@ -162,7 +164,11 @@ export function AdminUserManagementModal({ isOpen, onClose }: AdminUserManagemen
                         <td className="px-4 py-3 text-right">
                           <button
                             onClick={() => handleRoleToggle(u)}
-                            disabled={isSelf || (updateRoleMutation.isPending && updateRoleMutation.variables?.userId === u.id)}
+                            // Disabling every row (not just this one) while any role mutation is
+                            // pending prevents a second mutate() call from replacing the shared
+                            // mutation's tracked variables/isPending before the first one settles,
+                            // which would otherwise show the wrong row as "updating".
+                            disabled={isSelf || updateRoleMutation.isPending}
                             title={isSelf ? "Kendi rolünüzü değiştiremezsiniz" : undefined}
                             className={`rounded-lg border px-3 py-1 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                               u.role === "ADMIN"

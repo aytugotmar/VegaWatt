@@ -53,13 +53,11 @@ function toIntervalDeltas(points: ConsumptionHistoryPoint[]): ChartPoint[] {
 function CustomTooltip({
   active,
   payload,
-  metric,
   surfaceColor,
   secondaryColor,
 }: {
   active?: boolean;
   payload?: { payload: ChartPoint }[];
-  metric: MetricKey;
   surfaceColor: string;
   secondaryColor: string;
 }) {
@@ -75,7 +73,6 @@ function CustomTooltip({
         Bu aralıkta maliyet: {point.cost.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} TRY
       </p>
       <p style={{ color: secondaryColor }}>{point.penalty ? "Tarife: Ceza" : "Tarife: Normal"}</p>
-      {metric === "energy" ? null : null}
     </div>
   );
 }
@@ -164,7 +161,7 @@ export function ConsumptionChart({ points }: { points: ConsumptionHistoryPoint[]
             <YAxis tick={{ fontSize: 11, fill: mutedColor }} axisLine={{ stroke: gridColor }} tickLine={false} width={48} />
             <Tooltip
               cursor={{ stroke: mutedColor, strokeWidth: 1 }}
-              content={<CustomTooltip metric={metric} surfaceColor={surfaceColor} secondaryColor={secondaryColor} />}
+              content={<CustomTooltip surfaceColor={surfaceColor} secondaryColor={secondaryColor} />}
             />
             <Line
               type="monotone"
