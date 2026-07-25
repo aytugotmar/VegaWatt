@@ -51,7 +51,7 @@ class GeminiAdvisoryClientTest {
 
     @Test
     void returnsFallbackWhenNoApiKeyConfigured() {
-        GeminiProperties properties = new GeminiProperties("", "gemini-2.0-flash", 3000, 8000);
+        GeminiProperties properties = new GeminiProperties("", "gemini-2.0-flash", 3000, 8000, 15000);
         GeminiAdvisoryClient client = new GeminiAdvisoryClient(httpClient, objectMapper, properties);
 
         AdvisoryResult result = client.generateAdvisory(CONTEXT);
@@ -62,7 +62,7 @@ class GeminiAdvisoryClientTest {
 
     @Test
     void returnsFallbackAfterExhaustingAllKeysOnFailure() throws IOException, InterruptedException {
-        GeminiProperties properties = new GeminiProperties("key-one,key-two", "gemini-2.0-flash", 3000, 8000);
+        GeminiProperties properties = new GeminiProperties("key-one,key-two", "gemini-2.0-flash", 3000, 8000, 15000);
         when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
                 .thenThrow(new IOException("connection refused"));
         GeminiAdvisoryClient client = new GeminiAdvisoryClient(httpClient, objectMapper, properties);
@@ -75,7 +75,7 @@ class GeminiAdvisoryClientTest {
 
     @Test
     void rotatesToSecondKeyAfterFirstKeyReturnsRateLimitStatus() throws IOException, InterruptedException {
-        GeminiProperties properties = new GeminiProperties("key-one,key-two", "gemini-2.0-flash", 3000, 8000);
+        GeminiProperties properties = new GeminiProperties("key-one,key-two", "gemini-2.0-flash", 3000, 8000, 15000);
         HttpResponse<String> rateLimited = mock(HttpResponse.class);
         when(rateLimited.statusCode()).thenReturn(429);
         when(httpResponse.statusCode()).thenReturn(200);
@@ -95,7 +95,7 @@ class GeminiAdvisoryClientTest {
 
     @Test
     void sendsApiKeyAsHeaderAndNeverInTheUrl() throws IOException, InterruptedException {
-        GeminiProperties properties = new GeminiProperties(SECRET_KEY, "gemini-2.0-flash", 3000, 8000);
+        GeminiProperties properties = new GeminiProperties(SECRET_KEY, "gemini-2.0-flash", 3000, 8000, 15000);
         when(httpResponse.statusCode()).thenReturn(200);
         when(httpResponse.body()).thenReturn(
                 "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Tasarruf öneriniz hazır.\"}]}}]}");
@@ -118,7 +118,7 @@ class GeminiAdvisoryClientTest {
 
     @Test
     void rotatesKeysThroughTheHeaderRatherThanTheUrl() throws IOException, InterruptedException {
-        GeminiProperties properties = new GeminiProperties("key-one,key-two", "gemini-2.0-flash", 3000, 8000);
+        GeminiProperties properties = new GeminiProperties("key-one,key-two", "gemini-2.0-flash", 3000, 8000, 15000);
         HttpResponse<String> rateLimited = mock(HttpResponse.class);
         when(rateLimited.statusCode()).thenReturn(429);
         when(httpResponse.statusCode()).thenReturn(200);

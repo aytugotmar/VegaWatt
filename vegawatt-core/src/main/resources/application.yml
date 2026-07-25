@@ -41,6 +41,17 @@ spring:
 server:
   port: 8080
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
 vegawatt:
   kafka:
     registration-topic: ${KAFKA_REGISTRATION_TOPIC:vegawatt.asset-registration.v1}
@@ -65,6 +76,11 @@ vegawatt:
     model: ${GEMINI_MODEL:gemini-2.0-flash}
     connect-timeout-ms: ${GEMINI_CONNECT_TIMEOUT_MS:3000}
     read-timeout-ms: ${GEMINI_READ_TIMEOUT_MS:8000}
+    # Caps the whole apiKeys x modelsToTry fallback loop in AskInsightUseCase, not any single
+    # call — without it a Gemini outage costs up to (keys * models * readTimeoutMs) before the
+    # request falls back, which is the slowest possible response on exactly the request that's
+    # already failing.
+    overall-timeout-ms: ${GEMINI_OVERALL_TIMEOUT_MS:15000}
   mail:
     from: ${MAIL_FROM:no-reply@vegawatt.local}
   web:
@@ -94,6 +110,8 @@ vegawatt:
   scheduling:
     snapshot-interval-seconds: ${SNAPSHOT_INTERVAL:60}
     telemetry-interval-seconds: ${TELEMETRY_INTERVAL:5}
+  history:
+    max-range-days: ${HISTORY_MAX_RANGE_DAYS:90}
 
 springdoc:
   swagger-ui:

@@ -21,6 +21,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
@@ -76,9 +77,7 @@ public class AskInsightUseCase {
                 .orElseThrow(() -> new HomeNotFoundException(homeId));
 
         HomeLiveState liveState = homeLiveStatePort.get(homeId).orElse(null);
-        List<ApplianceLiveState> applianceStates = applianceLiveStatePort.getAll().stream()
-                .filter(a -> a.homeId().equals(homeId))
-                .toList();
+        List<ApplianceLiveState> applianceStates = applianceLiveStatePort.getByHomeId(homeId);
 
         BigDecimal currentCost = liveState != null ? liveState.currentCost().amount() : BigDecimal.ZERO;
         BigDecimal monthlyBudget = home.budgetQuotaTry() != null ? home.budgetQuotaTry() : new BigDecimal("1000");
@@ -100,8 +99,17 @@ public class AskInsightUseCase {
         String prompt = buildPrompt(home, currentCost, monthlyBudget, elapsedDays, remainingDays, projectedMonthEndCost, applianceStates, request.question());
 
         List<String> modelsToTry = List.of(properties.model(), "gemini-1.5-flash", "gemini-2.0-flash");
+        // Bounds the whole fallback loop, not just each call: without it a Gemini outage costs up
+        // to apiKeys.size() * modelsToTry.size() * readTimeoutMs before falling back, which is the
+        // slowest possible response on exactly the request that's already failing.
+        Instant deadline = Instant.now().plusMillis(properties.overallTimeoutMs());
         for (int i = 0; i < apiKeys.size(); i++) {
             for (String modelName : modelsToTry) {
+                if (Instant.now().isAfter(deadline)) {
+                    log.warn("Gemini overall timeout of {}ms exhausted; falling back without trying remaining "
+                            + "key/model combinations", properties.overallTimeoutMs());
+                    return new AskInsightResponse(fallbackAnswer, true);
+                }
                 try {
                     String answer = callGemini(apiKeys.get(i), modelName, prompt);
                     return new AskInsightResponse(answer, false);
