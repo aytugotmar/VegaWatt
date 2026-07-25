@@ -19,6 +19,7 @@ import com.vegawatt.core.common.time.BillingPeriodResolver;
 import com.vegawatt.core.common.time.ClockProvider;
 import com.vegawatt.core.home.domain.Appliance;
 import com.vegawatt.core.home.domain.ApplianceLiveState;
+import com.vegawatt.core.home.domain.ApplianceLiveStatePort;
 import com.vegawatt.core.home.domain.ApplianceRepository;
 import com.vegawatt.core.home.domain.Home;
 import com.vegawatt.core.home.domain.HomeLiveState;
@@ -49,6 +50,7 @@ class BillingAndTelemetryIT {
     private HomeRepository homeRepository;
     private ApplianceRepository applianceRepository;
     private HomeLiveStatePort homeLiveStatePort;
+    private ApplianceLiveStatePort applianceLiveStatePort;
     private TelemetryLiveStatePort telemetryLiveStatePort;
     private BillingAccountRepository billingAccountRepository;
     private OperationalEventRepository operationalEventRepository;
@@ -74,6 +76,7 @@ class BillingAndTelemetryIT {
         homeRepository = org.mockito.Mockito.mock(HomeRepository.class);
         applianceRepository = org.mockito.Mockito.mock(ApplianceRepository.class);
         homeLiveStatePort = org.mockito.Mockito.mock(HomeLiveStatePort.class);
+        applianceLiveStatePort = org.mockito.Mockito.mock(ApplianceLiveStatePort.class);
         telemetryLiveStatePort = org.mockito.Mockito.mock(TelemetryLiveStatePort.class);
         billingAccountRepository = org.mockito.Mockito.mock(BillingAccountRepository.class);
         operationalEventRepository = org.mockito.Mockito.mock(OperationalEventRepository.class);
@@ -96,7 +99,7 @@ class BillingAndTelemetryIT {
                 processedTelemetryEventRepository, notificationJobRepository, new NotificationProperties(30));
 
         processTelemetryUseCase = new ProcessTelemetryUseCase(homeRepository, applianceRepository,
-                homeLiveStatePort, telemetryLiveStatePort, evaluateHomeBillingUseCase,
+                homeLiveStatePort, applianceLiveStatePort, telemetryLiveStatePort, evaluateHomeBillingUseCase,
                 evaluateApplianceAnomalyUseCase, evaluateStandbyConsumptionUseCase, processedTelemetryEventRepository,
                 telemetryBillingRecorder, clockProvider);
 
@@ -122,7 +125,7 @@ class BillingAndTelemetryIT {
 
     @Test
     void execute_endToEndTelemetryIngestion_accumulatesEnergyAndPersistsBilling() {
-        TelemetryReading reading = new TelemetryReading(UUID.randomUUID(), homeId, applianceId,
+        TelemetryReading reading = new TelemetryReading(UUID.randomUUID(), homeId, applianceId, 1L,
                 new BigDecimal("1000"), null, null, 3600, now);
 
         processTelemetryUseCase.execute(reading);

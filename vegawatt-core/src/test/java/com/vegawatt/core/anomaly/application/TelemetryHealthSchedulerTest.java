@@ -64,7 +64,7 @@ class TelemetryHealthSchedulerTest {
                                                  Instant lastUpdatedAt) {
         return new ApplianceLiveState(HOME_ID, applianceId, "TV", "TELEVISION", new BigDecimal("180"),
                 new BigDecimal("1"), null, null, BigDecimal.ZERO.setScale(9), 0, 0, false, 0, 0, false, status,
-                lastUpdatedAt, null);
+                lastUpdatedAt, null, 0L);
     }
 
     @SuppressWarnings("unchecked")

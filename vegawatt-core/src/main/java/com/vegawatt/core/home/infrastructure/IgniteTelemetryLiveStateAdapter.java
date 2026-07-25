@@ -121,7 +121,7 @@ class IgniteTelemetryLiveStateAdapter implements TelemetryLiveStatePort {
                 state.accumulatedEnergyKwh(), state.consecutiveBreachCount(), state.consecutiveNormalCount(),
                 state.anomalous(), state.standbyBreachCount(), state.standbyRecoveryCount(),
                 state.standbyAnomalyActive(), state.telemetryHealthStatus(), state.lastUpdatedAt(),
-                state.lastEventId());
+                state.lastEventId(), state.lastProcessedSequence());
     }
 
     private static ApplianceLiveState toApplianceDomain(UUID homeId, UUID applianceId,
@@ -131,6 +131,6 @@ class IgniteTelemetryLiveStateAdapter implements TelemetryLiveStatePort {
                 value.getOperatingMode(), value.getAccumulatedEnergyKwh(), value.getConsecutiveBreachCount(),
                 value.getConsecutiveNormalCount(), value.isAnomalous(), value.getStandbyBreachCount(),
                 value.getStandbyRecoveryCount(), value.isStandbyAnomalyActive(), value.getTelemetryHealthStatus(),
-                value.getLastUpdatedAt(), value.getLastEventId());
+                value.getLastUpdatedAt(), value.getLastEventId(), value.getLastProcessedSequence());
     }
 }

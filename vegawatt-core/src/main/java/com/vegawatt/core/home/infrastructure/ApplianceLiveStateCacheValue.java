@@ -24,6 +24,7 @@ class ApplianceLiveStateCacheValue {
     private ApplianceHealthStatus telemetryHealthStatus;
     private Instant lastUpdatedAt;
     private UUID lastEventId;
+    private long lastProcessedSequence;
 
     ApplianceLiveStateCacheValue() {
     }
@@ -34,7 +35,7 @@ class ApplianceLiveStateCacheValue {
                                   int consecutiveNormalCount, boolean anomalous, int standbyBreachCount,
                                   int standbyRecoveryCount, boolean standbyAnomalyActive,
                                   ApplianceHealthStatus telemetryHealthStatus, Instant lastUpdatedAt,
-                                  UUID lastEventId) {
+                                  UUID lastEventId, long lastProcessedSequence) {
         this.applianceName = applianceName;
         this.applianceType = applianceType;
         this.safePowerLimitWatt = safePowerLimitWatt;
@@ -51,6 +52,7 @@ class ApplianceLiveStateCacheValue {
         this.telemetryHealthStatus = telemetryHealthStatus;
         this.lastUpdatedAt = lastUpdatedAt;
         this.lastEventId = lastEventId;
+        this.lastProcessedSequence = lastProcessedSequence;
     }
 
     String getApplianceName() {
@@ -115,5 +117,9 @@ class ApplianceLiveStateCacheValue {
 
     UUID getLastEventId() {
         return lastEventId;
+    }
+
+    long getLastProcessedSequence() {
+        return lastProcessedSequence;
     }
 }

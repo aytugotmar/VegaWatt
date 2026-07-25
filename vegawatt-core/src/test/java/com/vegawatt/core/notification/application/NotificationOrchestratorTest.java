@@ -99,7 +99,7 @@ class NotificationOrchestratorTest {
         UUID standbyAnomalousApplianceId = UUID.randomUUID();
         ApplianceLiveState standbyAnomalous = new ApplianceLiveState(HOME_ID, standbyAnomalousApplianceId, "TV",
                 "TELEVISION", new BigDecimal("180"), new BigDecimal("12"), null, null, BigDecimal.ZERO.setScale(9),
-                0, 0, false, 3, 0, true, ApplianceHealthStatus.NORMAL, NOW, null);
+                0, 0, false, 3, 0, true, ApplianceHealthStatus.NORMAL, NOW, null, 0L);
         when(homeRepository.findById(HOME_ID)).thenReturn(Optional.of(home));
         when(homeLiveStatePort.get(HOME_ID)).thenReturn(Optional.of(HomeLiveState.zero(HOME_ID, "Test Ev", NOW)));
         when(applianceLiveStatePort.getByHomeId(HOME_ID)).thenReturn(List.of(standbyAnomalous));

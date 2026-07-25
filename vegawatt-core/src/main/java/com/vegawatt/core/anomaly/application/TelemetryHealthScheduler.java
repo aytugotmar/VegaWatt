@@ -111,6 +111,6 @@ public class TelemetryHealthScheduler {
                 state.operatingMode(), state.accumulatedEnergyKwh(), state.consecutiveBreachCount(),
                 state.consecutiveNormalCount(), state.anomalous(), state.standbyBreachCount(),
                 state.standbyRecoveryCount(), state.standbyAnomalyActive(), status, state.lastUpdatedAt(),
-                state.lastEventId());
+                state.lastEventId(), state.lastProcessedSequence());
     }
 }
