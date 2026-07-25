@@ -38,6 +38,11 @@ class HomeMembershipRepositoryAdapter implements HomeMembershipRepository {
                 .collect(Collectors.toSet());
     }
 
+    @Override
+    public boolean existsByUserIdAndHomeId(UUID userId, UUID homeId) {
+        return jpaRepository.existsByUserIdAndHomeId(userId, homeId);
+    }
+
     private static HomeMembershipEntity toEntity(HomeMembership membership) {
         return new HomeMembershipEntity(membership.id(), membership.homeId(), membership.userId(),
                 membership.role().name(), membership.createdAt());

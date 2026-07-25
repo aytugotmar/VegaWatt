@@ -11,4 +11,6 @@ public interface HomeMembershipRepository {
     List<HomeMembership> findByUserId(UUID userId);
 
     Set<UUID> findHomeIdsByUser(UUID userId);
+
+    boolean existsByUserIdAndHomeId(UUID userId, UUID homeId);
 }

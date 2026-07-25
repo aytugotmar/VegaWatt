@@ -19,7 +19,7 @@ public class HomeAccessService {
     }
 
     public boolean canAccess(UUID userId, UUID homeId) {
-        return homeMembershipRepository.findHomeIdsByUser(userId).contains(homeId);
+        return homeMembershipRepository.existsByUserIdAndHomeId(userId, homeId);
     }
 
     public void grantOwnership(UUID homeId, UUID userId, Instant now) {
