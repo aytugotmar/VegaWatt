@@ -30,15 +30,34 @@ function bucketizeByDayAndHour(points: ConsumptionHistoryPoint[]): number[][] {
 export function EnergyHeatmap({ points }: { points: ConsumptionHistoryPoint[] }) {
   const grid = useMemo(() => bucketizeByDayAndHour(points), [points]);
   const maxValue = useMemo(() => Math.max(0.000001, ...grid.flat()), [grid]);
+  const peak = useMemo(() => {
+    let best = { dayIndex: 0, hour: 0, value: -1 };
+    grid.forEach((row, dayIndex) => {
+      row.forEach((value, hour) => {
+        if (value > best.value) best = { dayIndex, hour, value };
+      });
+    });
+    return best;
+  }, [grid]);
 
   if (points.length < MIN_POINTS_FOR_HEATMAP) {
     return <p className="text-sm text-text-muted">Isı haritası için yeterli geçmiş veri yok.</p>;
   }
 
+  const heatmapSummary =
+    peak.value > 0
+      ? `Haftalık tüketim ısı haritası. En yoğun kullanım ${DAY_LABELS[peak.dayIndex]} günü saat ${String(peak.hour).padStart(2, "0")}:00 civarında, ${peak.value.toLocaleString("tr-TR", { maximumFractionDigits: 3 })} kWh ile.`
+      : "Haftalık tüketim ısı haritası. Bu aralıkta kayda değer tüketim yok.";
+
   return (
     <div className="flex flex-col gap-2">
       <div className="overflow-x-auto">
-        <div className="inline-grid gap-0.5" style={{ gridTemplateColumns: "28px repeat(24, minmax(14px, 1fr))" }}>
+        <div
+          role="img"
+          aria-label={heatmapSummary}
+          className="inline-grid gap-0.5"
+          style={{ gridTemplateColumns: "28px repeat(24, minmax(14px, 1fr))" }}
+        >
           <div aria-hidden="true" />
           {Array.from({ length: 24 }, (_, hour) => (
             <div key={hour} className="text-center text-[10px] text-text-muted">

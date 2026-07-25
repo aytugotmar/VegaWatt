@@ -147,45 +147,50 @@ export function ConsumptionChart({ points }: { points: ConsumptionHistoryPoint[]
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={data} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
-          <CartesianGrid stroke={gridColor} strokeDasharray="0" vertical={false} />
-          <XAxis
-            dataKey="time"
-            tick={{ fontSize: 11, fill: mutedColor }}
-            axisLine={{ stroke: gridColor }}
-            tickLine={false}
-            minTickGap={30}
-          />
-          <YAxis tick={{ fontSize: 11, fill: mutedColor }} axisLine={{ stroke: gridColor }} tickLine={false} width={48} />
-          <Tooltip
-            cursor={{ stroke: mutedColor, strokeWidth: 1 }}
-            content={<CustomTooltip metric={metric} surfaceColor={surfaceColor} secondaryColor={secondaryColor} />}
-          />
-          <Line
-            type="monotone"
-            dataKey={metric === "energy" ? "energyKwh" : "cost"}
-            stroke={color}
-            strokeWidth={2}
-            dot={(props) => {
-              const point = props.payload as ChartPoint;
-              if (!point.penalty) return <g key={props.key} />;
-              return (
-                <circle
-                  key={props.key}
-                  cx={props.cx}
-                  cy={props.cy}
-                  r={3}
-                  fill={dangerColor}
-                  stroke={surfaceColor}
-                  strokeWidth={1}
-                />
-              );
-            }}
-            activeDot={{ r: 5, strokeWidth: 2, stroke: surfaceColor }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <div
+        role="img"
+        aria-label={`${metric === "energy" ? "Enerji tüketimi" : "Maliyet"} grafiği: toplam ${total.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ${unit}, ortalama ${average.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ${unit}, tepe ${peak.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ${unit}, ${data.length} veri noktası.`}
+      >
+        <ResponsiveContainer width="100%" height={280}>
+          <LineChart data={data} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
+            <CartesianGrid stroke={gridColor} strokeDasharray="0" vertical={false} />
+            <XAxis
+              dataKey="time"
+              tick={{ fontSize: 11, fill: mutedColor }}
+              axisLine={{ stroke: gridColor }}
+              tickLine={false}
+              minTickGap={30}
+            />
+            <YAxis tick={{ fontSize: 11, fill: mutedColor }} axisLine={{ stroke: gridColor }} tickLine={false} width={48} />
+            <Tooltip
+              cursor={{ stroke: mutedColor, strokeWidth: 1 }}
+              content={<CustomTooltip metric={metric} surfaceColor={surfaceColor} secondaryColor={secondaryColor} />}
+            />
+            <Line
+              type="monotone"
+              dataKey={metric === "energy" ? "energyKwh" : "cost"}
+              stroke={color}
+              strokeWidth={2}
+              dot={(props) => {
+                const point = props.payload as ChartPoint;
+                if (!point.penalty) return <g key={props.key} />;
+                return (
+                  <circle
+                    key={props.key}
+                    cx={props.cx}
+                    cy={props.cy}
+                    r={3}
+                    fill={dangerColor}
+                    stroke={surfaceColor}
+                    strokeWidth={1}
+                  />
+                );
+              }}
+              activeDot={{ r: 5, strokeWidth: 2, stroke: surfaceColor }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
