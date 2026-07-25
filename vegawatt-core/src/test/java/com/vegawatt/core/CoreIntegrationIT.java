@@ -37,8 +37,10 @@ class CoreIntegrationIT extends AbstractIntegrationTest {
     @Test
     void contextLoadsWithEverySchedulerBeanResolved() {
         // Reaching this line means Flyway applied every migration against real Postgres, validate
-        // matched the entities to that schema, and each @Scheduled(scheduler = "...") named a bean
-        // that exists. Asserting the relay bean is present stops the test passing on an empty context.
+        // matched the entities to that schema, and the full component graph wired up. Background
+        // scheduling is off in the test profile (SchedulingConfig is conditional), so this no longer
+        // exercises the @Scheduled(scheduler = "...") name resolution; that fails fast at application
+        // startup instead. Asserting the relay bean is present stops the test passing on an empty context.
         assertThat(outboxRelayScheduler).isNotNull();
     }
 
@@ -50,14 +52,18 @@ class CoreIntegrationIT extends AbstractIntegrationTest {
 
         try (Consumer<String, String> consumer = testConsumer()) {
             consumer.subscribe(List.of(kafkaProperties.registrationTopic()));
+            // Background scheduling is off under tests, so I drive the relay directly rather than
+            // waiting for its timer. relayPendingEvents blocks on the Kafka send, so once it returns
+            // the event has reached the broker and the row is already marked published.
+            outboxRelayScheduler.relayPendingEvents();
             ConsumerRecord<String, String> record = awaitRecordWithKey(consumer, aggregateId.toString());
             assertThat(record.value()).isEqualTo(payload);
         }
 
-        // The relay must also mark the row published, or the next scheduler tick would resend it.
-        await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
-                assertThat(outboxRepository.findUnpublished(50))
-                        .noneMatch(event -> event.aggregateId().equals(aggregateId)));
+        // The relay must also mark the row published, or a later run would resend it. The direct call
+        // above has already returned, so this holds without waiting.
+        assertThat(outboxRepository.findUnpublished(50))
+                .noneMatch(event -> event.aggregateId().equals(aggregateId));
     }
 
     private Consumer<String, String> testConsumer() {
