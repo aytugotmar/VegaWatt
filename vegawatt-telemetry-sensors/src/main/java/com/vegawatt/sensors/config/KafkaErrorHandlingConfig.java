@@ -2,6 +2,7 @@ package com.vegawatt.sensors.config;
 
 import com.vegawatt.sensors.registration.MalformedRegistrationEventException;
 import com.vegawatt.sensors.registration.UnsupportedRegistrationEventVersionException;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,6 +22,21 @@ import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
 class KafkaErrorHandlingConfig {
 
     private static final String DEAD_LETTER_SUFFIX = ".DLT";
+
+    // Must match vegawatt-core's KafkaTopicConfig.REGISTRATION_PARTITIONS. DeadLetterPublishingRecoverer's
+    // default resolver below preserves the source record's partition number on the .DLT topic — if that
+    // topic gets auto-created with the broker's default (often 1) instead of provisioned explicitly here,
+    // any dead-lettered record from a source partition >= 1 fails to publish. Provisioned by this module
+    // (not vegawatt-core, which never produces to this topic) since docker-compose lets
+    // vegawatt-telemetry-sensors start before vegawatt-core — it can't depend on core's topic bean
+    // having run first.
+    private static final int REGISTRATION_PARTITIONS = 3;
+
+    @Bean
+    NewTopic registrationDeadLetterTopic(SensorsKafkaProperties kafkaProperties) {
+        return new NewTopic(kafkaProperties.registrationTopic() + DEAD_LETTER_SUFFIX, REGISTRATION_PARTITIONS,
+                (short) 1);
+    }
 
     @Bean
     ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
