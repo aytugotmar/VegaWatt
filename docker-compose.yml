@@ -44,6 +44,7 @@ services:
 
   ignite:
     image: apacheignite/ignite:2.16.0
+    platform: linux/amd64
     restart: unless-stopped
     ports:
       - "10800:10800"
