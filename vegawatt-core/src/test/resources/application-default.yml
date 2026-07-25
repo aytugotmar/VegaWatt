@@ -1,0 +1,11 @@
+# I keep this file so background jobs are off in every integration test, not only the ones that
+# activate the "test" profile. Some @SpringBootTest classes boot the context without @ActiveProfiles,
+# so they never read application-test.yml; under the default profile they would start the outbox
+# relay, notification worker and snapshot schedulers, whose waitForTasksToCompleteOnShutdown holds a
+# thread (blocked borrowing a Hikari connection) past the thirty seconds Surefire gives a fork after
+# System.exit, and the fork gets killed with a dumpstream under target/failsafe-reports. Disabling
+# scheduling here, mirroring application-test.yml, keeps shutdown clean for those contexts too. This
+# file lives under src/test/resources only, so it never affects the packaged application.
+vegawatt:
+  background-jobs:
+    enabled: false

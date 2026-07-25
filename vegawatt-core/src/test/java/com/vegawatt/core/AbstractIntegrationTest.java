@@ -65,11 +65,9 @@ abstract class AbstractIntegrationTest {
         registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
         registry.add("vegawatt.jwt.secret",
                 () -> "integration-test-signing-secret-of-at-least-256-bits-long");
-        // The context's own notification worker polls with claimDue on a timer. The classes that
-        // extend this base share one context, so that worker would race NotificationJobClaimIT for
-        // the jobs it inserts. Pushing the interval past any test run leaves the test the only
-        // claimant, without touching the outbox relay the relay test needs (that is a separate
-        // interval).
-        registry.add("vegawatt.notification.worker-interval-ms", () -> "3600000");
+        // No need to mute the notification worker's interval any more: background scheduling is off
+        // in the test profile (vegawatt.background-jobs.enabled=false), so no worker polls claimDue on
+        // a timer and nothing races NotificationJobClaimIT for the jobs it inserts. Tests that need a
+        // scheduled job to run call its method directly instead.
     }
 }

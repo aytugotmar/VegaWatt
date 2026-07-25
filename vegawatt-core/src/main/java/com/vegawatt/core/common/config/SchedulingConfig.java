@@ -1,5 +1,6 @@
 package com.vegawatt.core.common.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.TaskScheduler;
@@ -25,9 +26,20 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
  * <p>Because several TaskScheduler beans exist and none is primary, a future {@code @Scheduled}
  * that does not name one will not share these: Spring falls back to a private single-threaded
  * executor for it. Survivable, but silent, so name a scheduler explicitly on anything new.
+ *
+ * <p>I gate the whole configuration on {@code vegawatt.background-jobs.enabled} (default on) so the
+ * test profile can switch every background job off in one place. Left on under tests it force-kills
+ * the fork JVM: each cached integration context keeps its own outbox-relay, notification-worker and
+ * snapshot threads, plus the default scheduler the health sweep and rate limiter fall back to, and
+ * their {@code waitForTasksToCompleteOnShutdown} waits stack up past the thirty seconds Surefire
+ * gives a fork after System.exit, so it is killed and a dumpstream lands under target/failsafe-reports.
+ * With the property false none of these beans exist, no scheduled thread is ever created, and shutdown
+ * is immediate. Production never sets the property and keeps scheduling. The named-scheduler wiring is
+ * then only checked at application startup, where a missing bean fails fast, rather than in the tests.
  */
 @Configuration
 @EnableScheduling
+@ConditionalOnProperty(name = "vegawatt.background-jobs.enabled", havingValue = "true", matchIfMissing = true)
 class SchedulingConfig {
 
     @Bean

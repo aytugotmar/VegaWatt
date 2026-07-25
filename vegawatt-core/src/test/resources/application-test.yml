@@ -22,6 +22,13 @@ spring:
     enabled: true
     baseline-on-migrate: true
 
+# Off under tests: the schedulers would otherwise keep threads alive past Surefire's post-exit
+# window and force-kill the fork JVM. Scheduler behaviour is covered by calling the worker methods
+# directly, so nothing here needs the timers to fire.
+vegawatt:
+  background-jobs:
+    enabled: false
+
 logging:
   level:
     com.zaxxer.hikari: DEBUG
