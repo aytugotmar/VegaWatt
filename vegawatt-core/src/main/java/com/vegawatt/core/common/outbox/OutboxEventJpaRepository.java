@@ -7,5 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 interface OutboxEventJpaRepository extends JpaRepository<OutboxEventEntity, UUID> {
 
-    List<OutboxEventEntity> findByPublishedAtIsNullOrderByCreatedAtAsc(Pageable pageable);
+    List<OutboxEventEntity> findByPublishedAtIsNullAndDeadLetteredFalseOrderByCreatedAtAsc(Pageable pageable);
 }

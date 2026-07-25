@@ -18,6 +18,10 @@ public class OutboxRelayScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxRelayScheduler.class);
     private static final int BATCH_SIZE = 50;
+    // Mirrors NotificationOrchestrator.MAX_ATTEMPTS: past this many failures a Kafka outage is no
+    // longer transient, and retrying forever every relay-interval-ms just spams the log with no
+    // chance of success. Dead-lettering stops the churn and makes the stuck event visible instead.
+    private static final int MAX_RETRY_ATTEMPTS = 10;
 
     private final OutboxRepository outboxRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
@@ -64,10 +68,21 @@ public class OutboxRelayScheduler {
             log.warn("Interrupted while relaying outbox event {} to topic {}", event.id(), topic);
             outboxRepository.save(event.retryFailed());
         } catch (ExecutionException | TimeoutException e) {
-            log.error("Failed to relay outbox event {} (type={}) to topic {}, retryCount={}", event.id(),
-                    event.eventType(), topic, event.retryCount() + 1, e);
-            outboxRepository.save(event.retryFailed());
+            handleFailure(event, topic, e);
         }
+    }
+
+    private void handleFailure(OutboxEvent event, String topic, Exception e) {
+        int nextRetryCount = event.retryCount() + 1;
+        if (nextRetryCount >= MAX_RETRY_ATTEMPTS) {
+            log.error("Dead-lettering outbox event {} (type={}) to topic {} after {} failed attempts", event.id(),
+                    event.eventType(), topic, nextRetryCount, e);
+            outboxRepository.save(event.retryFailed().deadLetter());
+            return;
+        }
+        log.error("Failed to relay outbox event {} (type={}) to topic {}, retryCount={}", event.id(),
+                event.eventType(), topic, nextRetryCount, e);
+        outboxRepository.save(event.retryFailed());
     }
 
     private String resolveTopic(String eventType) {

@@ -35,11 +35,14 @@ public class OutboxEventEntity {
     @Column(name = "retry_count", nullable = false)
     private int retryCount;
 
+    @Column(name = "dead_lettered", nullable = false)
+    private boolean deadLettered;
+
     protected OutboxEventEntity() {
     }
 
     public OutboxEventEntity(UUID id, String aggregateType, UUID aggregateId, String eventType, String payload,
-                              Instant createdAt, Instant publishedAt, int retryCount) {
+                              Instant createdAt, Instant publishedAt, int retryCount, boolean deadLettered) {
         this.id = id;
         this.aggregateType = aggregateType;
         this.aggregateId = aggregateId;
@@ -48,6 +51,7 @@ public class OutboxEventEntity {
         this.createdAt = createdAt;
         this.publishedAt = publishedAt;
         this.retryCount = retryCount;
+        this.deadLettered = deadLettered;
     }
 
     public UUID getId() {
@@ -80,5 +84,9 @@ public class OutboxEventEntity {
 
     public int getRetryCount() {
         return retryCount;
+    }
+
+    public boolean isDeadLettered() {
+        return deadLettered;
     }
 }

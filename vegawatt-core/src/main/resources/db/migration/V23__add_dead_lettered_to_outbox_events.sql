@@ -1,0 +1,1 @@
+ALTER TABLE outbox_events ADD COLUMN dead_lettered BOOLEAN NOT NULL DEFAULT FALSE;
