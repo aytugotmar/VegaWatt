@@ -83,6 +83,17 @@ class HistoryControllerTest {
     }
 
     @Test
+    void rejectsARangeThatExceedsTheMaximumByLessThanADay() {
+        // Duration.toDays() truncates, so 90 days + 23 hours would read as "90 days" under a
+        // naive toDays() > maxRangeDays check and slip past the limit. Comparing Durations
+        // directly must not have that blind spot.
+        Instant justOverTheLimit = NOW.minus(MAX_RANGE_DAYS, ChronoUnit.DAYS).minus(23, ChronoUnit.HOURS);
+
+        assertThatThrownBy(() -> controller().history(HOME_ID, justOverTheLimit, NOW, null, CURRENT_USER))
+                .isInstanceOf(InvalidHistoryRangeException.class);
+    }
+
+    @Test
     void aRangeExactlyAtTheMaximumIsAllowed() {
         Instant from = NOW.minus(MAX_RANGE_DAYS, ChronoUnit.DAYS);
         when(getHomeConsumptionHistoryQuery.execute(eq(HOME_ID), eq(from), eq(NOW), any()))

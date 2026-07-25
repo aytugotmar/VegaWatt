@@ -55,7 +55,9 @@ class HistoryController {
             throw new InvalidHistoryRangeException("'from' must not be after 'to'");
         }
         long maxRangeDays = historyProperties.maxRangeDays();
-        if (Duration.between(rangeStart, rangeEnd).toDays() > maxRangeDays) {
+        // Duration.toDays() truncates, so a 90-day-23-hour request would read as "90 days" and
+        // slip past a 90-day limit. Comparing Durations directly doesn't lose that remainder.
+        if (Duration.between(rangeStart, rangeEnd).compareTo(Duration.ofDays(maxRangeDays)) > 0) {
             throw new InvalidHistoryRangeException(
                     "Requested range exceeds the maximum of " + maxRangeDays + " days");
         }
