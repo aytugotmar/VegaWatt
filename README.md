@@ -97,3 +97,11 @@ npm run build
 
 ## 📄 License & Contributing
 This project is licensed under the MIT License. Feel free to open a Pull Request to contribute.
+
+---
+
+## By
+
+- [Aytuğ Otmar](https://github.com/aytugotmar)
+- [Bekircan Küçükakın](https://github.com/bekcanckn)
+- [Kenan Özçakır](https://github.com/KenanOzcakir)
