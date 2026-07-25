@@ -1,6 +1,7 @@
 package com.vegawatt.sensors.registration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -88,7 +89,7 @@ class RegistrationEventConsumerTest {
     }
 
     @Test
-    void discardsUnsupportedEventVersion() throws Exception {
+    void throwsOnUnsupportedEventVersionSoTheErrorHandlerCanRouteItToTheDeadLetterTopic() throws Exception {
         UUID homeId = UUID.randomUUID();
         UUID applianceId = UUID.randomUUID();
         AssetRegistrationEventPayload.AppliancePayload appliance = new AssetRegistrationEventPayload.AppliancePayload(
@@ -97,18 +98,20 @@ class RegistrationEventConsumerTest {
         AssetRegistrationEventPayload payload = new AssetRegistrationEventPayload(UUID.randomUUID(), 99,
                 Instant.now(), homePayload(homeId), List.of(appliance));
 
-        consumer.onMessage(record(payload));
+        assertThatThrownBy(() -> consumer.onMessage(record(payload)))
+                .isInstanceOf(UnsupportedRegistrationEventVersionException.class);
 
         assertThat(homeRegistry.find(applianceId)).isEmpty();
         verify(simulationScheduler, never()).ensureScheduled(any());
     }
 
     @Test
-    void discardsMalformedJson() {
+    void throwsOnMalformedJsonSoTheErrorHandlerCanRouteItToTheDeadLetterTopic() {
         ConsumerRecord<String, String> malformed = new ConsumerRecord<>("vegawatt.asset-registration.v1", 0, 0L,
                 "key", "{not-valid-json");
 
-        consumer.onMessage(malformed);
+        assertThatThrownBy(() -> consumer.onMessage(malformed))
+                .isInstanceOf(MalformedRegistrationEventException.class);
 
         assertThat(homeRegistry.registeredApplianceIds()).isEmpty();
         verify(simulationScheduler, never()).ensureScheduled(any());

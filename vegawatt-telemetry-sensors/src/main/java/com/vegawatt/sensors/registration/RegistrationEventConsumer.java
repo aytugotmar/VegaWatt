@@ -50,15 +50,17 @@ class RegistrationEventConsumer extends AbstractConsumerSeekAware {
         try {
             payload = objectMapper.readValue(record.value(), AssetRegistrationEventPayload.class);
         } catch (Exception e) {
-            log.warn("Discarding malformed asset registration event from partition {} offset {}",
-                    record.partition(), record.offset(), e);
-            return;
+            // Thrown rather than swallowed so KafkaErrorHandlingConfig's error handler routes it
+            // to the dead-letter topic instead of it vanishing after a single log line.
+            throw new MalformedRegistrationEventException(
+                    "Malformed asset registration event at partition %d offset %d"
+                            .formatted(record.partition(), record.offset()), e);
         }
 
         if (!SUPPORTED_EVENT_VERSIONS.contains(payload.eventVersion())) {
-            log.warn("Discarding asset registration event {} with unsupported eventVersion {} from partition {} offset {}",
-                    payload.eventId(), payload.eventVersion(), record.partition(), record.offset());
-            return;
+            throw new UnsupportedRegistrationEventVersionException(
+                    "Asset registration event %s has unsupported eventVersion %d at partition %d offset %d"
+                            .formatted(payload.eventId(), payload.eventVersion(), record.partition(), record.offset()));
         }
 
         for (AssetRegistrationEventPayload.AppliancePayload appliance : payload.appliances()) {
