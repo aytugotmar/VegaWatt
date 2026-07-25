@@ -1,12 +1,12 @@
-# VegaWatt — Akıllı Ev Enerji Yönetimi ve Telemetri Platformu
+# VegaWatt — Smart Home Energy Management & Telemetry Platform
 
-VegaWatt, akıllı evlerdeki elektrikli cihazların enerji tüketimlerini milisaniyelik telemetri verileriyle anlık izleyen, anomali ve arızaları tespit eden, Gemini AI altyapısıyla akıllı öneriler ve soru-cevap desteği sunan uçtan uca modüler bir platformdur.
+VegaWatt is an end-to-end modular platform designed to monitor energy consumption of smart home electrical appliances in real time with millisecond telemetry data, detect anomalies and failures, and provide intelligent recommendations and Q&A support backed by Gemini AI.
 
 ---
 
-## 🏗️ Mimari Yapı
+## 🏗️ Architecture
 
-VegaWatt mikroservis odaklı, olay güdümlü (Event-Driven) ve yüksek performanslı bir mimariye sahiptir.
+VegaWatt features a microservice-oriented, Event-Driven, high-performance architecture.
 
 ```mermaid
 graph TD
@@ -19,75 +19,74 @@ graph TD
     CORE -->|Email Notifications| SMTP[SMTP Mailer / Mailpit]
 ```
 
-### Temel Servisler ve Teknolojiler
+### Core Services & Technologies
 
-- **`vegawatt-core`**: Ana backend REST API, auth (JWT), ev/cihaz yönetimi, anomali/standby/telemetry-health değerlendirme motoru, outbox relay, bildirim işleme ve Gemini AI entegrasyonu. (Java 17, Spring Boot 3.3, Flyway, JPA).
-- **`vegawatt-telemetry-sensors`**: 45 farklı katalog cihazı ve 14 davranış profili (Thermostatic Cycle, Program Cycle, Short High Power, Manual Switch vb.) için deterministik simülatör ve telemetri jeneratörü — 13 profilin kendine özgü native modeli var, kullanılmayan tek profil (`FLOW_TRIGGERED`) güvenli bir genel varsayılan davranışa düşer.
-- **`vegawatt-web`**: Modern, responsive dashboard UI. Canlı güç akışları, tüketim detayları, cihaz detay grafikleri, bildirim merkezi ve AI Insight soru-cevap paneli. (React 18, TypeScript, Tailwind CSS, Lucide icons).
-- **PostgreSQL 16**: İşlemsel veritabanı (Evler, Cihazlar, Katalog, Kullanıcılar, Olaylar, Bildirim Job'ları).
-- **Apache Kafka**: Telemetri ve cihaz kayıt olaylarının iletildiği düşük gecikmeli event-bus.
-- **Apache Ignite**: Cihazların canlı güç, birikimli kWh ve anomali durumlarının milisaniyelik bellek içi state yönetimi (Distributed Cache).
-
----
-
-## ⚡ Temel Özellikler
-
-1. **45 Cihazlık Zengin Katalog & Davranış Profilleri:** Beyaz eşyalardan küçük ev aletlerine, ısıtma/soğutma sistemlerinden aydınlatmaya kadar tüm cihaz tipleri için özelleştirilmiş 13 native davranış modeli (14 profilden yalnızca kullanılmayan biri genel bir varsayılana düşer).
-2. **Akıllı Anomali ve Güvenli Limit Takibi:** Aşırı güç çekimi, standby tüketim ihlali ve telemetri kesintilerini (Stale / Offline) anlık tespit eder.
-3. **Flapping & Mail Spam Koruması:** Simetrik recovery eşikleri (3 ihlal / 3 normal okuma) ve minimum bildirim cooldown süreleri ile gereksiz bildirimleri engeller.
-4. **AI Insight & Enerji Asistanı (`Gemini AI`):** Bütçe ve tüketim verilerini analiz eder, "Bu ay ne kadar harcadım?", "Bütçemi aşar mıyım?" gibi sorulara insan diliyle anlık yanıt verir.
-5. **Gelişmiş Güvenlik:** Home-scoped IDOR koruması (404 maskeleme), JWT refresh cookie, IP+Email bazlı Rate Limiting.
+- **`vegawatt-core`**: Main backend REST API, auth (JWT), home/device management, anomaly/standby/telemetry-health evaluation engine, outbox relay, notification processing, and Gemini AI integration. (Java 17, Spring Boot 3.3, Flyway, JPA).
+- **`vegawatt-telemetry-sensors`**: Deterministic simulator and telemetry generator supporting 45 catalog devices and 14 behavior profiles (Thermostatic Cycle, Program Cycle, Short High Power, Manual Switch, etc.) — 13 profiles have dedicated native models, while the single unused profile (`FLOW_TRIGGERED`) falls back to a safe general default behavior.
+- **`vegawatt-web`**: Modern, responsive dashboard UI featuring live power streams, consumption breakdowns, detailed device charts, notification center, and AI Insight Q&A panel. (React 18, TypeScript, Tailwind CSS, Lucide icons).
+- **PostgreSQL 16**: Transactional database (Homes, Devices, Catalog, Users, Events, Notification Jobs).
+- **Apache Kafka**: Low-latency event bus for stream delivery of telemetry data and device registration events.
+- **Apache Ignite**: Distributed in-memory state management (Cache) for real-time tracking of device power, cumulative kWh, and anomaly status with millisecond precision.
 
 ---
 
-## 🚀 Hızlı Başlangıç & Docker Kurulumu
+## ⚡ Key Features
 
-### Ön Gereksinimler
-- Docker Engine 24+ ve Docker Compose v2+
+1. **Rich Catalog of 45 Devices & Behavior Profiles:** Specialized native behavior models for 13 device categories ranging from major household appliances to small electronics, HVAC, and lighting (only one unused profile out of 14 falls back to a default model).
+2. **Smart Anomaly & Safety Limit Monitoring:** Instant detection of power spikes/overcurrent, standby power violations, and telemetry dropouts (Stale / Offline).
+3. **Flapping & Email Spam Protection:** Symmetrical recovery thresholds (3 violation / 3 normal readings) combined with minimum notification cooldown periods to prevent redundant alerts.
+4. **AI Insight & Energy Assistant (`Gemini AI`):** Analyzes budget and consumption data to provide human-like real-time answers to questions such as "How much did I spend this month?" or "Will I exceed my budget?".
+5. **Advanced Security:** Home-scoped IDOR protection (404 masking), JWT refresh cookies, and IP + Email rate limiting.
+
+---
+
+## 🚀 Quick Start & Docker Setup
+
+### Prerequisites
+- Docker Engine 24+ and Docker Compose v2+
 - Git
 
-### 1. Depoyu klonlayın
+### 1. Clone the repository
 ```bash
 git clone https://github.com/aytugotmar/VegaWatt.git
 cd VegaWatt
 ```
 
-### 2. Stack'i Çalıştırın
+### 2. Run the Stack
 ```bash
 docker compose up -d --build
 ```
 
-> ⚠️ **Tüm local verileri sıfırlamak isterseniz** (kullanıcılar, evler, cihazlar, billing geçmişi
-> dahil her şeyi siler — rutin başlatma komutu olarak kullanmayın):
+> ⚠️ **If you want to reset all local data** (deletes everything including users, homes, devices, and billing history — do not use as a routine startup command):
 > ```bash
 > docker compose down -v
 > docker compose up -d --build
 > ```
 
-### 3. Kullanıcı Bilgileri (Default Admin)
-`SPRING_PROFILES_ACTIVE=dev` (varsayılan) ile sistem başlatıldığında örnek evler ve cihazlarla hazır gelir:
-- **E-posta:** `admin@vegawatt.com`
-- **Şifre:** `VegaWatt111!`
-- **Panel Adresi:** [http://localhost:5173](http://localhost:5173)
+### 3. Default Credentials & Endpoints
+When launched with `SPRING_PROFILES_ACTIVE=dev` (default), the system comes preloaded with sample homes and devices:
+- **Email:** `admin@vegawatt.com`
+- **Password:** `VegaWatt111!`
+- **Dashboard:** [http://localhost:5173](http://localhost:5173)
 - **Backend API:** [http://localhost:8080](http://localhost:8080)
 - **Swagger Documentation:** [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 
 ---
 
-## 🧪 Test Komutları
+## 🧪 Testing Commands
 
-### Backend Testleri (Integration & Unit)
+### Backend Tests (Integration & Unit)
 ```bash
-# Core Servisi Testleri
+# Core Service Tests
 cd vegawatt-core
 ./mvnw clean verify
 
-# Sensors Servisi Testleri
+# Sensors Service Tests
 cd ../vegawatt-telemetry-sensors
 ./mvnw clean verify
 ```
 
-### Frontend Testleri & Build
+### Frontend Tests & Build
 ```bash
 cd vegawatt-web
 npm run test
@@ -96,5 +95,5 @@ npm run build
 
 ---
 
-## 📄 Lisans & Katkı
-Bu proje MIT lisansı altında lisanslanmıştır. Katkıda bulunmak için lütfen bir Pull Request açın.
+## 📄 License & Contributing
+This project is licensed under the MIT License. Feel free to open a Pull Request to contribute.
