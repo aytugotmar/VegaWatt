@@ -3,6 +3,7 @@ name: vegawatt
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -19,6 +20,7 @@ services:
 
   kafka:
     image: apache/kafka:3.7.0
+    restart: unless-stopped
     ports:
       - "9092:9092"
       - "29092:29092"
@@ -42,6 +44,7 @@ services:
 
   ignite:
     image: apacheignite/ignite:2.16.0
+    restart: unless-stopped
     ports:
       - "10800:10800"
       - "47500-47509:47500-47509"
@@ -57,6 +60,7 @@ services:
 
   mailpit:
     image: axllent/mailpit:latest
+    restart: unless-stopped
     ports:
       - "8025:8025"
       - "1025:1025"
@@ -64,6 +68,7 @@ services:
   vegawatt-core:
     build:
       context: ./vegawatt-core
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,6 +78,12 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       POSTGRES_DB: ${POSTGRES_DB}
@@ -123,9 +134,16 @@ services:
   vegawatt-telemetry-sensors:
     build:
       context: ./vegawatt-telemetry-sensors
+    restart: unless-stopped
     depends_on:
       kafka:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_REGISTRATION_TOPIC: ${KAFKA_REGISTRATION_TOPIC}
@@ -137,10 +155,18 @@ services:
       context: ./vegawatt-web
       args:
         VITE_API_BASE_URL: ${FRONTEND_API_BASE_URL}
+    restart: unless-stopped
     depends_on:
-      - vegawatt-core
+      vegawatt-core:
+        condition: service_healthy
     ports:
       - "5173:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
 volumes:
   postgres-data:
