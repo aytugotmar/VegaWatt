@@ -55,10 +55,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await logoutUser();
-    setAccessToken(null);
-    setUser(null);
-    queryClient.clear();
+    try {
+      await logoutUser();
+    } catch {
+      // Best-effort: even if the server call fails (offline, timeout, 5xx), the user still
+      // clicked logout and expects the client to forget them immediately.
+    } finally {
+      setAccessToken(null);
+      setUser(null);
+      queryClient.clear();
+    }
   }, [queryClient]);
 
   const updateCurrentUser = useCallback((patch: Partial<CurrentUser>) => {
