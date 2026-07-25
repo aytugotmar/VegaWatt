@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -164,6 +165,18 @@ public class ProcessTelemetryUseCase {
                     reading.eventId());
             compensateLiveState(home.id(), appliance.id(), reading.eventId(), previousHomeRef.get(),
                     previousApplianceRef.get());
+        } catch (ObjectOptimisticLockingFailureException lockConflict) {
+            // Distinct from the generic RuntimeException path below so this specific failure mode
+            // is greppable/alertable on its own — not broken today (Kafka's own retry re-reads a
+            // fresh billing_accounts row on the next attempt), but a rising rate of these would
+            // signal real write contention on the same billing period that a generic error log
+            // would bury alongside unrelated transient failures.
+            log.warn("Optimistic lock conflict persisting billing account for telemetry event {} (home={}); " +
+                            "compensating Ignite state, Kafka retry will re-read the current row",
+                    reading.eventId(), home.id(), lockConflict);
+            compensateLiveState(home.id(), appliance.id(), reading.eventId(), previousHomeRef.get(),
+                    previousApplianceRef.get());
+            throw lockConflict;
         } catch (RuntimeException e) {
             log.error("Failed to persist billing/event log for telemetry event {} (home={}, appliance={}) after " +
                             "Ignite update; compensating both home and appliance Ignite states back to pre-event truth",

@@ -309,6 +309,20 @@ class ProcessTelemetryUseCaseTest {
     }
 
     @Test
+    void compensatesStateAndRethrowsOnAnOptimisticLockConflictSoKafkaRetries() {
+        doThrow(new org.springframework.orm.ObjectOptimisticLockingFailureException(
+                "com.vegawatt.core.billing.infrastructure.BillingAccountEntity", "some-id"))
+                .when(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), any(),
+                        anyBoolean(), any(), any(), anyInt());
+
+        UUID eventId = UUID.randomUUID();
+        assertThatThrownBy(() -> useCase.execute(reading(eventId, new BigDecimal("1000"))))
+                .isInstanceOf(org.springframework.orm.ObjectOptimisticLockingFailureException.class);
+
+        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), any(), any());
+    }
+
+    @Test
     void secondDeliveryOfTheSameEventIsSkippedWithoutAnyStateOrBillingMutation() {
         UUID eventId = UUID.randomUUID();
 
