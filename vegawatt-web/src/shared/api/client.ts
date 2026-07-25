@@ -1,7 +1,7 @@
 import { refreshAccessToken } from "../auth/refreshCoordinator";
 import { getAccessToken } from "../auth/tokenProvider";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export class ApiError extends Error {
   constructor(message: string, readonly status?: number) {
