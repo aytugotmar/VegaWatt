@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -160,11 +161,24 @@ public class ProcessTelemetryUseCase {
             telemetryBillingRecorder.persist(reading.eventId(), home, homeOutcome, appliance, anomalyResult,
                     standbyResult, reading.powerWatt(), reading.operatingState(), transitionedToResumed, occurredAt,
                     processedAt, evaluateApplianceAnomalyUseCase.breachThreshold());
-        } catch (DataIntegrityViolationException duplicateEx) {
-            log.warn("Duplicate telemetry event {} detected during DB persist; restoring Ignite state and skipping",
-                    reading.eventId());
+        } catch (DataIntegrityViolationException integrityEx) {
+            // Ignite already applied this event's increment before this try block, so any failure
+            // here — duplicate or not — leaves it ahead of the permanent ledger and must be
+            // compensated regardless of which branch below is taken.
             compensateLiveState(home.id(), appliance.id(), reading.eventId(), previousHomeRef.get(),
                     previousApplianceRef.get());
+            if (!isProcessedTelemetryEventDuplicate(integrityEx)) {
+                // Anything other than the processed_telemetry_events primary-key collision — a
+                // foreign-key violation, a not-null/check-constraint failure, a corrupt billing
+                // row — is a real data problem, not a harmless double-delivery. Swallowing it here
+                // would silently drop the telemetry permanently (offset still commits, no retry, no
+                // DLT). Rethrow so it's handled exactly like any other unexpected failure below.
+                log.error("Non-duplicate integrity violation persisting telemetry event {} (home={}, appliance={})",
+                        reading.eventId(), home.id(), appliance.id(), integrityEx);
+                throw integrityEx;
+            }
+            log.warn("Duplicate telemetry event {} detected during DB persist; restoring Ignite state and skipping",
+                    reading.eventId());
         } catch (ObjectOptimisticLockingFailureException lockConflict) {
             // Distinct from the generic RuntimeException path below so this specific failure mode
             // is greppable/alertable on its own — not broken today (Kafka's own retry re-reads a
@@ -185,6 +199,36 @@ public class ProcessTelemetryUseCase {
                     previousApplianceRef.get());
             throw e;
         }
+    }
+
+    private static final String PROCESSED_TELEMETRY_EVENTS_CONSTRAINT_MARKER = "processed_telemetry_events";
+    private static final String UNIQUE_VIOLATION_SQLSTATE = "23505";
+
+    /**
+     * True only for the specific, harmless case this catch block exists to handle: a second
+     * delivery of the same telemetry event colliding with {@code processed_telemetry_events}'s
+     * primary key. Any other {@link DataIntegrityViolationException} (a foreign-key violation, a
+     * not-null/check-constraint failure, a corrupt billing row, ...) is a real data problem that
+     * must not be swallowed as if it were a duplicate.
+     */
+    private static boolean isProcessedTelemetryEventDuplicate(DataIntegrityViolationException ex) {
+        ConstraintViolationException constraintViolation = findConstraintViolation(ex);
+        if (constraintViolation == null) {
+            return false;
+        }
+        String sqlState = constraintViolation.getSQLState();
+        String constraintName = constraintViolation.getConstraintName();
+        return UNIQUE_VIOLATION_SQLSTATE.equals(sqlState) && constraintName != null
+                && constraintName.contains(PROCESSED_TELEMETRY_EVENTS_CONSTRAINT_MARKER);
+    }
+
+    private static ConstraintViolationException findConstraintViolation(Throwable ex) {
+        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+            if (cause instanceof ConstraintViolationException constraintViolation) {
+                return constraintViolation;
+            }
+        }
+        return null;
     }
 
     /**

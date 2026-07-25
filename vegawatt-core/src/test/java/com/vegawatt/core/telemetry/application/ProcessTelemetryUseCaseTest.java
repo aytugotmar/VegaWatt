@@ -296,8 +296,7 @@ class ProcessTelemetryUseCaseTest {
 
     @Test
     void handlesConcurrentDuplicateEventGracefully() {
-        doThrow(new org.springframework.dao.DataIntegrityViolationException(
-                "duplicate key value violates unique constraint"))
+        doThrow(processedTelemetryEventPrimaryKeyViolation())
                 .when(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), any(),
                         anyBoolean(), any(), any(), anyInt());
 
@@ -306,6 +305,38 @@ class ProcessTelemetryUseCaseTest {
         useCase.execute(reading(eventId, new BigDecimal("1000")));
 
         verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), any(), any());
+    }
+
+    @Test
+    void compensatesStateAndRethrowsANonDuplicateIntegrityViolationInsteadOfSwallowingIt() {
+        // A foreign-key violation, a not-null failure, a corrupt billing row, ... none of these are
+        // a harmless double-delivery, and swallowing them would silently drop the telemetry event
+        // forever (offset still commits, no retry, no DLT). Only the processed_telemetry_events
+        // primary-key collision is a duplicate; everything else must propagate.
+        org.hibernate.exception.ConstraintViolationException foreignKeyViolation =
+                new org.hibernate.exception.ConstraintViolationException("insert failed",
+                        new java.sql.SQLException("violates foreign key constraint", "23503"),
+                        "fk_appliance_live_state_home_id");
+        org.springframework.dao.DataIntegrityViolationException notADuplicate =
+                new org.springframework.dao.DataIntegrityViolationException("insert failed", foreignKeyViolation);
+        doThrow(notADuplicate)
+                .when(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), any(),
+                        anyBoolean(), any(), any(), anyInt());
+
+        UUID eventId = UUID.randomUUID();
+        assertThatThrownBy(() -> useCase.execute(reading(eventId, new BigDecimal("1000"))))
+                .isSameAs(notADuplicate);
+
+        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), any(), any());
+    }
+
+    private static org.springframework.dao.DataIntegrityViolationException processedTelemetryEventPrimaryKeyViolation() {
+        org.hibernate.exception.ConstraintViolationException constraintViolation =
+                new org.hibernate.exception.ConstraintViolationException("duplicate key",
+                        new java.sql.SQLException("duplicate key value violates unique constraint "
+                                + "\"processed_telemetry_events_pkey\"", "23505"),
+                        "processed_telemetry_events_pkey");
+        return new org.springframework.dao.DataIntegrityViolationException("duplicate key", constraintViolation);
     }
 
     @Test
