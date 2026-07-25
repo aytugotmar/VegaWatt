@@ -78,9 +78,14 @@ class ShortHighPowerBehaviorModelTest {
         for (int tick = 0; tick < ticks; tick++) {
             ZonedDateTime measuredAt = DAY_START.plusSeconds(5L * tick);
             var reading = MODEL.generate(config, state, measuredAt, Duration.ofSeconds(5), () -> 0.0);
-            boolean sessionJustStarted = state == null
-                    || (state.operatingState() != ApplianceOperatingState.ACTIVE
-                            && reading.nextState().operatingState() == ApplianceOperatingState.ACTIVE);
+            // "state == null" only means "tick 0", not "a session started" — the device could
+            // equally be OFF at tick 0 (the common case, since DAY_START is midnight and the
+            // window doesn't open until WINDOW_START_HOUR). Only count it when tick 0 itself
+            // lands inside an ACTIVE session; the old unconditional "state == null" branch
+            // over-counted by exactly one on any day whose planned session count reached the cap,
+            // intermittently failing this assertion by one.
+            boolean sessionJustStarted = reading.nextState().operatingState() == ApplianceOperatingState.ACTIVE
+                    && (state == null || state.operatingState() != ApplianceOperatingState.ACTIVE);
             if (sessionJustStarted) {
                 sessionsStarted++;
             }

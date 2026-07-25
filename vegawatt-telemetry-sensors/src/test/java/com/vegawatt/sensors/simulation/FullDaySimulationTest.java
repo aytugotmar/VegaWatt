@@ -30,7 +30,10 @@ class FullDaySimulationTest {
 
     private static final int TICKS_PER_DAY = 17280; // 24h at 5s intervals
     private static final int DAYS_TO_SIMULATE = 7;
-    private static final long SEED = 42L;
+    // Several seeds, not just one: a single fixed sequence could hide a bug that only shows up
+    // for certain random draws (e.g. a boundary condition in DiurnalCurve's scheduling). Each
+    // scenario must hold its invariants across all of them, not just this one lucky draw.
+    private static final long[] SEEDS = {42L, 7L, 123456789L};
 
     private record Scenario(String label, ApplianceBehaviorModel model, ApplianceConfig config, Integer dailyCap,
                              boolean expectSpreadStartTimes) {
@@ -74,12 +77,14 @@ class FullDaySimulationTest {
     @Test
     void everyScenarioRespectsItsInvariantsAcrossAWeek() {
         for (Scenario scenario : scenarios()) {
-            runAndVerify(scenario);
+            for (long seed : SEEDS) {
+                runAndVerify(scenario, seed);
+            }
         }
     }
 
-    private void runAndVerify(Scenario scenario) {
-        Random seededRandom = new Random(SEED);
+    private void runAndVerify(Scenario scenario, long seed) {
+        Random seededRandom = new Random(seed);
         RandomSource randomSource = seededRandom::nextDouble;
         ZonedDateTime midnight = ZonedDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
         BigDecimal standbyMax = scenario.config().standbyMaxWatt() != null ? scenario.config().standbyMaxWatt()
@@ -107,13 +112,13 @@ class FullDaySimulationTest {
             if (nowActive) {
                 everActive = true;
                 assertThat(next.operatingMode())
-                        .as("%s: ACTIVE state must never contradict an OFF mode (tick %d)", scenario.label(), tick)
+                        .as("%s (seed %d): ACTIVE state must never contradict an OFF mode (tick %d)", scenario.label(), seed, tick)
                         .isNotEqualTo("OFF");
             }
             if (!nowActive) {
                 assertThat(reading.powerWatt())
-                        .as("%s: non-active (OFF/STANDBY) power must never exceed the standby ceiling (tick %d)",
-                                scenario.label(), tick)
+                        .as("%s (seed %d): non-active (OFF/STANDBY) power must never exceed the standby ceiling (tick %d)",
+                                scenario.label(), seed, tick)
                         .isLessThanOrEqualTo(standbyMax);
             }
 
@@ -121,19 +126,20 @@ class FullDaySimulationTest {
             state = next;
         }
 
-        assertThat(everActive).as("%s: must be active at least once across a full week", scenario.label()).isTrue();
+        assertThat(everActive).as("%s (seed %d): must be active at least once across a full week", scenario.label(), seed)
+                .isTrue();
         if (scenario.dailyCap() != null) {
             assertThat(maxSessionsSeenPerDay)
-                    .as("%s: daily session count must never exceed its configured cap", scenario.label())
+                    .as("%s (seed %d): daily session count must never exceed its configured cap", scenario.label(), seed)
                     .isLessThanOrEqualTo(scenario.dailyCap());
             assertThat(sessionsStarted)
-                    .as("%s: number of session starts must never exceed cap x days", scenario.label())
+                    .as("%s (seed %d): number of session starts must never exceed cap x days", scenario.label(), seed)
                     .isLessThanOrEqualTo(scenario.dailyCap() * DAYS_TO_SIMULATE);
         }
         if (scenario.expectSpreadStartTimes()) {
             assertThat(sessionStartHours)
-                    .as("%s: session starts must be spread across different hours, not clumped at one hour",
-                            scenario.label())
+                    .as("%s (seed %d): session starts must be spread across different hours, not clumped at one hour",
+                            scenario.label(), seed)
                     .hasSizeGreaterThan(1);
         }
     }
