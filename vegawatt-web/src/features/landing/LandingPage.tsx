@@ -59,12 +59,12 @@ export function LandingPage() {
   const [tab, setTab] = useState<AuthTab>("login");
 
   return (
-    <div className="min-h-screen">
-      <header className="mx-auto flex max-w-6xl items-center px-6 py-6">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden">
+      <header className="mx-auto flex max-w-6xl items-center px-4 sm:px-6 py-4 sm:py-6">
         <BrandMark />
       </header>
 
-      <main className="relative mx-auto grid max-w-6xl grid-cols-1 gap-10 overflow-hidden px-6 py-10 lg:grid-cols-2 lg:items-center lg:py-16">
+      <main className="relative mx-auto grid max-w-6xl grid-cols-1 gap-10 overflow-hidden px-4 sm:px-6 py-6 sm:py-10 lg:grid-cols-2 lg:items-center lg:py-16">
         <div
           className="pointer-events-none absolute -right-32 -top-24 h-96 w-96 rounded-full bg-primary/20 blur-3xl"
           aria-hidden="true"
@@ -121,7 +121,7 @@ export function LandingPage() {
         </div>
       </main>
 
-      <section id="nasil-calisir" className="mx-auto max-w-6xl px-6 py-16">
+      <section id="nasil-calisir" className="mx-auto max-w-6xl px-4 sm:px-6 py-10 sm:py-16">
         <div className="mb-10 max-w-lg">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">Nasıl Çalışır</p>
           <h2 className="mt-1 text-2xl font-bold tracking-tight text-text-primary sm:text-3xl">
@@ -149,7 +149,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section id="ozellikler" className="mx-auto max-w-6xl px-6 py-16">
+      <section id="ozellikler" className="mx-auto max-w-6xl px-4 sm:px-6 py-10 sm:py-16">
         <div className="mb-8 max-w-lg">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">Özellikler</p>
           <h2 className="mt-1 text-2xl font-bold tracking-tight text-text-primary sm:text-3xl">

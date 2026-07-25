@@ -104,7 +104,7 @@ export function DashboardPage({ mode = "ADMIN" }: DashboardPageProps = {}) {
         />
       )}
 
-      <main className={mode === "ADMIN" ? "mx-auto max-w-6xl px-6 py-6" : "mx-auto max-w-[1400px] px-8 py-8"}>
+      <main className={mode === "ADMIN" ? "mx-auto max-w-6xl px-4 sm:px-6 py-4 sm:py-6" : "w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8"}>
         {mode === "USER" && (
           <div className="mb-5 flex items-center justify-between gap-3">
             <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Evlerim</h1>

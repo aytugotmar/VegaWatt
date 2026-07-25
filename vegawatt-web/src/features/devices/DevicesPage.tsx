@@ -114,7 +114,7 @@ export function DevicesPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-[1400px] px-8 py-10">
+      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <Spinner label="Cihazlar yükleniyor..." />
       </div>
     );
@@ -122,7 +122,7 @@ export function DevicesPage() {
 
   if (!isError && devices.length === 0) {
     return (
-      <div className="mx-auto max-w-[1400px] px-8 py-10">
+      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <EmptyState
           icon={Cpu}
           title="Henüz cihaz yok"
@@ -154,7 +154,7 @@ export function DevicesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] px-8 py-8">
+    <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
       <div className="mb-5 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Cihazlarım</h1>
         {homes.length > 0 && (
@@ -165,11 +165,11 @@ export function DevicesPage() {
         )}
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="mb-4 flex flex-col sm:flex-row flex-wrap items-center gap-2">
         <select
           value={homeFilter}
           onChange={(event) => setHomeFilter(event.target.value)}
-          className="form-input w-auto"
+          className="form-input w-full sm:w-auto"
           aria-label="Ev filtresi"
         >
           <option value="ALL">Tüm evler</option>
@@ -182,7 +182,7 @@ export function DevicesPage() {
         <select
           value={typeFilter}
           onChange={(event) => setTypeFilter(event.target.value)}
-          className="form-input w-auto"
+          className="form-input w-full sm:w-auto"
           aria-label="Cihaz tipi filtresi"
         >
           <option value="ALL">Tüm cihaz tipleri</option>
@@ -195,7 +195,7 @@ export function DevicesPage() {
         <select
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-          className="form-input w-auto"
+          className="form-input w-full sm:w-auto"
           aria-label="Durum filtresi"
         >
           <option value="ALL">Tüm durumlar</option>
@@ -204,7 +204,7 @@ export function DevicesPage() {
         </select>
       </div>
 
-      <div className="overflow-x-auto rounded-card border border-border">
+      <div className="overflow-x-auto max-w-full rounded-card border border-border bg-surface shadow-sm">
         <table className="w-full min-w-[820px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-border-strong bg-surface-subtle text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">

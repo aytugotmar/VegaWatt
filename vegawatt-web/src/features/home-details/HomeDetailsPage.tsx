@@ -14,7 +14,7 @@ export function HomeDetailsPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-[1400px] flex-col px-8 py-6">
+    <div className="w-full max-w-[1400px] mx-auto flex flex-col px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
       <Link
         to="/app/homes"
         className="mb-2 inline-flex w-fit items-center gap-1.5 text-sm font-medium text-text-secondary hover:text-text-primary"

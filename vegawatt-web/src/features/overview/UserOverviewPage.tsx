@@ -15,7 +15,7 @@ export function UserOverviewPage() {
 
   if (data.isLoading) {
     return (
-      <div className="mx-auto max-w-[1400px] px-8 py-10">
+      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <Spinner label="Genel bakış yükleniyor..." />
       </div>
     );
@@ -23,7 +23,7 @@ export function UserOverviewPage() {
 
   if (data.homeCount === 0) {
     return (
-      <div className="mx-auto max-w-[1400px] px-8 py-10">
+      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <EmptyState
           icon={HomeIcon}
           title="Henüz kayıtlı ev yok"
@@ -39,7 +39,7 @@ export function UserOverviewPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] px-8 py-8">
+    <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <h1 className="mb-5 text-2xl font-semibold tracking-tight text-text-primary">Genel Bakış</h1>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

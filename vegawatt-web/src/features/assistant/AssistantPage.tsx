@@ -10,7 +10,7 @@ export function AssistantPage() {
   const currentHomeId = activeHome?.homeId;
 
   return (
-    <div className="mx-auto max-w-[900px] px-8 py-8">
+    <div className="w-full max-w-[900px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
       <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-text-primary">AI Enerji Asistanı</h1>
@@ -21,7 +21,7 @@ export function AssistantPage() {
           <select
             value={currentHomeId}
             onChange={(e) => setSelectedHomeId(e.target.value)}
-            className="rounded-input border border-border bg-surface px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none"
+            className="w-full sm:w-auto rounded-input border border-border bg-surface px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none"
           >
             {homes.map((h) => (
               <option key={h.homeId} value={h.homeId}>

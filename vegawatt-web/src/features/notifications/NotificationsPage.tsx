@@ -11,7 +11,7 @@ export function NotificationsPage() {
   const currentHomeId = activeHome?.homeId;
 
   return (
-    <div className="mx-auto max-w-[1400px] px-8 py-8">
+    <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
       <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Bildirimler</h1>
@@ -22,7 +22,7 @@ export function NotificationsPage() {
           <select
             value={currentHomeId}
             onChange={(e) => setSelectedHomeId(e.target.value)}
-            className="rounded-input border border-border bg-surface px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none"
+            className="w-full sm:w-auto rounded-input border border-border bg-surface px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none"
           >
             {homes.map((h) => (
               <option key={h.homeId} value={h.homeId}>
@@ -33,7 +33,7 @@ export function NotificationsPage() {
         )}
       </div>
 
-      <div className="rounded-input border border-border bg-surface p-6">
+      <div className="rounded-input border border-border bg-surface p-4 sm:p-6">
         <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
           <h2 className="text-base font-semibold text-text-primary flex items-center gap-2">
             <Bell className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -53,20 +53,20 @@ export function NotificationsPage() {
             {activeHome.appliances.map((app) => (
               <div
                 key={app.applianceId}
-                className="flex items-center justify-between rounded-input border border-border bg-surface-subtle p-3 transition hover:border-border-hover"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 rounded-input border border-border bg-surface-subtle p-3 transition hover:border-border-hover"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   {app.anomalous ? (
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-danger-soft text-danger">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-danger-soft text-danger">
                       <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                     </span>
                   ) : (
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-success-soft text-success">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success-soft text-success">
                       <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                     </span>
                   )}
-                  <div>
-                    <p className="text-sm font-medium text-text-primary">{app.applianceName}</p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-text-primary truncate">{app.applianceName}</p>
                     <p className="text-xs text-text-muted">
                       {app.anomalous
                         ? `${app.consecutiveBreachCount} ihlal tespiti — Güç: ${app.currentPowerWatt}W (Limit: ${app.safePowerLimitWatt}W)`
@@ -74,7 +74,7 @@ export function NotificationsPage() {
                     </p>
                   </div>
                 </div>
-                <span className="text-xs text-text-muted">{formatRelativeTime(app.lastUpdatedAt)}</span>
+                <span className="text-xs text-text-muted shrink-0 self-end sm:self-center">{formatRelativeTime(app.lastUpdatedAt)}</span>
               </div>
             ))}
           </div>

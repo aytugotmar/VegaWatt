@@ -71,7 +71,7 @@ export function DeviceDetailsPage() {
   const operatingModeLabel = getOperatingModeLabel(device.appliance.operatingMode);
 
   return (
-    <div className="mx-auto max-w-[1400px] px-8 py-8">
+    <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
       <Link
         to="/app/devices"
         className="mb-4 inline-flex w-fit items-center gap-1.5 text-sm font-medium text-text-secondary hover:text-text-primary"
@@ -80,9 +80,9 @@ export function DeviceDetailsPage() {
         Cihazlarım
       </Link>
 
-      <div className="mb-6 flex items-center justify-between gap-3">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-12 w-12 items-center justify-center rounded-input bg-surface-subtle text-text-secondary">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-input bg-surface-subtle text-text-secondary">
             <Icon className="h-5 w-5" aria-hidden="true" />
           </span>
           <div>
@@ -139,7 +139,7 @@ export function DeviceDetailsPage() {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="rounded-input border border-border bg-surface p-4">
           <span className="text-xs font-medium uppercase tracking-wide text-text-muted">Bu Ay Enerji</span>
           <p className="mt-1 text-xl font-semibold tabular-nums text-text-primary">

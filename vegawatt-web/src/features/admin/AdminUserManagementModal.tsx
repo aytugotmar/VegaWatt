@@ -63,8 +63,8 @@ export function AdminUserManagementModal({ isOpen, onClose }: AdminUserManagemen
         </div>
 
         {/* Toolbar & Filter */}
-        <div className="flex items-center justify-between border-b border-border bg-surface-subtle px-6 py-3">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between border-b border-border bg-surface-subtle px-4 sm:px-6 py-3">
+          <div className="relative w-full sm:max-w-sm">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-text-muted" aria-hidden="true" />
             <input
               type="text"
@@ -75,7 +75,7 @@ export function AdminUserManagementModal({ isOpen, onClose }: AdminUserManagemen
               className="w-full rounded-lg border border-border bg-surface py-1.5 pl-9 pr-3 text-xs text-text-primary focus:border-primary focus:outline-none"
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between sm:justify-end gap-2">
             <span className="text-xs font-semibold text-text-muted">
               Toplam: <strong className="text-text-primary">{users.length}</strong> kullanıcı
             </span>
@@ -93,7 +93,7 @@ export function AdminUserManagementModal({ isOpen, onClose }: AdminUserManagemen
         {/* Feedback Message */}
         {(msg || isError) && (
           <div
-            className={`mx-6 mt-3 flex items-center gap-2 rounded-xl p-3 text-xs ${
+            className={`mx-4 sm:mx-6 mt-3 flex items-center gap-2 rounded-xl p-3 text-xs ${
               msg?.type === "success"
                 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                 : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
@@ -109,7 +109,7 @@ export function AdminUserManagementModal({ isOpen, onClose }: AdminUserManagemen
         )}
 
         {/* User Table Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {loading ? (
             <div className="flex h-40 items-center justify-center text-xs text-text-muted">
               Kullanıcılar yükleniyor...
@@ -119,7 +119,7 @@ export function AdminUserManagementModal({ isOpen, onClose }: AdminUserManagemen
               Kullanıcı bulunamadı.
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-border">
+            <div className="overflow-x-auto max-w-full rounded-xl border border-border bg-surface">
               <table className="w-full min-w-[560px] text-left text-xs">
                 <thead className="bg-surface-subtle text-text-muted">
                   <tr>

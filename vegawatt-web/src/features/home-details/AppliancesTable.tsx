@@ -17,7 +17,7 @@ export function AppliancesTable({ appliances }: AppliancesTableProps) {
           <MobileApplianceCard key={appliance.applianceId} appliance={appliance} />
         ))}
       </div>
-      <div className="hidden overflow-x-auto rounded-card border border-border sm:block">
+      <div className="hidden overflow-x-auto max-w-full rounded-card border border-border bg-surface sm:block">
       <table className="w-full min-w-[720px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-border-strong bg-surface-subtle text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">

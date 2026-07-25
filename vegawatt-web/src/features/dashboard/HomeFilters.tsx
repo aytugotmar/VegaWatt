@@ -65,7 +65,7 @@ export function HomeFilters({
         />
       </div>
 
-      <div className="flex items-center gap-1.5 text-sm">
+      <div className="flex w-full sm:w-auto items-center gap-1.5 text-sm">
         <label htmlFor="dashboard-status-filter" className="sr-only">
           Durum
         </label>
@@ -73,7 +73,7 @@ export function HomeFilters({
           id="dashboard-status-filter"
           value={status}
           onChange={(event) => onStatusChange(event.target.value as StatusFilter)}
-          className="form-input"
+          className="form-input w-full sm:w-auto"
         >
           {STATUS_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -83,7 +83,7 @@ export function HomeFilters({
         </select>
       </div>
 
-      <div className="flex items-center gap-1.5 text-sm">
+      <div className="flex w-full sm:w-auto items-center gap-1.5 text-sm">
         <label htmlFor="dashboard-tariff-filter" className="sr-only">
           Tarife
         </label>
@@ -91,7 +91,7 @@ export function HomeFilters({
           id="dashboard-tariff-filter"
           value={tariff}
           onChange={(event) => onTariffChange(event.target.value as TariffFilter)}
-          className="form-input"
+          className="form-input w-full sm:w-auto"
         >
           {TARIFF_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -101,7 +101,7 @@ export function HomeFilters({
         </select>
       </div>
 
-      <div className="flex items-center gap-1.5 text-sm">
+      <div className="flex w-full sm:w-auto items-center gap-1.5 text-sm">
         <label htmlFor="dashboard-sort" className="sr-only">
           Sırala
         </label>
@@ -109,7 +109,7 @@ export function HomeFilters({
           id="dashboard-sort"
           value={sort}
           onChange={(event) => onSortChange(event.target.value as SortOption)}
-          className="form-input"
+          className="form-input w-full sm:w-auto"
         >
           {SORT_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
