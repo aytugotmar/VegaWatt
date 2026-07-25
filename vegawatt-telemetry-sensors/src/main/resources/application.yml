@@ -17,6 +17,18 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
 vegawatt:
   kafka:
     registration-topic: ${KAFKA_REGISTRATION_TOPIC:vegawatt.asset-registration.v1}
@@ -26,3 +38,6 @@ vegawatt:
     fault-probability: ${FAULT_PROBABILITY:0.005}
     fault-evaluation-interval-seconds: ${FAULT_EVALUATION_INTERVAL_SECONDS:1800}
     fault-cooldown-seconds: ${FAULT_COOLDOWN_SECONDS:1800}
+    # Every registered appliance gets its own fixed-delay 5s-tick task on this shared pool; size
+    # it up if the registered-device count grows enough to bottleneck tick scheduling.
+    scheduler-pool-size: ${SCHEDULER_POOL_SIZE:10}

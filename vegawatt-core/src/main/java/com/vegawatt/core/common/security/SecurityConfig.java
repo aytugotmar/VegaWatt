@@ -45,7 +45,10 @@ class SecurityConfig {
                 .authorizeHttpRequests(authorize -> {
                     authorize
                             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                            .requestMatchers("/api/v1/auth/**").permitAll();
+                            .requestMatchers("/api/v1/auth/**").permitAll()
+                            // Docker/orchestrator healthchecks hit this without a JWT; only "health"
+                            // is web-exposed (see application.yml), so this doesn't leak metrics/env.
+                            .requestMatchers("/actuator/health/**").permitAll();
                     if (swaggerPublic) {
                         authorize.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
                                 .permitAll();
