@@ -98,20 +98,28 @@ public class AskInsightUseCase {
 
         String prompt = buildPrompt(home, currentCost, monthlyBudget, elapsedDays, remainingDays, projectedMonthEndCost, applianceStates, request.question());
 
-        List<String> modelsToTry = List.of(properties.model(), "gemini-1.5-flash", "gemini-2.0-flash");
+        // distinct(): if the configured default model is also one of the two hardcoded fallbacks,
+        // retrying the exact same model right after it just failed wastes a whole attempt's budget.
+        List<String> modelsToTry = List.of(properties.model(), "gemini-1.5-flash", "gemini-2.0-flash").stream()
+                .distinct().toList();
         // Bounds the whole fallback loop, not just each call: without it a Gemini outage costs up
         // to apiKeys.size() * modelsToTry.size() * readTimeoutMs before falling back, which is the
         // slowest possible response on exactly the request that's already failing.
         Instant deadline = Instant.now().plusMillis(properties.overallTimeoutMs());
         for (int i = 0; i < apiKeys.size(); i++) {
             for (String modelName : modelsToTry) {
-                if (Instant.now().isAfter(deadline)) {
+                long remainingMs = Duration.between(Instant.now(), deadline).toMillis();
+                if (remainingMs <= 0) {
                     log.warn("Gemini overall timeout of {}ms exhausted; falling back without trying remaining "
                             + "key/model combinations", properties.overallTimeoutMs());
                     return new AskInsightResponse(fallbackAnswer, true);
                 }
                 try {
-                    String answer = callGemini(apiKeys.get(i), modelName, prompt);
+                    // Capped to whatever's left of the overall budget: without this, the very last
+                    // attempt could still use the full readTimeoutMs and blow past the deadline the
+                    // loop above exists to enforce.
+                    long requestTimeoutMs = Math.min(properties.readTimeoutMs(), remainingMs);
+                    String answer = callGemini(apiKeys.get(i), modelName, prompt, requestTimeoutMs);
                     return new AskInsightResponse(answer, false);
                 } catch (Exception e) {
                     log.warn("Gemini call failed (key #{}, model {}): {}", i + 1, modelName, e.getMessage());
@@ -194,13 +202,14 @@ public class AskInsightUseCase {
         return sb.toString();
     }
 
-    private String callGemini(String apiKey, String modelName, String prompt) throws Exception {
+    private String callGemini(String apiKey, String modelName, String prompt, long requestTimeoutMs)
+            throws Exception {
         String reqBody = objectMapper.writeValueAsString(
                 java.util.Map.of("contents", List.of(java.util.Map.of("parts", List.of(java.util.Map.of("text", prompt))))));
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(ENDPOINT_TEMPLATE.formatted(modelName)))
-                .timeout(Duration.ofMillis(properties.readTimeoutMs()))
+                .timeout(Duration.ofMillis(requestTimeoutMs))
                 .header("Content-Type", "application/json")
                 .header("x-goog-api-key", apiKey)
                 .POST(HttpRequest.BodyPublishers.ofString(reqBody))
@@ -213,6 +222,13 @@ public class AskInsightUseCase {
         }
 
         JsonNode root = objectMapper.readTree(response.body());
-        return root.path("candidates").path(0).path("content").path("parts").path(0).path("text").asText().trim();
+        String text = root.path("candidates").path(0).path("content").path("parts").path(0).path("text").asText().trim();
+        if (text.isBlank()) {
+            // HTTP 200 with no actual answer text is not a success — treat it the same as any
+            // other failure so the caller moves on to the next model/key instead of returning an
+            // empty answer with fallbackUsed=false.
+            throw new RuntimeException("Gemini returned HTTP 200 with a blank answer");
+        }
+        return text;
     }
 }
