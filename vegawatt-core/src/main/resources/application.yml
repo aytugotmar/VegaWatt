@@ -103,6 +103,9 @@ vegawatt:
   outbox:
     relay-interval-ms: 2000
     send-timeout-ms: ${OUTBOX_SEND_TIMEOUT_MS:10000}
+    # A Kafka outage is transient on the timescale of minutes; only an event stuck for this long
+    # is worth dead-lettering for operator attention rather than just keeping retrying.
+    dead-letter-after-hours: ${OUTBOX_DEAD_LETTER_AFTER_HOURS:24}
   notification:
     worker-interval-ms: ${NOTIFICATION_WORKER_INTERVAL_MS:2000}
     claim-lease-seconds: ${NOTIFICATION_CLAIM_LEASE_SECONDS:120}

@@ -2,6 +2,7 @@ package com.vegawatt.core.common.outbox;
 
 import com.vegawatt.core.common.config.VegaWattKafkaProperties;
 import com.vegawatt.core.common.time.ClockProvider;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -18,25 +19,24 @@ public class OutboxRelayScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxRelayScheduler.class);
     private static final int BATCH_SIZE = 50;
-    // Mirrors NotificationOrchestrator.MAX_ATTEMPTS: past this many failures a Kafka outage is no
-    // longer transient, and retrying forever every relay-interval-ms just spams the log with no
-    // chance of success. Dead-lettering stops the churn and makes the stuck event visible instead.
-    private static final int MAX_RETRY_ATTEMPTS = 10;
 
     private final OutboxRepository outboxRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ClockProvider clockProvider;
     private final VegaWattKafkaProperties kafkaProperties;
     private final long sendTimeoutMs;
+    private final Duration deadLetterAfter;
 
     public OutboxRelayScheduler(OutboxRepository outboxRepository, KafkaTemplate<String, String> kafkaTemplate,
                                  ClockProvider clockProvider, VegaWattKafkaProperties kafkaProperties,
-                                 @Value("${vegawatt.outbox.send-timeout-ms:10000}") long sendTimeoutMs) {
+                                 @Value("${vegawatt.outbox.send-timeout-ms:10000}") long sendTimeoutMs,
+                                 @Value("${vegawatt.outbox.dead-letter-after-hours:24}") long deadLetterAfterHours) {
         this.outboxRepository = outboxRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.clockProvider = clockProvider;
         this.kafkaProperties = kafkaProperties;
         this.sendTimeoutMs = sendTimeoutMs;
+        this.deadLetterAfter = Duration.ofHours(deadLetterAfterHours);
     }
 
     @Scheduled(fixedDelayString = "${vegawatt.outbox.relay-interval-ms}", scheduler = "outboxTaskScheduler")
@@ -74,14 +74,21 @@ public class OutboxRelayScheduler {
 
     private void handleFailure(OutboxEvent event, String topic, Exception e) {
         int nextRetryCount = event.retryCount() + 1;
-        if (nextRetryCount >= MAX_RETRY_ATTEMPTS) {
-            log.error("Dead-lettering outbox event {} (type={}) to topic {} after {} failed attempts", event.id(),
-                    event.eventType(), topic, nextRetryCount, e);
+        // Age-based, not attempt-count-based: a fixed attempt count times a fixed relay interval
+        // (e.g. 10 attempts x 2s = ~20s) dead-letters an event well before a routine Kafka broker
+        // restart (which can easily take 30-60s) even finishes, permanently losing it. A Kafka
+        // outage is transient on the timescale of minutes, not seconds, so retrying is cheap and
+        // correct; only an event stuck for genuinely implausible-as-transient duration (default
+        // 24h) is worth flagging as needing operator attention.
+        Duration age = Duration.between(event.createdAt(), clockProvider.now());
+        if (age.compareTo(deadLetterAfter) >= 0) {
+            log.error("Dead-lettering outbox event {} (type={}) to topic {} after {} failed attempts over {}",
+                    event.id(), event.eventType(), topic, nextRetryCount, age, e);
             outboxRepository.save(event.retryFailed().deadLetter());
             return;
         }
-        log.error("Failed to relay outbox event {} (type={}) to topic {}, retryCount={}", event.id(),
-                event.eventType(), topic, nextRetryCount, e);
+        log.error("Failed to relay outbox event {} (type={}) to topic {}, retryCount={}, age={}", event.id(),
+                event.eventType(), topic, nextRetryCount, age, e);
         outboxRepository.save(event.retryFailed());
     }
 
