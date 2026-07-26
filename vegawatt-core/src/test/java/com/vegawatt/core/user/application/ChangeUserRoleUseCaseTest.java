@@ -16,7 +16,6 @@ import com.vegawatt.core.user.domain.UserNotFoundException;
 import com.vegawatt.core.user.domain.UserRepository;
 import com.vegawatt.core.user.domain.UserRole;
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -75,7 +74,7 @@ class ChangeUserRoleUseCaseTest {
         UUID caller = UUID.randomUUID();
         UUID target = UUID.randomUUID();
         when(userRepository.findById(target)).thenReturn(Optional.of(user(target, UserRole.ADMIN)));
-        when(userRepository.findAll()).thenReturn(List.of(user(target, UserRole.ADMIN)));
+        when(userRepository.countAdminsUnderGlobalLock()).thenReturn(1);
 
         assertThatThrownBy(() -> useCase().execute(caller, target, UserRole.USER))
                 .isInstanceOf(LastAdminDemotionNotAllowedException.class);
@@ -88,10 +87,8 @@ class ChangeUserRoleUseCaseTest {
     void allowsDemotingAnAdminWhenAnotherAdminRemains() {
         UUID caller = UUID.randomUUID();
         UUID target = UUID.randomUUID();
-        UUID otherAdmin = UUID.randomUUID();
         when(userRepository.findById(target)).thenReturn(Optional.of(user(target, UserRole.ADMIN)));
-        when(userRepository.findAll()).thenReturn(
-                List.of(user(target, UserRole.ADMIN), user(otherAdmin, UserRole.ADMIN)));
+        when(userRepository.countAdminsUnderGlobalLock()).thenReturn(2);
         when(clockProvider.now()).thenReturn(NOW);
 
         useCase().execute(caller, target, UserRole.USER);

@@ -78,6 +78,21 @@ class ChangeEmailUseCaseTest {
     }
 
     @Test
+    void treatsResubmittingYourOwnCurrentEmailAsANoOpInsteadOfADuplicateRejection() {
+        UUID userId = UUID.randomUUID();
+        User user = existingUser(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("correct-pass", "hash")).thenReturn(true);
+
+        User result = useCase().execute(userId, "correct-pass", "  Old@Example.com  ");
+
+        assertThat(result.email()).isEqualTo("old@example.com");
+        verify(userRepository, never()).existsByEmail(any());
+        verify(userRepository, never()).save(any());
+        verify(refreshSessionRepository, never()).revokeAllByUserId(any(), any());
+    }
+
+    @Test
     void rejectsAlreadyRegisteredEmail() {
         UUID userId = UUID.randomUUID();
         User user = existingUser(userId);

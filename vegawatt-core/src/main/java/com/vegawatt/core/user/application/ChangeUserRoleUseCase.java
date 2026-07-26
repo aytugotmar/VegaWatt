@@ -46,7 +46,7 @@ public class ChangeUserRoleUseCase {
         refreshSessionRepository.revokeAllByUserId(targetUserId, clockProvider.now());
     }
 
-    private long remainingAdminCount() {
-        return userRepository.findAll().stream().filter(u -> u.role() == UserRole.ADMIN).count();
+    private int remainingAdminCount() {
+        return userRepository.countAdminsUnderGlobalLock();
     }
 }

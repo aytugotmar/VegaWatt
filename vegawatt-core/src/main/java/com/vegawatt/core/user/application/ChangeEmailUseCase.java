@@ -38,6 +38,13 @@ public class ChangeEmailUseCase {
         if (!passwordEncoder.matches(currentPassword, user.passwordHash())) {
             throw new IncorrectPasswordException();
         }
+        // Re-submitting your own current email (same value, or same after normalization) is a
+        // no-op, not a duplicate — checked before existsByEmail() so it never even considers the
+        // caller's own row a collision. Returning early here also skips the session-revoke below,
+        // since nothing about the account actually changed.
+        if (normalizedEmail.equals(user.email())) {
+            return user;
+        }
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw new EmailAlreadyRegisteredException(normalizedEmail);
         }
