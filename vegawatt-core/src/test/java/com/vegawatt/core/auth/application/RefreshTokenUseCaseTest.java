@@ -48,6 +48,8 @@ class RefreshTokenUseCaseTest {
 
         when(refreshSessionRepository.findByTokenHash(RefreshTokenHasher.hash("raw-token")))
                 .thenReturn(Optional.of(existingSession));
+        when(refreshSessionRepository.revokeIfActive(existingSession.tokenHash(),
+                Instant.parse("2026-07-20T10:00:00Z"))).thenReturn(true);
         when(userRepository.findById(user.id())).thenReturn(Optional.of(user));
         when(jwtTokenService.generateAccessToken(user.id(), UserRole.USER, Instant.parse("2026-07-20T10:00:00Z")))
                 .thenReturn("new-access-token");
@@ -60,8 +62,26 @@ class RefreshTokenUseCaseTest {
 
         assertThat(result.accessToken()).isEqualTo("new-access-token");
         assertThat(result.rawRefreshToken()).isNotEqualTo("raw-token");
-        assertThat(existingSession.revokedAt()).isEqualTo(Instant.parse("2026-07-20T10:00:00Z"));
-        verify(refreshSessionRepository).save(existingSession);
+        verify(refreshSessionRepository).revokeIfActive(existingSession.tokenHash(),
+                Instant.parse("2026-07-20T10:00:00Z"));
+    }
+
+    @Test
+    void rejectsWhenAnotherConcurrentRequestAlreadyWonTheRevokeRace() {
+        User user = User.reconstitute(UUID.randomUUID(), "ayse@example.com", "encoded-hash", UserRole.USER,
+                Instant.parse("2026-01-01T00:00:00Z"));
+        RefreshSession existingSession = RefreshSession.issue(user.id(), RefreshTokenHasher.hash("raw-token"),
+                Instant.parse("2026-08-01T00:00:00Z"), Instant.parse("2026-07-01T00:00:00Z"));
+
+        when(refreshSessionRepository.findByTokenHash(RefreshTokenHasher.hash("raw-token")))
+                .thenReturn(Optional.of(existingSession));
+        when(refreshSessionRepository.revokeIfActive(existingSession.tokenHash(),
+                Instant.parse("2026-07-20T10:00:00Z"))).thenReturn(false);
+
+        RefreshTokenUseCase useCase = new RefreshTokenUseCase(refreshSessionRepository, userRepository,
+                jwtTokenService, jwtProperties, clockProvider);
+
+        assertThatThrownBy(() -> useCase.execute("raw-token")).isInstanceOf(InvalidRefreshTokenException.class);
     }
 
     @Test

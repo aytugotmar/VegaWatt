@@ -1,0 +1,6 @@
+# Dev-only convenience fallback so a fresh local checkout works without hand-configuring a
+# secret. Never applies outside SPRING_PROFILES_ACTIVE=dev — see application.yml for why the base
+# config has no such fallback.
+vegawatt:
+  jwt:
+    secret: ${JWT_SIGNING_SECRET:vegawatt-super-secret-jwt-key-change-in-production-32bytes!}

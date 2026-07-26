@@ -8,6 +8,7 @@ import com.vegawatt.core.auth.application.RegisterUserUseCase;
 import com.vegawatt.core.auth.domain.InvalidRefreshTokenException;
 import com.vegawatt.core.common.config.JwtProperties;
 import com.vegawatt.core.common.config.RateLimitProperties;
+import com.vegawatt.core.common.security.RefreshTokenHasher;
 import com.vegawatt.core.user.domain.User;
 import jakarta.validation.Valid;
 import java.time.Duration;
@@ -78,7 +79,14 @@ class AuthController {
     @PostMapping("/refresh")
     ResponseEntity<AuthResponse> refresh(@CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken,
                                          jakarta.servlet.http.HttpServletRequest httpRequest) {
-        String clientKey = extractClientKey(httpRequest, "refresh");
+        // Keyed on the token itself (hashed, matching how it's stored), not IP + a hardcoded
+        // literal — with nginx in front of core, every caller's getRemoteAddr() is the same
+        // proxy IP, so an IP-based key would have collapsed every user's refresh calls into one
+        // shared bucket, letting one heavy user (or attacker) exhaust everyone else's quota. Each
+        // refresh token is already unique per session, so hashing it gives every user their own
+        // bucket for free. Falls back to the IP-based key only when there's no token to key on.
+        String clientKey = refreshToken != null ? RefreshTokenHasher.hash(refreshToken)
+                : extractClientKey(httpRequest, "refresh");
         rateLimiter.tryAcquire("refresh:" + clientKey, rateLimitProperties.refreshPerMinute(), Duration.ofMinutes(1));
 
         if (refreshToken == null) {

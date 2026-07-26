@@ -62,6 +62,32 @@ class RefreshSessionRepositoryIT extends AbstractIntegrationTest {
         assertThat(reloaded.revokedAt()).isCloseTo(firstRevoke, within(1, ChronoUnit.SECONDS));
     }
 
+    @Test
+    void revokeIfActiveSucceedsOnceForAStillActiveSessionAndReturnsFalseOnEveryRepeat() {
+        UUID userId = insertUser("rotation@vegawatt.local");
+        RefreshSession session = repository.save(
+                RefreshSession.issue(userId, "rotation-token-hash", Instant.now().plusSeconds(3600), Instant.now()));
+
+        boolean firstAttempt = repository.revokeIfActive(session.tokenHash(), Instant.now());
+        boolean secondAttempt = repository.revokeIfActive(session.tokenHash(), Instant.now());
+
+        assertThat(firstAttempt).isTrue();
+        assertThat(secondAttempt).isFalse();
+        RefreshSession reloaded = repository.findByTokenHash(session.tokenHash()).orElseThrow();
+        assertThat(reloaded.revokedAt()).isNotNull();
+    }
+
+    @Test
+    void revokeIfActiveReturnsFalseForAnAlreadyExpiredSession() {
+        UUID userId = insertUser("expired@vegawatt.local");
+        RefreshSession session = repository.save(
+                RefreshSession.issue(userId, "expired-token-hash", Instant.now().minusSeconds(60), Instant.now()));
+
+        boolean attempt = repository.revokeIfActive(session.tokenHash(), Instant.now());
+
+        assertThat(attempt).isFalse();
+    }
+
     private UUID insertUser(String email) {
         UUID id = UUID.randomUUID();
         jdbcTemplate.update("""

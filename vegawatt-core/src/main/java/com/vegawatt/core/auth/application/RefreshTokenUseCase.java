@@ -43,8 +43,12 @@ public class RefreshTokenUseCase {
         if (!session.isActive(now)) {
             throw new InvalidRefreshTokenException();
         }
-        session.revoke(now);
-        refreshSessionRepository.save(session);
+        // The isActive() check above is just a fast rejection for an obviously-dead session — the
+        // real guard is this atomic conditional UPDATE, which only one of two concurrent requests
+        // presenting the same token can win (see RefreshSessionRepository#revokeIfActive).
+        if (!refreshSessionRepository.revokeIfActive(session.tokenHash(), now)) {
+            throw new InvalidRefreshTokenException();
+        }
 
         User user = userRepository.findById(session.userId()).orElseThrow(InvalidRefreshTokenException::new);
 

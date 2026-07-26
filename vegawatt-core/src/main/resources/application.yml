@@ -93,7 +93,10 @@ vegawatt:
     refresh-per-minute: ${RATE_LIMIT_REFRESH_PER_MINUTE:20}
     insight-per-minute: ${RATE_LIMIT_INSIGHT_PER_MINUTE:5}
   jwt:
-    secret: ${JWT_SIGNING_SECRET:vegawatt-super-secret-jwt-key-change-in-production-32bytes!}
+    # No fallback here on purpose: a predictable default signing secret would let anyone who has
+    # ever seen this codebase forge valid JWTs (including admin-role ones) against any deployment
+    # that forgot to set this. The dev profile supplies its own convenience fallback instead.
+    secret: ${JWT_SIGNING_SECRET}
     access-token-ttl-minutes: ${JWT_ACCESS_TOKEN_TTL_MINUTES:15}
     refresh-token-ttl-days: ${JWT_REFRESH_TOKEN_TTL_DAYS:30}
   bootstrap-admin:

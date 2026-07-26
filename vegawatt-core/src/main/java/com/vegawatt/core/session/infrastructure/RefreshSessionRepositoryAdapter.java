@@ -34,6 +34,12 @@ class RefreshSessionRepositoryAdapter implements RefreshSessionRepository {
         jpaRepository.revokeAllByUserId(userId, now);
     }
 
+    @Override
+    @Transactional
+    public boolean revokeIfActive(String tokenHash, Instant now) {
+        return jpaRepository.revokeIfActive(tokenHash, now) > 0;
+    }
+
     private static RefreshSessionEntity toEntity(RefreshSession session) {
         return new RefreshSessionEntity(session.id(), session.userId(), session.tokenHash(), session.expiresAt(),
                 session.revokedAt(), session.createdAt());
