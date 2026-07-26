@@ -2,12 +2,14 @@ import { AlertTriangle, Gauge, Home, Wallet, type LucideIcon } from "lucide-reac
 import type { HomeLiveSummary } from "../../shared/types/home";
 import { formatCurrency, formatEnergy, toSafeNumber } from "../../shared/utils/format";
 import { TONE_BADGE_CLASSES, type Tone } from "../../shared/utils/toneClasses";
+import { useLanguage } from "../../shared/i18n/LanguageContext";
 
 interface DashboardKpisProps {
   homes: HomeLiveSummary[];
 }
 
 interface Kpi {
+  key: string;
   label: string;
   value: string;
   icon: LucideIcon;
@@ -23,16 +25,18 @@ function needsAttention(home: HomeLiveSummary): boolean {
 }
 
 export function DashboardKpis({ homes }: DashboardKpisProps) {
+  const { t } = useLanguage();
   const totalEnergy = homes.reduce((sum, home) => sum + toSafeNumber(home.currentEnergyKwh), 0);
   const totalCost = homes.reduce((sum, home) => sum + toSafeNumber(home.currentCost), 0);
   const attentionCount = homes.filter(needsAttention).length;
 
   const kpis: Kpi[] = [
-    { label: "Kayıtlı Evler", value: String(homes.length), icon: Home, tone: "primary" },
-    { label: "Toplam Güncel Enerji", value: formatEnergy(totalEnergy), icon: Gauge, tone: "info" },
-    { label: "Toplam Güncel Maliyet", value: formatCurrency(totalCost), icon: Wallet, tone: "warning" },
+    { key: "kpi.registeredHomes", label: t("kpi.registeredHomes"), value: String(homes.length), icon: Home, tone: "primary" },
+    { key: "kpi.totalEnergy", label: t("kpi.totalEnergy"), value: formatEnergy(totalEnergy), icon: Gauge, tone: "info" },
+    { key: "kpi.totalCost", label: t("kpi.totalCost"), value: formatCurrency(totalCost), icon: Wallet, tone: "warning" },
     {
-      label: "Dikkat Gerektiren Evler",
+      key: "kpi.attentionHomes",
+      label: t("kpi.attentionHomes"),
       value: String(attentionCount),
       icon: AlertTriangle,
       tone: attentionCount > 0 ? "danger" : "success",

@@ -71,18 +71,17 @@ graph TD
 
 ---
 
-## 🎬 Demo Video & Animations
+## 🎬 Demo Video & Showcase
 
 <div align="center">
 
 ### 📹 Project Video Demo
-[![VegaWatt Demo Video](https://img.shields.io/badge/Watch_Demo_Video-23058001__PROJE.mov-blue?style=for-the-badge&logo=quicktime)](assets/23058001_PROJE.mov)
+<video src="assets/23058001_PROJE.mp4" controls width="100%">
+  Your browser does not support the video tag. <a href="assets/23058001_PROJE.mp4">Click here to watch the demo video.</a>
+</video>
 
-<p align="center">
-  <img src="assets/dashboard.gif" alt="VegaWatt Live Dashboard Animation" width="100%">
-</p>
-<p align="center">
-  <em>Live Telemetry Stream & Anomaly Detection Preview</em>
+<p align="center" style="margin-top: 10px;">
+  <a href="assets/23058001_PROJE.mp4"><strong>▶️ Direct Link: Watch Demo Video (MP4)</strong></a>
 </p>
 
 </div>

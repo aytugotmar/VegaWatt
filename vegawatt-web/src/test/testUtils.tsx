@@ -3,6 +3,7 @@ import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { ToastProvider } from "../shared/components/ToastProvider";
+import { LanguageProvider } from "../shared/i18n/LanguageContext";
 
 export function renderWithProviders(ui: ReactElement) {
   const queryClient = new QueryClient({
@@ -15,7 +16,9 @@ export function renderWithProviders(ui: ReactElement) {
   return render(
     <MemoryRouter>
       <QueryClientProvider client={queryClient}>
-        <ToastProvider>{ui}</ToastProvider>
+        <LanguageProvider>
+          <ToastProvider>{ui}</ToastProvider>
+        </LanguageProvider>
       </QueryClientProvider>
     </MemoryRouter>,
   );

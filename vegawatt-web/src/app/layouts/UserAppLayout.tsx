@@ -4,18 +4,12 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext";
 import { BrandMark } from "../../shared/components/BrandMark";
 import { ThemeToggle } from "../../shared/components/ThemeToggle";
+import { LanguageToggle } from "../../shared/components/LanguageToggle";
 import { Footer } from "../../shared/components/Footer";
 import { ProfileSettingsModal } from "../../features/user/ProfileSettingsModal";
 import { AdminUserManagementModal } from "../../features/admin/AdminUserManagementModal";
 import { useLiveHomesQuery } from "../../shared/hooks/useHomesQueries";
-
-const NAV_ITEMS = [
-  { to: "/app/overview", label: "Genel Bakış", icon: LayoutDashboard },
-  { to: "/app/homes", label: "Evlerim", icon: Home },
-  { to: "/app/devices", label: "Cihazlarım", icon: Cpu },
-  { to: "/app/assistant", label: "AI Asistan", icon: Sparkles },
-  { to: "/app/notifications", label: "Bildirimler", icon: Bell },
-];
+import { useLanguage } from "../../shared/i18n/LanguageContext";
 
 function initialFromEmail(email: string | undefined): string {
   return email ? email[0]!.toUpperCase() : "?";
@@ -25,9 +19,18 @@ export function UserAppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { isError: isSystemDisconnected } = useLiveHomesQuery();
+  const { t } = useLanguage();
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAdminUserModalOpen, setIsAdminUserModalOpen] = useState(false);
+
+  const navItems = [
+    { to: "/app/overview", label: t("nav.overview"), icon: LayoutDashboard },
+    { to: "/app/homes", label: t("nav.homes"), icon: Home },
+    { to: "/app/devices", label: t("nav.devices"), icon: Cpu },
+    { to: "/app/assistant", label: t("nav.assistant"), icon: Sparkles },
+    { to: "/app/notifications", label: t("nav.notifications"), icon: Bell },
+  ];
 
   async function handleLogout() {
     await logout();
@@ -45,7 +48,7 @@ export function UserAppLayout() {
           </div>
 
           <nav className="hidden min-w-0 items-center gap-1 md:flex overflow-x-auto py-0.5" aria-label="Ana gezinme">
-            {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+            {navItems.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -68,10 +71,10 @@ export function UserAppLayout() {
                 <button
                   onClick={() => setIsAdminUserModalOpen(true)}
                   className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-600 transition hover:bg-amber-500 hover:text-white dark:text-amber-400"
-                  title="Kullanıcı & Yetki Yönetimi Paneli"
+                  title={t("nav.userManagement")}
                 >
                   <Users className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  <span className="hidden 2xl:inline">Kullanıcı Yönetimi</span>
+                  <span className="hidden 2xl:inline">{t("nav.userManagement")}</span>
                 </button>
                 <a
                   href="http://localhost:8080/swagger-ui/index.html"
@@ -101,9 +104,10 @@ export function UserAppLayout() {
                 className={`h-1.5 w-1.5 rounded-full ${isSystemDisconnected ? "bg-danger" : "bg-success"}`}
                 aria-hidden="true"
               />
-              {isSystemDisconnected ? "Bağlantı kesildi" : "Sistem canlı"}
+              {isSystemDisconnected ? t("nav.systemDisconnected") : t("nav.systemLive")}
             </span>
 
+            <LanguageToggle />
             <ThemeToggle />
 
             <div className="flex items-center gap-1.5 border-l border-border pl-2">
@@ -123,10 +127,10 @@ export function UserAppLayout() {
                 type="button"
                 onClick={handleLogout}
                 className="flex items-center gap-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 px-2 py-1 text-xs font-semibold text-rose-600 transition hover:bg-rose-500 hover:text-white dark:text-rose-400"
-                title="Çıkış Yap"
+                title={t("nav.logout")}
               >
                 <LogOut className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                <span className="hidden 2xl:inline">Çıkış</span>
+                <span className="hidden 2xl:inline">{t("nav.logout")}</span>
               </button>
             </div>
           </div>
@@ -141,7 +145,7 @@ export function UserAppLayout() {
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-border bg-surface shadow-lg sm:hidden">
-        {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+        {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

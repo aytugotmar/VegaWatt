@@ -4,6 +4,7 @@ import { StatusBadge } from "../../shared/components/StatusBadge";
 import { ProgressBar } from "../../shared/components/ProgressBar";
 import { formatCurrency, formatEnergy, formatRelativeTime } from "../../shared/utils/format";
 import { getHomeHealthStatus } from "../../shared/utils/homeStatus";
+import { useLanguage } from "../../shared/i18n/LanguageContext";
 
 interface HomeCardProps {
   home: HomeLiveSummary;
@@ -11,6 +12,7 @@ interface HomeCardProps {
 }
 
 export function HomeCard({ home, onSelect }: HomeCardProps) {
+  const { t } = useLanguage();
   const status = getHomeHealthStatus(home);
   const isPenalty = home.tariffState === "PENALTY";
 
@@ -29,7 +31,7 @@ export function HomeCard({ home, onSelect }: HomeCardProps) {
           </span>
           <div className="min-w-0">
             <h3 className="truncate font-semibold text-text-primary">{home.homeName}</h3>
-            <p className="text-xs text-text-muted">Son veri: {formatRelativeTime(home.lastUpdatedAt)}</p>
+            <p className="text-xs text-text-muted">{t("card.lastData")} {formatRelativeTime(home.lastUpdatedAt)}</p>
           </div>
         </div>
         <span
@@ -37,31 +39,31 @@ export function HomeCard({ home, onSelect }: HomeCardProps) {
             isPenalty ? "bg-danger-soft text-danger" : "bg-surface-subtle text-text-secondary"
           }`}
         >
-          {isPenalty ? "Ceza tarifesi" : "Standart tarife"}
+          {isPenalty ? t("card.penaltyTariff") : t("card.standardTariff")}
         </span>
       </div>
 
       <div>
-        <span className="text-xs font-medium uppercase tracking-wide text-text-muted">Güncel Maliyet</span>
+        <span className="text-xs font-medium uppercase tracking-wide text-text-muted">{t("card.currentCost")}</span>
         <p className="glow-text-primary mt-1 text-3xl font-bold tracking-tight tabular-nums text-text-primary">
           {formatCurrency(home.currentCost)}
         </p>
       </div>
 
       <div className="flex items-center justify-between text-xs text-text-secondary">
-        <span>Toplam enerji</span>
+        <span>{t("card.totalEnergy")}</span>
         <span className="tabular-nums font-medium text-text-primary">{formatEnergy(home.currentEnergyKwh)}</span>
       </div>
 
       <div className="flex flex-col gap-2.5">
-        <ProgressBar label="Enerji Kotası" percentage={home.energyQuotaPercentage} />
-        <ProgressBar label="Bütçe Kotası" percentage={home.budgetQuotaPercentage} />
+        <ProgressBar label={t("card.energyQuota")} percentage={home.energyQuotaPercentage} />
+        <ProgressBar label={t("card.budgetQuota")} percentage={home.budgetQuotaPercentage} />
       </div>
 
       <div className="flex items-center justify-between border-t border-border pt-3">
         <StatusBadge status={status} />
         <span className="group/details flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary-soft">
-          Detaylar
+          {t("devices.device") === "Device" ? "Details" : "Detaylar"}
           <ArrowRight className="h-3.5 w-3.5 transition group-hover/details:translate-x-0.5" aria-hidden="true" />
         </span>
       </div>

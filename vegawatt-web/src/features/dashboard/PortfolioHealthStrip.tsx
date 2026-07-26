@@ -1,5 +1,6 @@
 import type { HomeLiveSummary } from "../../shared/types/home";
-import { getHomeHealthStatus, getHomeStatusLabel, type HomeHealthStatus } from "../../shared/utils/homeStatus";
+import { getHomeHealthStatus, type HomeHealthStatus } from "../../shared/utils/homeStatus";
+import { useLanguage } from "../../shared/i18n/LanguageContext";
 
 const STATUS_ORDER: HomeHealthStatus[] = ["NORMAL", "WARNING", "CRITICAL", "PENALTY"];
 
@@ -10,10 +11,15 @@ const DOT_CLASS: Record<HomeHealthStatus, string> = {
   PENALTY: "bg-danger",
 };
 
-/** A compact at-a-glance status count, complementing the KPI cards' totals with "how many of
- * each" — every status is always shown, even at zero, so the strip reads as a stable summary
- * rather than a list that reflows as counts change. */
+const STATUS_KEY: Record<HomeHealthStatus, string> = {
+  NORMAL: "health.normal",
+  WARNING: "health.approachingQuota",
+  CRITICAL: "health.quotaExceeded",
+  PENALTY: "health.penaltyTariff",
+};
+
 export function PortfolioHealthStrip({ homes }: { homes: HomeLiveSummary[] }) {
+  const { t } = useLanguage();
   const counts: Record<HomeHealthStatus, number> = { NORMAL: 0, WARNING: 0, CRITICAL: 0, PENALTY: 0 };
   for (const home of homes) {
     counts[getHomeHealthStatus(home)] += 1;
@@ -28,7 +34,7 @@ export function PortfolioHealthStrip({ homes }: { homes: HomeLiveSummary[] }) {
         <span key={status} className="inline-flex items-center gap-1.5">
           <span className={`h-2 w-2 shrink-0 rounded-full ${DOT_CLASS[status]}`} aria-hidden="true" />
           <span className="tabular-nums font-semibold text-text-primary">{counts[status]}</span>
-          {getHomeStatusLabel(status)}
+          {t(STATUS_KEY[status])}
         </span>
       ))}
     </div>
