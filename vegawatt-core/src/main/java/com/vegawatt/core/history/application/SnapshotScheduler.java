@@ -36,7 +36,8 @@ public class SnapshotScheduler {
         for (HomeLiveState liveState : homeLiveStatePort.getAll()) {
             try {
                 consumptionSnapshotRepository.save(ConsumptionSnapshot.create(liveState.homeId(), now,
-                        liveState.currentEnergyKwh(), liveState.currentCost(), liveState.tariffState()));
+                        liveState.currentEnergyKwh(), liveState.currentCost(), liveState.tariffState(),
+                        liveState.billingPeriod()));
             } catch (RuntimeException e) {
                 log.error("Failed to persist consumption snapshot for home {}", liveState.homeId(), e);
             }

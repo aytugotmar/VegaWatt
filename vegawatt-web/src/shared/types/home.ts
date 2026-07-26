@@ -49,6 +49,7 @@ export interface ConsumptionHistoryPoint {
   energyKwh: DecimalValue;
   cost: DecimalValue;
   tariffState: TariffState;
+  billingPeriod: string;
 }
 
 export type EmailStatus = "PENDING" | "SENT" | "FAILED";

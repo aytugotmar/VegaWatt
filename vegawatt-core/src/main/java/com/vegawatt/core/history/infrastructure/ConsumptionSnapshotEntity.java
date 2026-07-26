@@ -30,17 +30,21 @@ class ConsumptionSnapshotEntity {
     @Column(name = "tariff_state", nullable = false)
     private String tariffState;
 
+    @Column(name = "billing_period", nullable = false)
+    private String billingPeriod;
+
     protected ConsumptionSnapshotEntity() {
     }
 
     ConsumptionSnapshotEntity(UUID id, UUID homeId, Instant snapshotTime, BigDecimal accumulatedEnergyKwh,
-                               BigDecimal accumulatedCost, String tariffState) {
+                               BigDecimal accumulatedCost, String tariffState, String billingPeriod) {
         this.id = id;
         this.homeId = homeId;
         this.snapshotTime = snapshotTime;
         this.accumulatedEnergyKwh = accumulatedEnergyKwh;
         this.accumulatedCost = accumulatedCost;
         this.tariffState = tariffState;
+        this.billingPeriod = billingPeriod;
     }
 
     UUID getId() {
@@ -65,5 +69,9 @@ class ConsumptionSnapshotEntity {
 
     String getTariffState() {
         return tariffState;
+    }
+
+    String getBillingPeriod() {
+        return billingPeriod;
     }
 }

@@ -1,11 +1,11 @@
 package com.vegawatt.core.history.application;
 
+import com.vegawatt.core.common.time.BusinessTimeZone;
 import com.vegawatt.core.history.domain.ConsumptionSnapshot;
 import com.vegawatt.core.history.domain.ConsumptionSnapshotRepository;
 import com.vegawatt.core.history.domain.HistoryGranularity;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -69,7 +69,8 @@ public class GetHomeConsumptionHistoryQuery {
                     bucketKey,
                     snapshot.accumulatedEnergyKwh(),
                     snapshot.accumulatedCost(),
-                    snapshot.tariffState()
+                    snapshot.tariffState(),
+                    snapshot.billingPeriod()
             ));
         }
 
@@ -77,7 +78,12 @@ public class GetHomeConsumptionHistoryQuery {
     }
 
     private Instant bucketKey(Instant timestamp, HistoryGranularity granularity) {
-        ZonedDateTime zdt = timestamp.atZone(ZoneOffset.UTC);
+        // DAY buckets must follow the customer's wall clock (Europe/Istanbul), not UTC — a
+        // reading at 01:00 Turkey time is already the next calendar day locally even though it's
+        // still the previous day in UTC. HOUR/FIVE_MINUTES bucket boundaries are unaffected by
+        // this since Istanbul's offset is a fixed +3 with no DST, but using the same zone
+        // everywhere avoids ever having to reason about which granularities are exempt.
+        ZonedDateTime zdt = timestamp.atZone(BusinessTimeZone.ZONE);
         return switch (granularity) {
             case FIVE_MINUTES -> {
                 int min = (zdt.getMinute() / 5) * 5;

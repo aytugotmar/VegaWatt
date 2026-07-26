@@ -31,8 +31,12 @@ interface ChartPoint {
 /**
  * Snapshots store cumulative energy/cost, not the amount used in that interval — the delta
  * between consecutive snapshots is what actually happened, and is what reveals when consumption
- * spiked (a raw cumulative line only ever goes up, which hides that story). Clamped to 0 because
- * a billing rollover or compensating write could otherwise show as negative consumption.
+ * spiked (a raw cumulative line only ever goes up, which hides that story). A billing-period
+ * rollover resets the cumulative counter to 0, so `current - previous` at that exact boundary
+ * point would go deeply negative; clamping that to 0 (as before) silently discarded the real
+ * consumption that happened between the new period's start and this first post-rollover snapshot.
+ * Detecting the rollover via `billingPeriod` and using the current cumulative value as-is (it
+ * already *is* the delta since period start) fixes that without needing to guess.
  */
 function toIntervalDeltas(points: ConsumptionHistoryPoint[]): ChartPoint[] {
   const sorted = [...points].sort((a, b) => new Date(a.snapshotTime).getTime() - new Date(b.snapshotTime).getTime());
@@ -40,10 +44,15 @@ function toIntervalDeltas(points: ConsumptionHistoryPoint[]): ChartPoint[] {
   for (let i = 1; i < sorted.length; i++) {
     const previous = sorted[i - 1];
     const current = sorted[i];
+    const rolledOver = current.billingPeriod !== previous.billingPeriod;
     result.push({
       time: formatDateTime(current.snapshotTime),
-      energyKwh: Math.max(0, toSafeNumber(current.energyKwh) - toSafeNumber(previous.energyKwh)),
-      cost: Math.max(0, toSafeNumber(current.cost) - toSafeNumber(previous.cost)),
+      energyKwh: rolledOver
+        ? Math.max(0, toSafeNumber(current.energyKwh))
+        : Math.max(0, toSafeNumber(current.energyKwh) - toSafeNumber(previous.energyKwh)),
+      cost: rolledOver
+        ? Math.max(0, toSafeNumber(current.cost))
+        : Math.max(0, toSafeNumber(current.cost) - toSafeNumber(previous.cost)),
       penalty: current.tariffState === "PENALTY",
     });
   }

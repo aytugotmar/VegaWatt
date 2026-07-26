@@ -33,12 +33,13 @@ class ConsumptionSnapshotRepositoryAdapter implements ConsumptionSnapshotReposit
 
     private static ConsumptionSnapshotEntity toEntity(ConsumptionSnapshot snapshot) {
         return new ConsumptionSnapshotEntity(snapshot.id(), snapshot.homeId(), snapshot.snapshotTime(),
-                snapshot.accumulatedEnergyKwh(), snapshot.accumulatedCost().amount(), snapshot.tariffState().name());
+                snapshot.accumulatedEnergyKwh(), snapshot.accumulatedCost().amount(), snapshot.tariffState().name(),
+                snapshot.billingPeriod());
     }
 
     private static ConsumptionSnapshot toDomain(ConsumptionSnapshotEntity entity) {
         return new ConsumptionSnapshot(entity.getId(), entity.getHomeId(), entity.getSnapshotTime(),
                 entity.getAccumulatedEnergyKwh(), Money.of(entity.getAccumulatedCost()),
-                TariffState.valueOf(entity.getTariffState()));
+                TariffState.valueOf(entity.getTariffState()), entity.getBillingPeriod());
     }
 }

@@ -12,11 +12,12 @@ public record ConsumptionSnapshot(
         Instant snapshotTime,
         BigDecimal accumulatedEnergyKwh,
         Money accumulatedCost,
-        TariffState tariffState) {
+        TariffState tariffState,
+        String billingPeriod) {
 
     public static ConsumptionSnapshot create(UUID homeId, Instant snapshotTime, BigDecimal accumulatedEnergyKwh,
-                                              Money accumulatedCost, TariffState tariffState) {
+                                              Money accumulatedCost, TariffState tariffState, String billingPeriod) {
         return new ConsumptionSnapshot(UUID.randomUUID(), homeId, snapshotTime, accumulatedEnergyKwh,
-                accumulatedCost, tariffState);
+                accumulatedCost, tariffState, billingPeriod);
     }
 }

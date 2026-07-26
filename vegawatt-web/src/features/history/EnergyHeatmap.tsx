@@ -12,10 +12,15 @@ function bucketizeByDayAndHour(points: ConsumptionHistoryPoint[]): number[][] {
   );
 
   // Snapshots store the home's cumulative energy, not an interval delta — the delta between
-  // consecutive snapshots is what actually happened in that hour. Clamped to 0 because a
-  // rollover or a compensating write could otherwise show as negative consumption.
+  // consecutive snapshots is what actually happened in that hour. A billing-period rollover
+  // resets the cumulative counter, so at that exact boundary the current cumulative value itself
+  // (not a diff against the previous, now-stale-period value) is the real delta since period
+  // start; see ConsumptionChart's toIntervalDeltas for the same fix with more detail.
   for (let i = 1; i < sorted.length; i++) {
-    const delta = Math.max(0, toSafeNumber(sorted[i].energyKwh) - toSafeNumber(sorted[i - 1].energyKwh));
+    const rolledOver = sorted[i].billingPeriod !== sorted[i - 1].billingPeriod;
+    const delta = rolledOver
+      ? Math.max(0, toSafeNumber(sorted[i].energyKwh))
+      : Math.max(0, toSafeNumber(sorted[i].energyKwh) - toSafeNumber(sorted[i - 1].energyKwh));
     const at = new Date(sorted[i].snapshotTime);
     const mondayFirstDay = (at.getDay() + 6) % 7;
     grid[mondayFirstDay][at.getHours()] += delta;

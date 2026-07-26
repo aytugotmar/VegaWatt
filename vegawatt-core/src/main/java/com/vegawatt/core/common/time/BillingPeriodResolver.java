@@ -1,7 +1,6 @@
 package com.vegawatt.core.common.time;
 
 import java.time.Instant;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -10,8 +9,8 @@ import java.time.format.DateTimeFormatter;
  */
 public final class BillingPeriodResolver {
 
-    private static final ZoneId ZONE = ZoneId.of("Europe/Istanbul");
-    private static final DateTimeFormatter PERIOD_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM").withZone(ZONE);
+    private static final DateTimeFormatter PERIOD_FORMAT =
+            DateTimeFormatter.ofPattern("yyyy-MM").withZone(BusinessTimeZone.ZONE);
 
     private BillingPeriodResolver() {
     }
