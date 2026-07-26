@@ -20,7 +20,7 @@ export function HomeCard({ home, onSelect }: HomeCardProps) {
     <button
       type="button"
       onClick={() => onSelect(home.homeId)}
-      aria-label={`${home.homeName} ${t("status.details")}`}
+      aria-label={`${home.homeName} detaylarını görüntüle`}
       className="glow-card flex flex-col gap-4 rounded-card border border-border bg-surface p-5 text-left shadow-[var(--shadow-card)] transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       data-testid="home-card"
     >
