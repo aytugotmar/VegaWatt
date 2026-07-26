@@ -13,6 +13,7 @@ import { Dialog } from "../../shared/components/Dialog";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Skeleton";
 import { useLiveHomesQuery } from "../../shared/hooks/useHomesQueries";
+import { useLanguage } from "../../shared/i18n/LanguageContext";
 import { formatPercentage, formatPower, formatRelativeTime } from "../../shared/utils/format";
 import { getApplianceHealthTone } from "../../shared/utils/homeStatus";
 import { AddApplianceModal } from "../home-details/AddApplianceModal";
@@ -33,8 +34,6 @@ const BAR_TONE_CLASS: Record<"normal" | "warning" | "critical", string> = {
   critical: "bg-danger",
 };
 
-/** Cihaz eklemek bir eve bağlı bir işlem — kullanıcının birden fazla evi varsa hangisine
- * ekleneceğini önce sormamız gerekiyor. */
 function HomePickerDialog({
   homes,
   onSelect,
@@ -44,17 +43,18 @@ function HomePickerDialog({
   onSelect: (homeId: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
   const titleId = useId();
   return (
     <Dialog open onClose={onClose} labelledBy={titleId} maxWidthClassName="max-w-sm">
       <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
         <h2 id={titleId} className="text-lg font-semibold text-text-primary">
-          Hangi eve ekleyelim?
+          {t("devices.whichHome")}
         </h2>
         <button
           type="button"
           onClick={onClose}
-          aria-label="Kapat"
+          aria-label={t("common.close")}
           className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted transition hover:bg-surface-subtle hover:text-text-primary"
         >
           <X className="h-4 w-4" aria-hidden="true" />
@@ -79,6 +79,7 @@ function HomePickerDialog({
 import { ViewModeToggle, type ViewMode } from "../../shared/components/ViewModeToggle";
 
 export function DevicesPage() {
+  const { t, language } = useLanguage();
   const { devices, isLoading, isError } = useAllAppliances();
   const { data: liveHomes } = useLiveHomesQuery();
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -124,7 +125,7 @@ export function DevicesPage() {
   if (isLoading) {
     return (
       <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <Spinner label="Cihazlar yükleniyor..." />
+        <Spinner label={t("common.loading")} />
       </div>
     );
   }
@@ -134,13 +135,13 @@ export function DevicesPage() {
       <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <EmptyState
           icon={Cpu}
-          title="Henüz cihaz yok"
-          description="Evlerinize cihaz ekleyince burada listelenecek."
+          title={t("devices.noDevicesTitle")}
+          description={t("devices.noDevicesDesc")}
           action={
             homes.length > 0 ? (
               <Button variant="primary" onClick={handleAddApplianceClick}>
                 <Plus className="h-4 w-4" aria-hidden="true" />
-                Cihaz Ekle
+                {t("devices.addAppliance")}
               </Button>
             ) : undefined
           }
@@ -165,13 +166,13 @@ export function DevicesPage() {
   return (
     <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
       <div className="mb-5 flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Cihazlarım</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">{t("devices.title")}</h1>
         <div className="flex items-center gap-3">
           <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
           {homes.length > 0 && (
             <Button variant="primary" onClick={handleAddApplianceClick}>
               <Plus className="h-4 w-4" aria-hidden="true" />
-              Cihaz Ekle
+              {t("devices.addAppliance")}
             </Button>
           )}
         </div>
@@ -182,9 +183,9 @@ export function DevicesPage() {
           value={homeFilter}
           onChange={(event) => setHomeFilter(event.target.value)}
           className="form-input w-full sm:w-auto"
-          aria-label="Ev filtresi"
+          aria-label={t("table.home")}
         >
-          <option value="ALL">Tüm evler</option>
+          <option value="ALL">{t("devices.allHomes")}</option>
           {homeOptions.map(([id, name]) => (
             <option key={id} value={id}>
               {name}
@@ -195,9 +196,9 @@ export function DevicesPage() {
           value={typeFilter}
           onChange={(event) => setTypeFilter(event.target.value)}
           className="form-input w-full sm:w-auto"
-          aria-label="Cihaz tipi filtresi"
+          aria-label={t("devices.device")}
         >
-          <option value="ALL">Tüm cihaz tipleri</option>
+          <option value="ALL">{t("devices.allTypes")}</option>
           {typeOptions.map((type) => (
             <option key={type} value={type}>
               {getApplianceTypeLabel(type)}
@@ -208,11 +209,11 @@ export function DevicesPage() {
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
           className="form-input w-full sm:w-auto"
-          aria-label="Durum filtresi"
+          aria-label={t("table.status")}
         >
-          <option value="ALL">Tüm durumlar</option>
-          <option value="ANOMALOUS">Sadece anomali</option>
-          <option value="NORMAL">Sadece normal</option>
+          <option value="ALL">{t("filter.allStatus")}</option>
+          <option value="ANOMALOUS">{t("devices.onlyAnomalous")}</option>
+          <option value="NORMAL">{t("devices.onlyNormal")}</option>
         </select>
       </div>
 
@@ -223,7 +224,7 @@ export function DevicesPage() {
             const modeLabel =
               getOperatingModeLabel(device.appliance.operatingMode) ??
               getOperatingStateLabel(device.appliance.operatingState) ??
-              "Normal";
+              t("status.normal");
             return (
               <Link
                 key={device.appliance.applianceId}
@@ -247,33 +248,33 @@ export function DevicesPage() {
                     </div>
                     {device.appliance.anomalous ? (
                       <span className="shrink-0 rounded-full bg-danger-soft px-2 py-0.5 text-xs font-bold text-danger">
-                        Anomali
+                        {t("health.anomaly")}
                       </span>
                     ) : (
                       <span className="shrink-0 rounded-full bg-success-soft px-2 py-0.5 text-xs font-medium text-success">
-                        Normal
+                        {t("status.normal")}
                       </span>
                     )}
                   </div>
 
                   <div className="my-3 flex items-center justify-between border-t border-b border-border/60 py-2.5 text-xs">
-                    <span className="text-text-muted">Çalışma Modu</span>
+                    <span className="text-text-muted">{t("card.operatingMode")}</span>
                     <span className="font-semibold text-primary rounded-full bg-primary-soft/60 px-2 py-0.5">
                       {modeLabel}
                     </span>
                   </div>
 
                   <div className="flex items-baseline justify-between">
-                    <span className="text-xs text-text-muted">Güncel Güç</span>
+                    <span className="text-xs text-text-muted">{t("card.currentPower")}</span>
                     <span className="text-xl font-bold text-text-primary">
-                      {formatPower(device.appliance.currentPowerWatt)}
+                      {formatPower(device.appliance.currentPowerWatt, language)}
                     </span>
                   </div>
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between text-xs text-text-muted">
-                  <span>Pay: {formatPercentage(device.shareOfTotalPower * 100)}</span>
-                  <span>{formatRelativeTime(device.appliance.lastUpdatedAt)}</span>
+                  <span>{t("card.share")}: {formatPercentage(device.shareOfTotalPower * 100, language)}</span>
+                  <span>{formatRelativeTime(device.appliance.lastUpdatedAt, language)}</span>
                 </div>
               </Link>
             );
@@ -284,13 +285,13 @@ export function DevicesPage() {
           <table className="w-full min-w-[820px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-border-strong bg-surface-subtle text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
-                <th className="px-4 py-3">Cihaz</th>
-                <th className="px-4 py-3">Ev</th>
-                <th className="px-4 py-3">Çalışma Modu</th>
-                <th className="px-4 py-3">Güncel güç</th>
-                <th className="px-4 py-3">Limit kullanımı</th>
-                <th className="px-4 py-3">Pay</th>
-                <th className="px-4 py-3">Son veri</th>
+                <th className="px-4 py-3">{t("devices.device")}</th>
+                <th className="px-4 py-3">{t("devices.home")}</th>
+                <th className="px-4 py-3">{t("card.operatingMode")}</th>
+                <th className="px-4 py-3">{t("card.currentPower")}</th>
+                <th className="px-4 py-3">{t("devices.limitUsage")}</th>
+                <th className="px-4 py-3">{t("card.share")}</th>
+                <th className="px-4 py-3">{t("table.lastData")}</th>
               </tr>
             </thead>
             <tbody>
@@ -300,7 +301,7 @@ export function DevicesPage() {
                 const modeLabel =
                   getOperatingModeLabel(device.appliance.operatingMode) ??
                   getOperatingStateLabel(device.appliance.operatingState) ??
-                  "Normal";
+                  t("status.normal");
                 return (
                   <tr
                     key={device.appliance.applianceId}
@@ -321,7 +322,7 @@ export function DevicesPage() {
                             {device.appliance.applianceName}
                             {device.appliance.anomalous && (
                               <span className="shrink-0 rounded-full bg-danger-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-danger">
-                                Yüksek tüketim
+                                {t("devices.highConsumption")}
                               </span>
                             )}
                           </span>
@@ -338,7 +339,7 @@ export function DevicesPage() {
                       </span>
                     </td>
                     <td className="tabular-nums px-4 py-3.5 text-text-secondary">
-                      {formatPower(device.appliance.currentPowerWatt)}
+                      {formatPower(device.appliance.currentPowerWatt, language)}
                     </td>
                     <td className="px-4 py-3.5">
                       {device.limitUsagePercentage === null ? (
@@ -352,15 +353,15 @@ export function DevicesPage() {
                             />
                           </div>
                           <span className="tabular-nums text-xs text-text-secondary">
-                            {formatPercentage(device.limitUsagePercentage)}
+                            {formatPercentage(device.limitUsagePercentage, language)}
                           </span>
                         </div>
                       )}
                     </td>
                     <td className="tabular-nums px-4 py-3.5 text-text-muted">
-                      {formatPercentage(device.shareOfTotalPower * 100)}
+                      {formatPercentage(device.shareOfTotalPower * 100, language)}
                     </td>
-                    <td className="px-4 py-3.5 text-text-muted">{formatRelativeTime(device.appliance.lastUpdatedAt)}</td>
+                    <td className="px-4 py-3.5 text-text-muted">{formatRelativeTime(device.appliance.lastUpdatedAt, language)}</td>
                   </tr>
                 );
               })}

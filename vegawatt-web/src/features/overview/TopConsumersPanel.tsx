@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { getApplianceIcon } from "../../shared/constants/applianceTypes";
 import { formatPercentage, formatPower } from "../../shared/utils/format";
 import type { TopConsumer } from "./useOverviewData";
+import { useLanguage } from "../../shared/i18n/LanguageContext";
 
 interface TopConsumersPanelProps {
   consumers: TopConsumer[];
@@ -11,11 +12,13 @@ interface TopConsumersPanelProps {
 }
 
 export function TopConsumersPanel({ consumers, linkToHomes = true }: TopConsumersPanelProps) {
+  const { t } = useLanguage();
+
   return (
     <div className="card-glass flex flex-col gap-3 rounded-input border border-border p-5">
-      <span className="text-xs font-medium uppercase tracking-wide text-text-muted">En Çok Tüketen Cihazlar</span>
+      <span className="text-xs font-medium uppercase tracking-wide text-text-muted">{t("overview.topConsumers")}</span>
       {consumers.length === 0 ? (
-        <p className="py-2 text-sm text-text-muted">Henüz veri yok.</p>
+        <p className="py-2 text-sm text-text-muted">{t("overview.noDataYet")}</p>
       ) : (
         <ol className="flex flex-col gap-3">
           {consumers.map((consumer) => {

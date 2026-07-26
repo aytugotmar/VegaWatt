@@ -3,6 +3,7 @@ import { ApiError } from "../../shared/api/client";
 import { Button } from "../../shared/components/Button";
 import { Input } from "../../shared/components/Input";
 import { PasswordInput } from "../../shared/components/PasswordInput";
+import { useLanguage } from "../../shared/i18n/LanguageContext";
 import { useAuth } from "./AuthContext";
 
 interface LoginFormProps {
@@ -10,6 +11,7 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
+  const { t } = useLanguage();
   const { login } = useAuth();
   const [email, setEmail] = useState("admin@vegawatt.com");
   const [password, setPassword] = useState("VegaWatt111!");
@@ -24,7 +26,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       await login(email, password);
       onSuccess();
     } catch (error) {
-      setErrorMessage(error instanceof ApiError ? error.message : "Giriş yapılamadı.");
+      setErrorMessage(error instanceof ApiError ? error.message : t("auth.loginFailed"));
     } finally {
       setIsSubmitting(false);
     }
@@ -33,7 +35,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <Input
-        label="E-posta"
+        label={t("auth.email")}
         type="email"
         autoComplete="email"
         required
@@ -42,7 +44,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         onChange={(event) => setEmail(event.target.value)}
       />
       <PasswordInput
-        label="Parola"
+        label={t("auth.password")}
         autoComplete="current-password"
         required
         value={password}
@@ -50,7 +52,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       />
       {errorMessage && <p className="text-sm font-medium text-danger">{errorMessage}</p>}
       <Button type="submit" loading={isSubmitting} className="h-12 justify-center">
-        Giriş Yap
+        {t("auth.signIn")}
       </Button>
     </form>
   );

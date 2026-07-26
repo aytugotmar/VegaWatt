@@ -1,15 +1,18 @@
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { AttentionItem } from "./useOverviewData";
+import { useLanguage } from "../../shared/i18n/LanguageContext";
 
 export function AttentionPanel({ items }: { items: AttentionItem[] }) {
+  const { t } = useLanguage();
+
   return (
     <div className="card-glass flex flex-col gap-2 rounded-input border border-border p-5">
-      <span className="text-xs font-medium uppercase tracking-wide text-text-muted">Dikkat Gerektirenler</span>
+      <span className="text-xs font-medium uppercase tracking-wide text-text-muted">{t("overview.needsAttention")}</span>
       {items.length === 0 ? (
         <div className="flex items-center gap-2 py-2 text-sm text-text-secondary">
           <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
-          Her şey normal görünüyor.
+          {t("overview.everythingNormal")}
         </div>
       ) : (
         <ul className="flex flex-col gap-2">
