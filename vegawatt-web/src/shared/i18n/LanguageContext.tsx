@@ -77,7 +77,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     "kpi.attentionHomes": "Dikkat Gerektiren Evler",
 
     // Filters
-    "filter.searchPlaceholder": "Ev ara...",
+    "filter.searchPlaceholder": "Ev ara",
     "filter.allStatus": "Tüm durumlar",
     "filter.allTariffs": "Tüm tarifeler",
     "filter.critical": "En kritik",
@@ -99,6 +99,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     "card.currentPower": "Güncel Güç",
     "card.operatingMode": "Çalışma Modu",
     "card.share": "Pay",
+    "card.viewDetails": "{name} detaylarını görüntüle",
 
     // Devices Page
     "devices.title": "Cihazlarım",
@@ -262,7 +263,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     "kpi.attentionHomes": "Homes Requiring Attention",
 
     // Filters
-    "filter.searchPlaceholder": "Search homes...",
+    "filter.searchPlaceholder": "Search homes",
     "filter.allStatus": "All status",
     "filter.allTariffs": "All tariffs",
     "filter.critical": "Most critical",
@@ -284,6 +285,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     "card.currentPower": "Current Power",
     "card.operatingMode": "Operating Mode",
     "card.share": "Share",
+    "card.viewDetails": "View details for {name}",
 
     // Devices Page
     "devices.title": "My Devices",

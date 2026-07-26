@@ -66,7 +66,7 @@ const HomeTableRow = memo(function HomeTableRow({
     <tr
       role="button"
       tabIndex={0}
-      aria-label={`${home.homeName} ${t("status.details")}`}
+      aria-label={`${home.homeName} detaylarını görüntüle`}
       onClick={() => onSelect(home.homeId)}
       onKeyDown={handleKeyDown}
       className="cursor-pointer border-b border-border last:border-b-0 transition hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
