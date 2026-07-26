@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Enforce LF for shell scripts and wrapper scripts
+mvnw text eol=lf
+*.sh text eol=lf
