@@ -1,7 +1,9 @@
 package com.vegawatt.core.telemetry.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -67,5 +69,21 @@ class TelemetryEventKafkaConsumerTest {
         assertThat(captor.getValue().operatingMode()).isNull();
         // A payload without the field deserializes to sequence 0, which the guard treats as unguarded.
         assertThat(captor.getValue().sequenceNumber()).isZero();
+    }
+
+    @Test
+    void rejectsAnUnsupportedEventVersionInsteadOfProcessingItAsIfItWereKnown() throws Exception {
+        UUID homeId = UUID.randomUUID();
+        UUID applianceId = UUID.randomUUID();
+        TelemetryEventPayload payload = new TelemetryEventPayload(UUID.randomUUID(), 99, Instant.now(), homeId,
+                applianceId, 1L, new BigDecimal("120.50"), ApplianceOperatingState.STANDBY, "STANDBY", 5);
+
+        assertThatThrownBy(() -> consumer.onMessage(new ConsumerRecord<>("vegawatt.telemetry.v1", 0, 0L,
+                homeId.toString(), objectMapper.writeValueAsString(payload))))
+                .isInstanceOf(UnsupportedTelemetryEventVersionException.class);
+
+        // Thrown, not swallowed — KafkaErrorHandlingConfig routes this straight to the DLT rather
+        // than silently processing a payload shaped like a version this consumer never validated.
+        verifyNoInteractions(processTelemetryUseCase);
     }
 }

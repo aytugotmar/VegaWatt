@@ -2,6 +2,7 @@ package com.vegawatt.core.common.config;
 
 import com.vegawatt.core.home.domain.ApplianceNotFoundException;
 import com.vegawatt.core.home.domain.HomeNotFoundException;
+import com.vegawatt.core.telemetry.infrastructure.UnsupportedTelemetryEventVersionException;
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,7 +43,7 @@ public class KafkaErrorHandlingConfig {
 
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, backOff);
         errorHandler.addNotRetryableExceptions(HomeNotFoundException.class, ApplianceNotFoundException.class,
-                IllegalArgumentException.class);
+                IllegalArgumentException.class, UnsupportedTelemetryEventVersionException.class);
         return errorHandler;
     }
 }

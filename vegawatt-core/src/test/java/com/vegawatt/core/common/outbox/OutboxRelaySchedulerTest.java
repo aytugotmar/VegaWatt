@@ -108,6 +108,46 @@ class OutboxRelaySchedulerTest {
     }
 
     @Test
+    void deadLettersAnUnknownEventTypeImmediatelyWithoutAttemptingAKafkaSend() {
+        OutboxEvent unknownType = OutboxEvent.create("HOME", UUID.randomUUID(), "SOMETHING_NOBODY_HANDLES", "{}",
+                NOW);
+        when(outboxRepository.findUnpublished(anyInt())).thenReturn(List.of(unknownType));
+
+        scheduler().relayPendingEvents();
+
+        ArgumentCaptor<OutboxEvent> saved = ArgumentCaptor.forClass(OutboxEvent.class);
+        org.mockito.Mockito.verify(outboxRepository).save(saved.capture());
+        assertThat(saved.getValue().deadLettered())
+                .as("an unrecognized event type is never transient — retrying can't resolve it")
+                .isTrue();
+        org.mockito.Mockito.verifyNoInteractions(kafkaTemplate);
+    }
+
+    @Test
+    void oneUnknownEventTypeDoesNotStopTheRestOfTheBatchFromBeingRelayed() {
+        // The bug this test guards against: resolveTopic() throwing for one event used to escape
+        // relay() entirely and abort relayPendingEvents()'s for-loop, silently skipping every event
+        // after it in the same batch for the whole tick.
+        OutboxEvent unknownType = OutboxEvent.create("HOME", UUID.randomUUID(), "SOMETHING_NOBODY_HANDLES", "{}",
+                NOW);
+        OutboxEvent validEvent = pendingRegistration();
+        when(outboxRepository.findUnpublished(anyInt())).thenReturn(List.of(unknownType, validEvent));
+        when(clockProvider.now()).thenReturn(NOW);
+        when(kafkaTemplate.send(any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture((SendResult<String, String>) null));
+
+        scheduler().relayPendingEvents();
+
+        ArgumentCaptor<OutboxEvent> saved = ArgumentCaptor.forClass(OutboxEvent.class);
+        org.mockito.Mockito.verify(outboxRepository, org.mockito.Mockito.times(2)).save(saved.capture());
+        List<OutboxEvent> savedEvents = saved.getAllValues();
+        assertThat(savedEvents.get(0).deadLettered()).isTrue();
+        assertThat(savedEvents.get(1).isPublished())
+                .as("the valid event after the bad one in the batch must still be relayed")
+                .isTrue();
+    }
+
+    @Test
     void marksTheEventPublishedWhenTheSendSucceeds() {
         OutboxEvent event = pendingRegistration();
         when(outboxRepository.findUnpublished(anyInt())).thenReturn(List.of(event));

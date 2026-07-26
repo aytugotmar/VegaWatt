@@ -103,15 +103,27 @@ public class ProcessTelemetryUseCase {
         // keyed by homeId, so one home's events are consumed in order on a single partition and no
         // other event for this appliance can interleave between this check and the update below. A
         // failed persist compensates the appliance state back, sequence included, so a retry is not
-        // mistaken for a stale event. Sequence 0 means the field was absent (a pre-sequence producer),
-        // and I let those through unguarded rather than silently dropping every reading after the first.
+        // mistaken for a stale event.
         long lastProcessedSequence = applianceLiveStatePort.get(reading.homeId(), reading.applianceId())
                 .map(ApplianceLiveState::lastProcessedSequence)
                 .orElse(0L);
-        if (reading.sequenceNumber() > 0 && reading.sequenceNumber() <= lastProcessedSequence) {
-            log.warn("Dropping out-of-order telemetry event {} for appliance {}: sequence {} is not newer than the "
-                            + "last processed sequence {}", reading.eventId(), appliance.id(),
-                    reading.sequenceNumber(), lastProcessedSequence);
+        boolean hasRealSequence = reading.sequenceNumber() > 0;
+        if (hasRealSequence) {
+            if (reading.sequenceNumber() <= lastProcessedSequence) {
+                log.warn("Dropping out-of-order telemetry event {} for appliance {}: sequence {} is not newer than "
+                                + "the last processed sequence {}", reading.eventId(), appliance.id(),
+                        reading.sequenceNumber(), lastProcessedSequence);
+                return;
+            }
+        } else if (lastProcessedSequence > 0) {
+            // A sequence-less (0, absent-field default) or invalid (negative) reading is only
+            // let through unguarded for an appliance that has never seen a real v2-sequenced event
+            // yet (lastProcessedSequence == 0) — a legitimate pre-sequence producer's readings. Once
+            // this appliance has established real sequencing, a reading with no usable sequence
+            // must not be allowed to rewind live state just because it claims to be unguarded.
+            log.warn("Dropping sequence-less telemetry event {} for appliance {}: appliance has already advanced "
+                            + "to sequence {} under real sequencing", reading.eventId(), appliance.id(),
+                    lastProcessedSequence);
             return;
         }
 
@@ -178,7 +190,8 @@ public class ProcessTelemetryUseCase {
                             result.consecutiveBreachCount(), result.consecutiveNormalCount(), result.anomalous(),
                             standbyResult.standbyBreachCount(), standbyResult.standbyRecoveryCount(),
                             standbyResult.standbyAnomalyActive(), ApplianceHealthStatus.NORMAL, occurredAt,
-                            reading.eventId(), newLastProcessedSequence, existing.stateVersion());
+                            reading.eventId(), newLastProcessedSequence, existing.stateVersion(),
+                            existing.catalogCode(), existing.catalogDisplayName(), existing.catalogIconKey());
                 });
 
         HomeUpdateOutcome homeOutcome = homeOutcomeRef.get();
@@ -264,17 +277,16 @@ public class ProcessTelemetryUseCase {
      * A failed PostgreSQL persist leaves Ignite's live state ahead of the permanent ledger (the
      * energy/cost increment was already applied in Ignite but never durably recorded). Rebuilding
      * both the home's and appliance's live states back to their pre-event values in a single atomic
-     * Ignite transaction undoes that drift cleanly — but only for whichever side's current cache
-     * entry still has the exact {@code stateVersion} this event's own {@code update()} call stamped
-     * ({@code stateUpdate}); see {@link com.vegawatt.core.home.domain.TelemetryLiveStatePort#restore}
-     * for why a plain unconditional (or {@code lastEventId}-keyed) restore would be unsafe under
-     * concurrent processing — including by non-telemetry mutators like {@code TelemetryHealthScheduler}.
+     * Ignite transaction undoes that drift cleanly; see
+     * {@link com.vegawatt.core.home.domain.TelemetryLiveStatePort#restore} for why home and
+     * appliance each need a different compare-and-swap strategy to do this safely under concurrent
+     * processing — including by non-telemetry mutators like {@code TelemetryHealthScheduler}.
      */
     private void compensateLiveState(UUID homeId, UUID applianceId, UUID eventId, TelemetryLiveStateUpdate stateUpdate,
                                      HomeLiveState previousHome, ApplianceLiveState previousAppliance) {
         try {
             telemetryLiveStatePort.restore(homeId, applianceId, eventId, stateUpdate.homeState().stateVersion(),
-                    stateUpdate.applianceState().stateVersion(), previousHome, previousAppliance);
+                    previousHome, previousAppliance);
         } catch (RuntimeException compensationFailure) {
             log.error("Failed to compensate Ignite live state for home {} and appliance {}", homeId, applianceId,
                     compensationFailure);

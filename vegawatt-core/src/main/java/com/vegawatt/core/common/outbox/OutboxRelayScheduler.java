@@ -48,7 +48,21 @@ public class OutboxRelayScheduler {
     }
 
     private void relay(OutboxEvent event) {
-        String topic = resolveTopic(event.eventType());
+        String topic;
+        try {
+            topic = resolveTopic(event.eventType());
+        } catch (UnknownOutboxEventTypeException e) {
+            // Not transient — no retry will ever resolve an event type this code doesn't know
+            // about — and it must not propagate out of this method: an uncaught exception here
+            // would abort relayPendingEvents()'s for-loop entirely, leaving every event after
+            // this one in the batch unprocessed for the whole tick, indefinitely (since this
+            // event stays un-dead-lettered and un-published, it would be refetched and hit the
+            // same throw on every subsequent tick too).
+            log.error("Dead-lettering outbox event {} — unrecognized event type, will never resolve by retrying",
+                    event.id(), e);
+            outboxRepository.save(event.retryFailed().deadLetter());
+            return;
+        }
         try {
             // Bounded on purpose. An unbounded get() waits for as long as the broker is
             // unreachable, and it does so holding this scheduler's only thread, so a Kafka
@@ -95,7 +109,7 @@ public class OutboxRelayScheduler {
     private String resolveTopic(String eventType) {
         return switch (eventType) {
             case "ASSET_REGISTERED" -> kafkaProperties.registrationTopic();
-            default -> throw new IllegalStateException("Unknown outbox event type: " + eventType);
+            default -> throw new UnknownOutboxEventTypeException(eventType);
         };
     }
 }

@@ -138,7 +138,7 @@ class ProcessTelemetryUseCaseTest {
     private static ApplianceLiveState applianceStateWithSequence(long lastProcessedSequence) {
         return new ApplianceLiveState(HOME_ID, APPLIANCE_ID, "Fridge", "REFRIGERATOR", new BigDecimal("200"),
                 new BigDecimal("0"), null, null, BigDecimal.ZERO.setScale(9), 0, 0, false, 0, 0, false,
-                ApplianceHealthStatus.NORMAL, NOW, null, lastProcessedSequence, 0L);
+                ApplianceHealthStatus.NORMAL, NOW, null, lastProcessedSequence, 0L, null, null, null);
     }
 
     @Test
@@ -253,7 +253,7 @@ class ProcessTelemetryUseCaseTest {
     void telemetryResumesAfterStaleStatusResetsHealthAndFlagsRecorderForResumedEvent() {
         applianceLiveStateSlot = new ApplianceLiveState(HOME_ID, APPLIANCE_ID, "Fridge", "REFRIGERATOR",
                 new BigDecimal("200"), new BigDecimal("0"), null, null, BigDecimal.ZERO.setScale(9), 0, 0, false, 0,
-                0, false, ApplianceHealthStatus.STALE, NOW.minusSeconds(60), null, 0L, 0L);
+                0, false, ApplianceHealthStatus.STALE, NOW.minusSeconds(60), null, 0L, 0L, null, null, null);
 
         useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
 
@@ -305,19 +305,19 @@ class ProcessTelemetryUseCaseTest {
         assertThatThrownBy(() -> useCase.execute(reading(eventId, new BigDecimal("1000"))))
                 .isInstanceOf(RuntimeException.class);
 
-        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), anyLong(), anyLong(), any(), any());
+        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), anyLong(), any(), any());
     }
 
     @Test
-    void compensatesUsingTheExactVersionsStampedByThisEventsOwnUpdate() {
+    void compensatesUsingTheExactHomeVersionStampedByThisEventsOwnUpdate() {
         // Distinct from the compare-and-swap correctness proven in IgniteTelemetryLiveStateAdapterTest
         // (which tests restore() in isolation): this proves ProcessTelemetryUseCase actually threads
-        // the real stateVersion values from its own update() result through to restore(), rather than
-        // some placeholder — the wiring a previous eventId-keyed CAS didn't need at all.
+        // the real home stateVersion from its own update() result through to restore(), rather than
+        // some placeholder. Only home uses a version-based CAS at all — see restore()'s own javadoc
+        // for why the appliance side is gated on lastEventId instead.
         homeLiveStateSlot = new HomeLiveState(HOME_ID, "Test Ev", BigDecimal.ZERO.setScale(9), Money.zero(),
                 BigDecimal.ZERO, BigDecimal.ZERO, TariffState.BASE, false, BillingPeriodResolver.currentPeriod(NOW),
                 NOW, null, 7L);
-        applianceLiveStateSlot = applianceStateWithSequence(0L).withStateVersion(9L);
         doThrow(new RuntimeException("postgres unavailable"))
                 .when(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), any(),
                         anyBoolean(), any(), any(), anyInt());
@@ -327,11 +327,9 @@ class ProcessTelemetryUseCaseTest {
                 .isInstanceOf(RuntimeException.class);
 
         org.mockito.ArgumentCaptor<Long> homeVersion = org.mockito.ArgumentCaptor.forClass(Long.class);
-        org.mockito.ArgumentCaptor<Long> applianceVersion = org.mockito.ArgumentCaptor.forClass(Long.class);
         verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), homeVersion.capture(),
-                applianceVersion.capture(), any(), any());
+                any(), any());
         assertThat(homeVersion.getValue()).isEqualTo(7L);
-        assertThat(applianceVersion.getValue()).isEqualTo(9L);
     }
 
     @Test
@@ -344,7 +342,7 @@ class ProcessTelemetryUseCaseTest {
         UUID eventId = UUID.randomUUID();
         useCase.execute(reading(eventId, new BigDecimal("1000")));
 
-        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), anyLong(), anyLong(), any(), any());
+        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), anyLong(), any(), any());
     }
 
     @Test
@@ -367,7 +365,7 @@ class ProcessTelemetryUseCaseTest {
         assertThatThrownBy(() -> useCase.execute(reading(eventId, new BigDecimal("1000"))))
                 .isSameAs(notADuplicate);
 
-        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), anyLong(), anyLong(), any(), any());
+        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), anyLong(), any(), any());
     }
 
     @Test
@@ -394,16 +392,41 @@ class ProcessTelemetryUseCaseTest {
     }
 
     @Test
-    void treatsAMissingSequenceAsUnguardedSoPreSequenceProducersStillProcess() {
-        // Sequence 0 is what a payload without the field deserializes to. Guarding on it would drop
-        // every reading such a producer sends after the first, so those go through unguarded.
+    void treatsAMissingSequenceAsUnguardedOnlyBeforeThisApplianceHasEverEstablishedRealSequencing() {
+        // Sequence 0 is what a payload without the field deserializes to. An appliance that has
+        // NEVER seen a real (>0) sequence yet (lastProcessedSequence == 0) is a genuine pre-sequence
+        // producer, so its 0-sequence readings must still go through unguarded.
         when(applianceLiveStatePort.get(HOME_ID, APPLIANCE_ID))
-                .thenReturn(Optional.of(applianceStateWithSequence(100L)));
+                .thenReturn(Optional.of(applianceStateWithSequence(0L)));
 
         useCase.execute(reading(UUID.randomUUID(), 0L, new BigDecimal("1000")));
 
         verify(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), any(),
                 anyBoolean(), any(), any(), anyInt());
+    }
+
+    @Test
+    void dropsASequenceLessEventOnceThisApplianceHasAlreadyEstablishedRealSequencing() {
+        // The gap this test closes: once an appliance has processed real (>0) sequenced events,
+        // a LATER sequence-less (or negative) reading must not be allowed through unguarded just
+        // because it claims sequence 0 — that would let a stale/legacy-shaped event rewind live
+        // state after v2 sequencing has already started for this appliance.
+        when(applianceLiveStatePort.get(HOME_ID, APPLIANCE_ID))
+                .thenReturn(Optional.of(applianceStateWithSequence(100L)));
+
+        useCase.execute(reading(UUID.randomUUID(), 0L, new BigDecimal("1000")));
+
+        verifyNoInteractions(telemetryLiveStatePort, telemetryBillingRecorder);
+    }
+
+    @Test
+    void dropsANegativeSequenceEventOnceThisApplianceHasAlreadyEstablishedRealSequencing() {
+        when(applianceLiveStatePort.get(HOME_ID, APPLIANCE_ID))
+                .thenReturn(Optional.of(applianceStateWithSequence(100L)));
+
+        useCase.execute(reading(UUID.randomUUID(), -1L, new BigDecimal("1000")));
+
+        verifyNoInteractions(telemetryLiveStatePort, telemetryBillingRecorder);
     }
 
     private static org.springframework.dao.DataIntegrityViolationException processedTelemetryEventPrimaryKeyViolation() {
@@ -426,7 +449,7 @@ class ProcessTelemetryUseCaseTest {
         assertThatThrownBy(() -> useCase.execute(reading(eventId, new BigDecimal("1000"))))
                 .isInstanceOf(org.springframework.orm.ObjectOptimisticLockingFailureException.class);
 
-        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), anyLong(), anyLong(), any(), any());
+        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), anyLong(), any(), any());
     }
 
     @Test
