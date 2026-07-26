@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Bell, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useAllHomesLiveStatus } from "../../shared/hooks/useHomesQueries";
-import { formatRelativeTime } from "../../shared/utils/format";
+import { formatPower, formatRelativeTime } from "../../shared/utils/format";
 
 export function NotificationsPage() {
   const { homes, isLoading } = useAllHomesLiveStatus();
@@ -69,8 +69,8 @@ export function NotificationsPage() {
                     <p className="text-sm font-medium text-text-primary truncate">{app.applianceName}</p>
                     <p className="text-xs text-text-muted">
                       {app.anomalous
-                        ? `${app.consecutiveBreachCount} ihlal tespiti — Güç: ${app.currentPowerWatt}W (Limit: ${app.safePowerLimitWatt}W)`
-                        : `Normal çalışma — Güç: ${app.currentPowerWatt}W`}
+                        ? `${app.consecutiveBreachCount} ihlal tespiti — Güç: ${formatPower(app.currentPowerWatt)} (Limit: ${formatPower(app.safePowerLimitWatt)})`
+                        : `Normal çalışma — Güç: ${formatPower(app.currentPowerWatt)}`}
                     </p>
                   </div>
                 </div>

@@ -4,6 +4,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext";
 import { BrandMark } from "../../shared/components/BrandMark";
 import { ThemeToggle } from "../../shared/components/ThemeToggle";
+import { Footer } from "../../shared/components/Footer";
 import { ProfileSettingsModal } from "../../features/user/ProfileSettingsModal";
 import { AdminUserManagementModal } from "../../features/admin/AdminUserManagementModal";
 import { useLiveHomesQuery } from "../../shared/hooks/useHomesQueries";
@@ -135,6 +136,8 @@ export function UserAppLayout() {
       <main className="flex-1 w-full max-w-full overflow-x-hidden p-3 sm:p-5 lg:p-6">
         <Outlet />
       </main>
+
+      <Footer />
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-border bg-surface shadow-lg sm:hidden">

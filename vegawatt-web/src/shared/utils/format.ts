@@ -21,6 +21,9 @@ export function formatEnergy(value: string | number | null | undefined): string 
 
 export function formatPower(value: string | number | null | undefined): string {
   const amount = toSafeNumber(value);
+  if (amount >= 1000) {
+    return `${(amount / 1000).toLocaleString("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })} kW`;
+  }
   return `${amount.toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 1 })} W`;
 }
 
