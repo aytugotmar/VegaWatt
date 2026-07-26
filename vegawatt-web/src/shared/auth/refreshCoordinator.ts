@@ -1,5 +1,5 @@
 import { refreshSession } from "../api/authApi";
-import { setAccessToken } from "./tokenProvider";
+import { notifySessionExpired, setAccessToken } from "./tokenProvider";
 
 let inFlight: Promise<string | null> | null = null;
 
@@ -12,6 +12,7 @@ export function refreshAccessToken(): Promise<string | null> {
       })
       .catch(() => {
         setAccessToken(null);
+        notifySessionExpired();
         return null;
       })
       .finally(() => {

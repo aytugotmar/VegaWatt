@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { act } from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { AuthProvider, useAuth } from "./AuthContext";
+import { notifySessionExpired } from "../../shared/auth/tokenProvider";
 
 vi.mock("../../shared/api/authApi", () => ({
   refreshSession: vi.fn(),
@@ -59,6 +61,29 @@ describe("AuthContext logout", () => {
     await waitFor(() => expect(screen.getByTestId("user-state")).toHaveTextContent("user@vegawatt.com"));
 
     await user.click(screen.getByText("logout"));
+
+    await waitFor(() => expect(screen.getByTestId("user-state")).toHaveTextContent("signed-out"));
+  });
+
+  it("clears local user state when a mid-session token refresh fails elsewhere in the app", async () => {
+    vi.mocked(loginUser).mockResolvedValue({
+      userId: "u1",
+      email: "user@vegawatt.com",
+      role: "USER",
+      accessToken: "token",
+    });
+
+    const user = userEvent.setup();
+    renderAuth();
+
+    await waitFor(() => expect(screen.getByTestId("user-state")).toHaveTextContent("signed-out"));
+
+    await user.click(screen.getByText("login"));
+    await waitFor(() => expect(screen.getByTestId("user-state")).toHaveTextContent("user@vegawatt.com"));
+
+    act(() => {
+      notifySessionExpired();
+    });
 
     await waitFor(() => expect(screen.getByTestId("user-state")).toHaveTextContent("signed-out"));
   });
