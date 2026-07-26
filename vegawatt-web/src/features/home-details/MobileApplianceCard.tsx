@@ -1,5 +1,10 @@
 import type { ApplianceLiveStatus } from "../../shared/types/home";
-import { getApplianceDisplayName, getApplianceIcon } from "../../shared/constants/applianceTypes";
+import {
+  getApplianceDisplayName,
+  getApplianceIcon,
+  getOperatingModeLabel,
+  getOperatingStateLabel,
+} from "../../shared/constants/applianceTypes";
 import { ApplianceStatusBadge } from "../../shared/components/ApplianceStatusBadge";
 import { formatEnergy, formatPower, formatRelativeTime } from "../../shared/utils/format";
 import { ApplianceBreachIndicator } from "./ApplianceBreachIndicator";
@@ -10,6 +15,10 @@ interface MobileApplianceCardProps {
 
 export function MobileApplianceCard({ appliance }: MobileApplianceCardProps) {
   const Icon = getApplianceIcon(appliance.applianceType, appliance.catalogIconKey);
+  const modeLabel =
+    getOperatingModeLabel(appliance.operatingMode) ??
+    getOperatingStateLabel(appliance.operatingState) ??
+    "Normal";
 
   return (
     <div
@@ -32,6 +41,8 @@ export function MobileApplianceCard({ appliance }: MobileApplianceCardProps) {
       </div>
 
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+        <span className="text-text-muted">Çalışma modu</span>
+        <span className="font-medium text-right text-primary">{modeLabel}</span>
         <span className="text-text-muted">Güncel güç</span>
         <span className="tabular-nums text-right text-text-primary">{formatPower(appliance.currentPowerWatt)}</span>
         <span className="text-text-muted">Güvenli limit</span>

@@ -71,6 +71,24 @@ graph TD
 
 ---
 
+## 🎬 Demo Video & Animations
+
+<div align="center">
+
+### 📹 Project Video Demo
+[![VegaWatt Demo Video](https://img.shields.io/badge/Watch_Demo_Video-23058001__PROJE.mov-blue?style=for-the-badge&logo=quicktime)](assets/23058001_PROJE.mov)
+
+<p align="center">
+  <img src="assets/dashboard.gif" alt="VegaWatt Live Dashboard Animation" width="100%">
+</p>
+<p align="center">
+  <em>Live Telemetry Stream & Anomaly Detection Preview</em>
+</p>
+
+</div>
+
+---
+
 ## 📸 Screenshots
 
 <table>
@@ -105,25 +123,33 @@ graph TD
 <tr>
 <td width="50%">
 
-**Gemini-powered energy assistant**
-<img src="docs/screenshots/ai-assistant.jpg" alt="AI energy assistant" width="100%">
+**Homes Overview List**
+<img src="docs/screenshots/homes-list.jpg" alt="Homes overview list" width="100%">
 
 </td>
 <td width="50%">
 
-**Live anomaly & system event feed**
-<img src="docs/screenshots/notifications.jpg" alt="Notifications feed" width="100%">
+**Gemini-powered energy assistant**
+<img src="docs/screenshots/ai-assistant.jpg" alt="AI energy assistant" width="100%">
 
 </td>
 </tr>
 <tr>
 <td width="50%">
 
+**Live anomaly & system event feed**
+<img src="docs/screenshots/notifications.jpg" alt="Notifications feed" width="100%">
+
+</td>
+<td width="50%">
+
 **Guided home registration — 45-device catalog**
 <img src="docs/screenshots/add-home-wizard.jpg" alt="Add home wizard, device catalog step" width="100%">
 
 </td>
-<td width="50%">
+</tr>
+<tr>
+<td width="100%" colspan="2">
 
 **Interactive API documentation (Swagger / OpenAPI 3)**
 <img src="docs/screenshots/swagger-ui.jpg" alt="Swagger UI" width="100%">

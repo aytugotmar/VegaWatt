@@ -57,32 +57,108 @@ class DemoDataSeeder implements CommandLineRunner {
         }
 
         UUID adminId = admin.get().id();
-        if (!homeAccessService.accessibleHomeIds(adminId).isEmpty()) {
+        if (homeAccessService.accessibleHomeIds(adminId).size() >= 8) {
             return;
         }
 
         String contactEmail = admin.get().email();
 
-        registerHomeUseCase.execute(new RegisterHomeCommand(
-                "Gül Apartmanı No: 4", contactEmail, new BigDecimal("350.0000"),
+        // Home 1
+        registerHomeIfMissing("Gül Apartmanı No: 4", contactEmail, new BigDecimal("350.0000"),
                 new BigDecimal("1500.00"), new BigDecimal("3.20"), new BigDecimal("5.80"),
                 List.of(
                         appliance("Buzdolabı", "REFRIGERATOR", "250.00", "30.00", "160.00"),
-                        appliance("Çamaşır Makinesi", "WASHING_MACHINE", "2200.00", "0.00", "2000.00"),
-                        appliance("Salon Kliması", "AIR_CONDITIONER", "2500.00", "400.00", "2100.00"),
-                        appliance("Kahve Makinesi", "COFFEE_MACHINE", "1500.00", "0.00", "1400.00"),
-                        appliance("Wi-Fi Router", "ROUTER", "30.00", "8.00", "15.00")),
-                adminId));
+                        appliance("Çamaşır Makinesi", "WASHING_MACHINE", "2400.00", "0.00", "2200.00"),
+                        appliance("Salon Kliması", "AIR_CONDITIONER", "2500.00", "400.00", "2200.00"),
+                        appliance("Kahve Makinesi", "COFFEE_MACHINE", "1500.00", "0.00", "1300.00"),
+                        appliance("Wi-Fi Router", "ROUTER", "40.00", "5.00", "30.00")),
+                adminId);
 
-        registerHomeUseCase.execute(new RegisterHomeCommand(
-                "Yalı Dairesi - Kadıköy", contactEmail, new BigDecimal("500.0000"),
+        // Home 2
+        registerHomeIfMissing("Yalı Dairesi - Kadıköy", contactEmail, new BigDecimal("500.0000"),
                 new BigDecimal("2200.00"), new BigDecimal("3.20"), new BigDecimal("5.80"),
                 List.of(
                         appliance("Bulaşık Makinesi", "DISHWASHER", "2000.00", "0.00", "1800.00"),
-                        appliance("OLED TV", "TELEVISION", "300.00", "1.00", "220.00")),
-                adminId));
+                        appliance("OLED TV", "TELEVISION", "180.00", "1.00", "150.00"),
+                        appliance("Mikrodalga Fırın", "MICROWAVE", "1700.00", "0.00", "1500.00"),
+                        appliance("Ses Sistemi", "SOUND_SYSTEM", "350.00", "1.00", "300.00")),
+                adminId);
 
-        log.info("Seeded demo homes for {}", contactEmail);
+        // Home 3
+        registerHomeIfMissing("Bahçeşehir Müstakil Villa", contactEmail, new BigDecimal("750.0000"),
+                new BigDecimal("3500.00"), new BigDecimal("3.20"), new BigDecimal("5.80"),
+                List.of(
+                        appliance("Kurutma Makinesi", "DRYER", "3300.00", "0.00", "3000.00"),
+                        appliance("Robot Süpürge", "ROBOT_VACUUM", "120.00", "1.00", "80.00"),
+                        appliance("Ankastre Fırın", "OVEN", "2800.00", "0.00", "2500.00"),
+                        appliance("Bahçe Aydınlatması", "GARDEN_LIGHTING", "180.00", "10.00", "150.00"),
+                        appliance("Güvenlik Kamerası", "SECURITY_CAMERA", "30.00", "3.00", "20.00")),
+                adminId);
+
+        // Home 4
+        registerHomeIfMissing("Çankaya Rezidans D: 12", contactEmail, new BigDecimal("420.0000"),
+                new BigDecimal("1800.00"), new BigDecimal("3.50"), new BigDecimal("6.20"),
+                List.of(
+                        appliance("Yatak Odası Kliması", "AIR_CONDITIONER", "2500.00", "300.00", "2200.00"),
+                        appliance("Gaming Bilgisayarı", "GAMING_COMPUTER", "850.00", "2.00", "700.00"),
+                        appliance("Oyun Konsolu", "GAME_CONSOLE", "260.00", "1.00", "220.00"),
+                        appliance("Akıllı Hoparlör", "SMART_SPEAKER", "30.00", "1.00", "20.00")),
+                adminId);
+
+        // Home 5
+        registerHomeIfMissing("Karşıyaka Yazlık Daire", contactEmail, new BigDecimal("300.0000"),
+                new BigDecimal("1200.00"), new BigDecimal("3.10"), new BigDecimal("5.50"),
+                List.of(
+                        appliance("No-Frost Buzdolabı", "REFRIGERATOR", "220.00", "30.00", "180.00"),
+                        appliance("Inverter Klima", "AIR_CONDITIONER", "2500.00", "250.00", "2000.00"),
+                        appliance("Termosifon Su Isıtıcı", "WATER_HEATER", "3300.00", "2.00", "3000.00"),
+                        appliance("Fiber Router", "ROUTER", "40.00", "5.00", "30.00")),
+                adminId);
+
+        // Home 6
+        registerHomeIfMissing("Nilüfer Loft Daire", contactEmail, new BigDecimal("480.0000"),
+                new BigDecimal("2000.00"), new BigDecimal("3.20"), new BigDecimal("5.80"),
+                List.of(
+                        appliance("Çamaşır Makinesi", "WASHING_MACHINE", "2400.00", "0.00", "2200.00"),
+                        appliance("Espresso Makinesi", "COFFEE_MACHINE", "1500.00", "0.00", "1300.00"),
+                        appliance("4K Projektör", "PROJECTOR", "450.00", "0.50", "400.00"),
+                        appliance("Çalışma Masası PC", "DESKTOP_COMPUTER", "450.00", "1.00", "350.00")),
+                adminId);
+
+        // Home 7
+        registerHomeIfMissing("Muratpaşa Apart D: 2", contactEmail, new BigDecimal("280.0000"),
+                new BigDecimal("1000.00"), new BigDecimal("3.20"), new BigDecimal("5.80"),
+                List.of(
+                        appliance("Split Klima", "AIR_CONDITIONER", "2500.00", "300.00", "2200.00"),
+                        appliance("Su Isıtıcısı (Kettle)", "KETTLE", "2600.00", "0.00", "2400.00"),
+                        appliance("Smart TV", "TELEVISION", "180.00", "0.50", "150.00"),
+                        appliance("LED Aydınlatma Grubu", "LED_BULB", "25.00", "0.00", "20.00")),
+                adminId);
+
+        // Home 8
+        registerHomeIfMissing("Trabzon Yayla Evi", contactEmail, new BigDecimal("600.0000"),
+                new BigDecimal("2500.00"), new BigDecimal("2.90"), new BigDecimal("5.20"),
+                List.of(
+                        appliance("Derin Dondurucu", "FREEZER", "240.00", "20.00", "200.00"),
+                        appliance("Elektrikli Soba", "ELECTRIC_HEATER", "2500.00", "0.00", "2200.00"),
+                        appliance("Buharlı Ütü", "IRON", "2600.00", "0.00", "2400.00"),
+                        appliance("LTE Router", "ROUTER", "40.00", "5.00", "30.00")),
+                adminId);
+
+        log.info("Seeded 8 demo homes for {}", contactEmail);
+    }
+
+    private void registerHomeIfMissing(String name, String contactEmail, BigDecimal monthlyKwhQuota,
+                                        BigDecimal monthlyBudgetLimitTry, BigDecimal baseKwhRateTry,
+                                        BigDecimal penaltyKwhRateTry,
+                                        List<RegisterHomeCommand.ApplianceCommand> appliances, UUID adminId) {
+        try {
+            registerHomeUseCase.execute(new RegisterHomeCommand(
+                    name, contactEmail, monthlyKwhQuota, monthlyBudgetLimitTry, baseKwhRateTry,
+                    penaltyKwhRateTry, appliances, adminId));
+        } catch (Exception e) {
+            log.debug("Home {} already registered or skipped: {}", name, e.getMessage());
+        }
     }
 
     private RegisterHomeCommand.ApplianceCommand appliance(String name, String catalogCode,

@@ -1,7 +1,12 @@
 import type { ApplianceLiveStatus } from "../../shared/types/home";
-import { getApplianceDisplayName, getApplianceIcon } from "../../shared/constants/applianceTypes";
+import {
+  getApplianceDisplayName,
+  getApplianceIcon,
+  getOperatingModeLabel,
+  getOperatingStateLabel,
+} from "../../shared/constants/applianceTypes";
 import { ApplianceStatusBadge } from "../../shared/components/ApplianceStatusBadge";
-import { formatEnergy, formatPower, formatRelativeTime } from "../../shared/utils/format";
+import { formatEnergy, formatPower, formatRelativeTime, toSafeNumber } from "../../shared/utils/format";
 import { ApplianceBreachIndicator } from "./ApplianceBreachIndicator";
 import { MobileApplianceCard } from "./MobileApplianceCard";
 
@@ -10,18 +15,23 @@ interface AppliancesTableProps {
 }
 
 export function AppliancesTable({ appliances }: AppliancesTableProps) {
+  const sortedAppliances = [...appliances].sort(
+    (a, b) => toSafeNumber(b.currentPowerWatt) - toSafeNumber(a.currentPowerWatt),
+  );
+
   return (
     <>
       <div className="flex flex-col gap-2 sm:hidden">
-        {appliances.map((appliance) => (
+        {sortedAppliances.map((appliance) => (
           <MobileApplianceCard key={appliance.applianceId} appliance={appliance} />
         ))}
       </div>
       <div className="hidden overflow-x-auto max-w-full rounded-card border border-border bg-surface sm:block">
-      <table className="w-full min-w-[720px] border-collapse text-sm">
+      <table className="w-full min-w-[760px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-border-strong bg-surface-subtle text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
             <th className="px-3 py-2.5">Cihaz</th>
+            <th className="px-3 py-2.5">Çalışma Modu</th>
             <th className="px-3 py-2.5">Durum</th>
             <th className="px-3 py-2.5">Güncel güç</th>
             <th className="px-3 py-2.5">Güvenli limit</th>
@@ -31,8 +41,12 @@ export function AppliancesTable({ appliances }: AppliancesTableProps) {
           </tr>
         </thead>
         <tbody>
-          {appliances.map((appliance) => {
+          {sortedAppliances.map((appliance) => {
             const Icon = getApplianceIcon(appliance.applianceType, appliance.catalogIconKey);
+            const modeLabel =
+              getOperatingModeLabel(appliance.operatingMode) ??
+              getOperatingStateLabel(appliance.operatingState) ??
+              "Normal";
             return (
               <tr
                 key={appliance.applianceId}
@@ -51,6 +65,11 @@ export function AppliancesTable({ appliances }: AppliancesTableProps) {
                       </span>
                     </div>
                   </div>
+                </td>
+                <td className="px-3 py-2.5">
+                  <span className="inline-flex items-center rounded-full bg-primary-soft/60 px-2 py-0.5 text-xs font-medium text-primary">
+                    {modeLabel}
+                  </span>
                 </td>
                 <td className="px-3 py-2.5">
                   <ApplianceStatusBadge appliance={appliance} />

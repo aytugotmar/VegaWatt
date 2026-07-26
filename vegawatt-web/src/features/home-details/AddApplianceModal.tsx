@@ -60,7 +60,7 @@ export function AddApplianceModal({ homeId, onClose }: AddApplianceModalProps) {
 
   return (
     <Dialog open onClose={onClose} labelledBy={titleId} maxWidthClassName="max-w-4xl">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4">
         <h2 id={titleId} className="text-lg font-semibold text-text-primary">
           Cihaz Ekle
         </h2>
@@ -74,7 +74,7 @@ export function AddApplianceModal({ homeId, onClose }: AddApplianceModalProps) {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
         <AppliancesStep
           selectedAppliances={catalogSelection.selectedAppliances}
           selectionErrors={attempted ? catalogSelection.errors : {}}
@@ -84,7 +84,7 @@ export function AddApplianceModal({ homeId, onClose }: AddApplianceModalProps) {
           onUpdateOverride={catalogSelection.updateOverride}
           customAppliances={customAppliances}
           customErrors={attempted ? customErrors : {}}
-          onAddCustom={() => setCustomAppliances((current) => [...current, newCustomAppliance()])}
+          onAddCustom={() => setCustomAppliances((current) => [newCustomAppliance(), ...current])}
           onRemoveCustom={(id) => setCustomAppliances((current) => current.filter((appliance) => appliance.id !== id))}
           onCustomChange={(id, field, value) =>
             setCustomAppliances((current) =>
@@ -101,7 +101,7 @@ export function AddApplianceModal({ homeId, onClose }: AddApplianceModalProps) {
         )}
       </div>
 
-      <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
+      <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-3 bg-surface z-10">
         <Button variant="ghost" onClick={onClose} disabled={addAppliancesMutation.isPending}>
           İptal
         </Button>

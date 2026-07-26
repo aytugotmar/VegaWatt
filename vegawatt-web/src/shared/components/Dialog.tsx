@@ -80,7 +80,7 @@ export function Dialog({ open, onClose, title, labelledBy, children, maxWidthCla
         aria-label={labelledBy ? undefined : title}
         aria-labelledby={labelledBy}
         tabIndex={-1}
-        className={`animate-fade-scale-in dialog-glass relative flex h-full w-full flex-col overflow-hidden shadow-[var(--shadow-modal)] outline-none sm:h-auto sm:max-h-[calc(100vh-48px)] sm:rounded-modal ${maxWidthClassName}`}
+        className={`animate-fade-scale-in dialog-glass relative flex h-full max-h-[100dvh] w-full flex-col overflow-hidden shadow-[var(--shadow-modal)] outline-none sm:h-auto sm:max-h-[calc(100vh-48px)] sm:rounded-modal ${maxWidthClassName}`}
         onClick={(event) => event.stopPropagation()}
       >
         {children}

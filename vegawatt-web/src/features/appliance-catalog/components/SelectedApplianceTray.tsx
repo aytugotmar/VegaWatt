@@ -61,7 +61,7 @@ export function SelectedApplianceTray({
     );
   }
 
-  const groups = groupByCatalogItem(selectedAppliances);
+  const groups = [...groupByCatalogItem(selectedAppliances)].reverse();
 
   return (
     <div className="flex flex-col gap-2">

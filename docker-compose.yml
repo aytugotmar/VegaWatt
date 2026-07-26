@@ -82,38 +82,38 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
       interval: 10s
-      timeout: 5s
-      retries: 15
-      start_period: 60s
+      timeout: 10s
+      retries: 25
+      start_period: 120s
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-vegawatt}
+      POSTGRES_USER: ${POSTGRES_USER:-vegawatt}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_REGISTRATION_TOPIC: ${KAFKA_REGISTRATION_TOPIC}
-      KAFKA_TELEMETRY_TOPIC: ${KAFKA_TELEMETRY_TOPIC}
+      KAFKA_REGISTRATION_TOPIC: ${KAFKA_REGISTRATION_TOPIC:-vegawatt.asset-registration.v1}
+      KAFKA_TELEMETRY_TOPIC: ${KAFKA_TELEMETRY_TOPIC:-vegawatt.telemetry.v1}
       IGNITE_ADDRESSES: ignite:10800
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GEMINI_MODEL: ${GEMINI_MODEL}
-      GEMINI_CONNECT_TIMEOUT_MS: ${GEMINI_CONNECT_TIMEOUT_MS}
-      GEMINI_READ_TIMEOUT_MS: ${GEMINI_READ_TIMEOUT_MS}
+      GEMINI_CONNECT_TIMEOUT_MS: ${GEMINI_CONNECT_TIMEOUT_MS:-3000}
+      GEMINI_READ_TIMEOUT_MS: ${GEMINI_READ_TIMEOUT_MS:-8000}
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
       SMTP_USERNAME: ${SMTP_USERNAME}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
-      MAIL_FROM: ${MAIL_FROM}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@vegawatt.local}
       FRONTEND_DEV_ORIGIN: http://localhost:5173
-      JWT_SIGNING_SECRET: ${JWT_SIGNING_SECRET}
-      JWT_ACCESS_TOKEN_TTL_MINUTES: ${JWT_ACCESS_TOKEN_TTL_MINUTES}
-      JWT_REFRESH_TOKEN_TTL_DAYS: ${JWT_REFRESH_TOKEN_TTL_DAYS}
-      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL}
-      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD}
+      JWT_SIGNING_SECRET: ${JWT_SIGNING_SECRET:-vegawatt-super-secret-jwt-key-change-in-production-32bytes!}
+      JWT_ACCESS_TOKEN_TTL_MINUTES: ${JWT_ACCESS_TOKEN_TTL_MINUTES:-15}
+      JWT_REFRESH_TOKEN_TTL_DAYS: ${JWT_REFRESH_TOKEN_TTL_DAYS:-30}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@vegawatt.com}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-VegaWatt111!}
       BOOTSTRAP_ADMIN_FORCE_PASSWORD_RESET: ${BOOTSTRAP_ADMIN_FORCE_PASSWORD_RESET:-false}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
-      SNAPSHOT_INTERVAL: ${SNAPSHOT_INTERVAL}
+      SNAPSHOT_INTERVAL: ${SNAPSHOT_INTERVAL:-60}
       JDK_JAVA_OPTIONS: >-
         --add-opens=java.base/jdk.internal.access=ALL-UNNAMED
         --add-opens=java.base/jdk.internal.misc=ALL-UNNAMED
@@ -142,14 +142,14 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/actuator/health | grep -q '\"status\":\"UP\"'"]
       interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_REGISTRATION_TOPIC: ${KAFKA_REGISTRATION_TOPIC}
-      KAFKA_TELEMETRY_TOPIC: ${KAFKA_TELEMETRY_TOPIC}
-      TELEMETRY_INTERVAL: ${TELEMETRY_INTERVAL}
+      KAFKA_REGISTRATION_TOPIC: ${KAFKA_REGISTRATION_TOPIC:-vegawatt.asset-registration.v1}
+      KAFKA_TELEMETRY_TOPIC: ${KAFKA_TELEMETRY_TOPIC:-vegawatt.telemetry.v1}
+      TELEMETRY_INTERVAL: ${TELEMETRY_INTERVAL:-5}
 
   vegawatt-web:
     build:
