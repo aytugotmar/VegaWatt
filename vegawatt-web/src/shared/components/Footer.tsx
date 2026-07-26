@@ -1,3 +1,5 @@
+import { useLanguage } from "../i18n/LanguageContext";
+
 const TEAM_MEMBERS = [
   { name: "Aytuğ Otmar", github: "https://github.com/aytugotmar" },
   { name: "Bekircan Küçükakın", github: "https://github.com/bekucukakin" },
@@ -5,6 +7,8 @@ const TEAM_MEMBERS = [
 ];
 
 export function Footer() {
+  const { t } = useLanguage();
+
   return (
     <footer className="w-full border-t border-border bg-surface-subtle/50 py-6 px-4 sm:px-6">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
@@ -13,13 +17,13 @@ export function Footer() {
             <img src="/assets/ui.gif" alt="VegaWatt UI Preview" className="h-14 sm:h-16 w-auto object-cover rounded" />
           </div>
           <div className="flex flex-col text-xs text-text-muted">
-            <span className="font-semibold text-text-primary">© 2026 VegaWatt</span>
-            <span>Akıllı Ev Enerji Yönetimi & Telemetri Platformu</span>
+            <span className="font-semibold text-text-primary">{t("footer.copyright")}</span>
+            <span>{t("footer.tagline")}</span>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-2.5 text-xs text-text-secondary">
-          <span className="font-medium text-text-primary">Geliştirici Ekip:</span>
+          <span className="font-medium text-text-primary">{t("footer.team")}</span>
           {TEAM_MEMBERS.map((member) => (
             <a
               key={member.name}

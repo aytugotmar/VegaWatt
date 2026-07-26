@@ -1,6 +1,9 @@
 import { CheckCircle2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { BrandMark } from "../../shared/components/BrandMark";
+import { LanguageToggle } from "../../shared/components/LanguageToggle";
+import { ThemeToggle } from "../../shared/components/ThemeToggle";
+import { useLanguage } from "../../shared/i18n/LanguageContext";
 
 interface AuthShellProps {
   title: string;
@@ -9,15 +12,23 @@ interface AuthShellProps {
   footer: ReactNode;
 }
 
-const HIGHLIGHTS = [
-  "Canlı tüketim verilerini saniyeler içinde izleyin",
-  "Aylık bütçenizi önceden tahmin edin",
-  "Cihaz bazlı akıllı tasarruf önerileri alın",
-];
-
 export function AuthShell({ title, subtitle, children, footer }: AuthShellProps) {
+  const { t } = useLanguage();
+
+  const highlights = [
+    t("auth.highlight1"),
+    t("auth.highlight2"),
+    t("auth.highlight3"),
+  ];
+
   return (
-    <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
+    <div className="relative grid min-h-screen grid-cols-1 lg:grid-cols-2">
+      {/* Top right language and theme toggles */}
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+        <LanguageToggle />
+        <ThemeToggle />
+      </div>
+
       <div className="relative hidden flex-col justify-between overflow-hidden bg-primary-soft px-12 py-12 lg:flex">
         <div
           className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-primary/20 blur-3xl"
@@ -34,15 +45,15 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
 
         <div className="relative max-w-sm">
           <h2 className="text-4xl font-bold leading-tight tracking-tight text-text-primary">
-            Enerjiyi yalnız izlemeyin.
+            {t("auth.heroTitle1")}
             <br />
-            <span className="text-gradient-flow">Nereye gittiğini anlayın.</span>
+            <span className="text-gradient-flow">{t("auth.heroTitle2")}</span>
           </h2>
           <p className="mt-3 text-sm text-text-secondary">
-            Canlı tüketim, bütçe tahmini ve cihaz bazlı akıllı öneriler tek panelde.
+            {t("auth.heroSubtitle")}
           </p>
           <ul className="mt-8 flex flex-col gap-3">
-            {HIGHLIGHTS.map((item) => (
+            {highlights.map((item) => (
               <li key={item} className="flex items-start gap-2.5 text-sm text-text-primary">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                 <span>{item}</span>
@@ -51,7 +62,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
           </ul>
         </div>
 
-        <p className="relative text-xs text-text-muted">© {new Date().getFullYear()} VegaWatt. Tüm hakları saklıdır.</p>
+        <p className="relative text-xs text-text-muted">© {new Date().getFullYear()} VegaWatt. {t("auth.copyright")}</p>
       </div>
 
       <div className="flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-16">

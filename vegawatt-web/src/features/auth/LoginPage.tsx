@@ -1,19 +1,21 @@
 import { Link, useNavigate } from "react-router-dom";
+import { useLanguage } from "../../shared/i18n/LanguageContext";
 import { AuthShell } from "./AuthShell";
 import { LoginForm } from "./LoginForm";
 
 export function LoginPage() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   return (
     <AuthShell
-      title="Tekrar hoş geldiniz"
-      subtitle="Enerji panelinize devam etmek için giriş yapın."
+      title={t("auth.welcomeBack")}
+      subtitle={t("auth.continueToPanel")}
       footer={
         <>
-          Hesabınız yok mu?{" "}
+          {t("auth.noAccount")}{" "}
           <Link to="/register" className="font-medium text-primary hover:underline">
-            Ücretsiz hesap oluşturun
+            {t("auth.createFreeAccount")}
           </Link>
         </>
       }

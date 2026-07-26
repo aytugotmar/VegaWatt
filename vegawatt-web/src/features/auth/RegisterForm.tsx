@@ -4,6 +4,7 @@ import { ApiError } from "../../shared/api/client";
 import { Button } from "../../shared/components/Button";
 import { Input } from "../../shared/components/Input";
 import { PasswordInput } from "../../shared/components/PasswordInput";
+import { useLanguage } from "../../shared/i18n/LanguageContext";
 import { useAuth } from "./AuthContext";
 
 const MIN_PASSWORD_LENGTH = 8;
@@ -13,6 +14,7 @@ interface RegisterFormProps {
 }
 
 export function RegisterForm({ onSuccess }: RegisterFormProps) {
+  const { t } = useLanguage();
   const { register } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,7 +29,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
     event.preventDefault();
     setErrorMessage(null);
     if (password !== confirmPassword) {
-      setErrorMessage("Parolalar eşleşmiyor.");
+      setErrorMessage(t("auth.passwordConfirm"));
       return;
     }
     setIsSubmitting(true);
@@ -35,7 +37,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
       await register(email, password);
       onSuccess();
     } catch (error) {
-      setErrorMessage(error instanceof ApiError ? error.message : "Kayıt oluşturulamadı.");
+      setErrorMessage(error instanceof ApiError ? error.message : t("auth.loginFailed"));
     } finally {
       setIsSubmitting(false);
     }
@@ -44,7 +46,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <Input
-        label="E-posta"
+        label={t("auth.email")}
         type="email"
         autoComplete="email"
         required
@@ -53,7 +55,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         onChange={(event) => setEmail(event.target.value)}
       />
       <PasswordInput
-        label="Parola"
+        label={t("auth.password")}
         autoComplete="new-password"
         minLength={MIN_PASSWORD_LENGTH}
         required
@@ -61,32 +63,32 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         onChange={(event) => setPassword(event.target.value)}
       />
       <PasswordInput
-        label="Parola tekrarı"
+        label={t("auth.passwordConfirm")}
         autoComplete="new-password"
         required
         value={confirmPassword}
-        error={!passwordsMatch ? "Parolalar eşleşmiyor" : undefined}
+        error={!passwordsMatch ? t("auth.passwordConfirm") : undefined}
         onChange={(event) => setConfirmPassword(event.target.value)}
       />
 
       <ul className="flex flex-col gap-1 text-xs text-text-muted">
         <li className={`flex items-center gap-1.5 ${hasMinLength ? "text-success" : ""}`}>
           <Check className="h-3.5 w-3.5" aria-hidden="true" />
-          En az {MIN_PASSWORD_LENGTH} karakter
+          At least {MIN_PASSWORD_LENGTH} characters
         </li>
         <li className="flex items-center gap-1.5">
           <Check className="h-3.5 w-3.5" aria-hidden="true" />
-          Güvenli oturum (httpOnly refresh token)
+          Secure session (httpOnly refresh token)
         </li>
         <li className="flex items-center gap-1.5">
           <Check className="h-3.5 w-3.5" aria-hidden="true" />
-          Kullanıcıya özel ev erişimi
+          Isolated user-scoped home access
         </li>
       </ul>
 
       {errorMessage && <p className="text-sm font-medium text-danger">{errorMessage}</p>}
       <Button type="submit" loading={isSubmitting} className="h-12 justify-center">
-        Hesap Oluştur
+        {t("auth.signUp")}
       </Button>
     </form>
   );

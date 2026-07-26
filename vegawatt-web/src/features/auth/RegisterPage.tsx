@@ -1,19 +1,21 @@
 import { Link, useNavigate } from "react-router-dom";
+import { useLanguage } from "../../shared/i18n/LanguageContext";
 import { AuthShell } from "./AuthShell";
 import { RegisterForm } from "./RegisterForm";
 
 export function RegisterPage() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   return (
     <AuthShell
-      title="VegaWatt hesabınızı oluşturun"
-      subtitle="Evinizin enerji tüketimini izlemeye başlayın."
+      title={t("auth.signUp")}
+      subtitle={t("auth.heroSubtitle")}
       footer={
         <>
-          Zaten hesabınız var mı?{" "}
+          {t("auth.hasAccount")}{" "}
           <Link to="/login" className="font-medium text-primary hover:underline">
-            Giriş yapın
+            {t("auth.signIn")}
           </Link>
         </>
       }

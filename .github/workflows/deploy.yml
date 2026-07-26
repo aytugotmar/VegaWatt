@@ -17,8 +17,6 @@ jobs:
           host: ${{ secrets.GCP_HOST }}
           username: ${{ secrets.GCP_USERNAME }}
           key: ${{ secrets.GCP_SSH_KEY }}
-          passphrase: ${{ secrets.GCP_PASSPHRASE }}
-          password: ${{ secrets.GCP_PASSWORD }}
           port: ${{ secrets.GCP_PORT || 22 }}
           script_stop: true
           script: |

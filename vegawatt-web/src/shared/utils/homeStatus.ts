@@ -19,15 +19,22 @@ export function getHomeHealthStatus(home: HomeStatusInput): HomeHealthStatus {
   return "NORMAL";
 }
 
-const STATUS_LABELS: Record<HomeHealthStatus, string> = {
-  NORMAL: "Normal",
-  WARNING: "Kota yaklaşıyor",
-  CRITICAL: "Kota aşıldı",
-  PENALTY: "Yüksek tarife",
+const STATUS_KEYS: Record<HomeHealthStatus, string> = {
+  NORMAL: "status.normal",
+  WARNING: "status.approachingQuota",
+  CRITICAL: "status.quotaExceeded",
+  PENALTY: "status.highTariff",
 };
 
-export function getHomeStatusLabel(status: HomeHealthStatus): string {
-  return STATUS_LABELS[status];
+export function getHomeStatusLabel(status: HomeHealthStatus, t?: (key: string) => string): string {
+  if (t) return t(STATUS_KEYS[status]);
+  const fallbacks: Record<HomeHealthStatus, string> = {
+    NORMAL: "Normal",
+    WARNING: "Kota yaklaşıyor",
+    CRITICAL: "Kota aşıldı",
+    PENALTY: "Yüksek tarife",
+  };
+  return fallbacks[status];
 }
 
 export type QuotaTone = "normal" | "warning" | "critical";
@@ -54,14 +61,22 @@ export function getApplianceHealthTone(appliance: ApplianceStatusInput): Applian
   return "normal";
 }
 
-const APPLIANCE_TONE_LABELS: Record<ApplianceHealthTone, string> = {
-  offline: "Çevrimdışı",
-  stale: "Veri bekleniyor",
-  anomalous: "Anomali",
-  warning: "Bekleme uyarısı",
-  normal: "Normal",
+const APPLIANCE_TONE_KEYS: Record<ApplianceHealthTone, string> = {
+  offline: "status.offline",
+  stale: "status.stale",
+  anomalous: "status.anomaly",
+  warning: "status.standbyWarning",
+  normal: "status.normal",
 };
 
-export function getApplianceHealthLabel(tone: ApplianceHealthTone): string {
-  return APPLIANCE_TONE_LABELS[tone];
+export function getApplianceHealthLabel(tone: ApplianceHealthTone, t?: (key: string) => string): string {
+  if (t) return t(APPLIANCE_TONE_KEYS[tone]);
+  const fallbacks: Record<ApplianceHealthTone, string> = {
+    offline: "Çevrimdışı",
+    stale: "Veri bekleniyor",
+    anomalous: "Anomali",
+    warning: "Bekleme uyarısı",
+    normal: "Normal",
+  };
+  return fallbacks[tone];
 }

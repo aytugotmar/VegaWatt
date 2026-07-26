@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Line, LineChart, ResponsiveContainer } from "recharts";
 import { formatPower } from "../../shared/utils/format";
+import { useLanguage } from "../../shared/i18n/LanguageContext";
 
 const POLL_INTERVAL_S = 2;
 const WINDOW_SECONDS = 5 * 60;
@@ -17,6 +18,7 @@ interface LivePowerPulseProps {
 }
 
 export function LivePowerPulse({ totalPowerWatt, isLoading }: LivePowerPulseProps) {
+  const { t } = useLanguage();
   const [points, setPoints] = useState<PowerPoint[]>([]);
   const [sessionPeak, setSessionPeak] = useState<number | null>(null);
   const lastValueRef = useRef<number | null>(null);
@@ -38,10 +40,10 @@ export function LivePowerPulse({ totalPowerWatt, isLoading }: LivePowerPulseProp
   return (
     <div className="glow-card card-glass flex h-full flex-col gap-1 rounded-input border border-border p-6 transition">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-text-muted">Canlı Güç</span>
+        <span className="text-xs font-medium uppercase tracking-wide text-text-muted">{t("overview.livePower")}</span>
         <span className="flex items-center gap-1 text-xs font-medium text-success">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" aria-hidden="true" />
-          Canlı
+          {t("overview.live")}
         </span>
       </div>
       <div className="flex flex-wrap items-baseline gap-3">
@@ -51,12 +53,12 @@ export function LivePowerPulse({ totalPowerWatt, isLoading }: LivePowerPulseProp
         {changeVsWindowStart !== null && Math.abs(changeVsWindowStart) >= 1 && (
           <span className={`text-sm font-medium ${changeVsWindowStart >= 0 ? "text-warning" : "text-success"}`}>
             {changeVsWindowStart >= 0 ? "+" : ""}
-            {changeVsWindowStart.toFixed(1)}% son {Math.round(WINDOW_SECONDS / 60)} dakikada
+            {changeVsWindowStart.toFixed(1)}% {t("overview.lastMinutes", { min: Math.round(WINDOW_SECONDS / 60) })}
           </span>
         )}
       </div>
       {sessionPeak !== null && (
-        <p className="text-xs text-text-muted">Bu oturumdaki tepe: {formatPower(sessionPeak)}</p>
+        <p className="text-xs text-text-muted">{t("overview.sessionPeak", { peak: formatPower(sessionPeak) })}</p>
       )}
       <div className="mt-3 h-32 flex-1">
         {points.length >= 2 ? (
@@ -73,7 +75,7 @@ export function LivePowerPulse({ totalPowerWatt, isLoading }: LivePowerPulseProp
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <div className="flex h-full items-center text-xs text-text-muted">Veri toplanıyor…</div>
+          <div className="flex h-full items-center text-xs text-text-muted">{t("overview.gatheringData")}</div>
         )}
       </div>
     </div>

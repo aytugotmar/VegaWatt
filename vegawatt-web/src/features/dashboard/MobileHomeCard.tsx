@@ -3,6 +3,7 @@ import { StatusBadge } from "../../shared/components/StatusBadge";
 import { ProgressBar } from "../../shared/components/ProgressBar";
 import { formatCurrency, formatRelativeTime } from "../../shared/utils/format";
 import { getHomeHealthStatus } from "../../shared/utils/homeStatus";
+import { useLanguage } from "../../shared/i18n/LanguageContext";
 
 interface MobileHomeCardProps {
   home: HomeLiveSummary;
@@ -10,6 +11,7 @@ interface MobileHomeCardProps {
 }
 
 export function MobileHomeCard({ home, onSelect }: MobileHomeCardProps) {
+  const { t, language } = useLanguage();
   const status = getHomeHealthStatus(home);
 
   return (
@@ -24,13 +26,13 @@ export function MobileHomeCard({ home, onSelect }: MobileHomeCardProps) {
         <StatusBadge status={status} />
       </div>
       <p className="tabular-nums text-2xl font-semibold tracking-tight text-text-primary">
-        {formatCurrency(home.currentCost)}
+        {formatCurrency(home.currentCost, language)}
       </p>
       <div className="flex flex-col gap-2">
-        <ProgressBar label="Enerji Kotası" percentage={home.energyQuotaPercentage} />
-        <ProgressBar label="Bütçe Kotası" percentage={home.budgetQuotaPercentage} />
+        <ProgressBar label={t("card.energyQuota")} percentage={home.energyQuotaPercentage} />
+        <ProgressBar label={t("card.budgetQuota")} percentage={home.budgetQuotaPercentage} />
       </div>
-      <p className="text-xs text-text-muted">Son veri: {formatRelativeTime(home.lastUpdatedAt)}</p>
+      <p className="text-xs text-text-muted">{t("card.lastData")} {formatRelativeTime(home.lastUpdatedAt, language)}</p>
     </button>
   );
 }
