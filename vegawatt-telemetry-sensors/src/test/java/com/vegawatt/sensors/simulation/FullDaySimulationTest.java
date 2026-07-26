@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.vegawatt.sensors.registration.ApplianceConfig;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.HashSet;
@@ -42,36 +43,49 @@ class FullDaySimulationTest {
     private static List<Scenario> scenarios() {
         return List.of(
                 new Scenario("kettle", new ShortHighPowerBehaviorModel(),
-                        configFor("KETTLE", "KETTLE", "SHORT_HIGH_POWER", "2200", "1800", "2100", "1"), 8, true),
-                new Scenario("washing machine", new ProgramCycleBehaviorModel(),
-                        configFor("WASHING_MACHINE", "WASHING_MACHINE", "PROGRAM_CYCLE", "2300", "300", "2200", "3"),
-                        2, true),
-                new Scenario("dishwasher", new ProgramCycleBehaviorModel(),
-                        configFor("DISHWASHER", "DISHWASHER", "PROGRAM_CYCLE", "2300", "300", "2200", "3"), 2, true),
-                new Scenario("dryer", new ProgramCycleBehaviorModel(),
-                        configFor("DRYER", "DRYER", "PROGRAM_CYCLE", "2300", "300", "2200", "3"), 2, true),
-                new Scenario("oven", new ThermostaticSessionBehaviorModel(),
-                        configFor("OVEN", "OVEN", "THERMOSTATIC_SESSION", "2600", "500", "2500", "3"), 3, true),
-                new Scenario("iron", new ThermostaticSessionBehaviorModel(),
-                        configFor("IRON", "IRON", "THERMOSTATIC_SESSION", "1800", "50", "1600", "3"), 2, true),
-                new Scenario("desk lamp", new ManualSwitchBehaviorModel(),
-                        configFor("DESK_LAMP", "DESK_LAMP", "MANUAL_SWITCH", "40", "5", "15", "0"), null, false),
-                new Scenario("laptop charger", new ChargingCurveBehaviorModel(),
-                        configFor("LAPTOP", "LAPTOP", "CHARGING_CURVE", "100", "5", "90", "1"), 2, true),
-                new Scenario("robot vacuum", new ChargingAndSessionBehaviorModel(),
-                        configFor("ROBOT_VACUUM", "ROBOT_VACUUM", "CHARGING_AND_SESSION", "60", "20", "50", "1"), 2,
+                        configFor("kettle", "KETTLE", "KETTLE", "SHORT_HIGH_POWER", "2200", "1800", "2100", "1"), 8,
                         true),
+                new Scenario("washing machine", new ProgramCycleBehaviorModel(),
+                        configFor("washing-machine", "WASHING_MACHINE", "WASHING_MACHINE", "PROGRAM_CYCLE", "2300",
+                                "300", "2200", "3"), 2, true),
+                new Scenario("dishwasher", new ProgramCycleBehaviorModel(),
+                        configFor("dishwasher", "DISHWASHER", "DISHWASHER", "PROGRAM_CYCLE", "2300", "300", "2200",
+                                "3"), 2, true),
+                new Scenario("dryer", new ProgramCycleBehaviorModel(),
+                        configFor("dryer", "DRYER", "DRYER", "PROGRAM_CYCLE", "2300", "300", "2200", "3"), 2, true),
+                new Scenario("oven", new ThermostaticSessionBehaviorModel(),
+                        configFor("oven", "OVEN", "OVEN", "THERMOSTATIC_SESSION", "2600", "500", "2500", "3"), 3,
+                        true),
+                new Scenario("iron", new ThermostaticSessionBehaviorModel(),
+                        configFor("iron", "IRON", "IRON", "THERMOSTATIC_SESSION", "1800", "50", "1600", "3"), 2, true),
+                new Scenario("desk lamp", new ManualSwitchBehaviorModel(),
+                        configFor("desk-lamp", "DESK_LAMP", "DESK_LAMP", "MANUAL_SWITCH", "40", "5", "15", "0"), null,
+                        false),
+                new Scenario("laptop charger", new ChargingCurveBehaviorModel(),
+                        configFor("laptop-charger", "LAPTOP", "LAPTOP", "CHARGING_CURVE", "100", "5", "90", "1"), 2,
+                        true),
+                new Scenario("robot vacuum", new ChargingAndSessionBehaviorModel(),
+                        configFor("robot-vacuum", "ROBOT_VACUUM", "ROBOT_VACUUM", "CHARGING_AND_SESSION", "60", "20",
+                                "50", "1"), 2, true),
                 new Scenario("air purifier", new AlwaysOnVariableBehaviorModel(),
-                        configFor("AIR_PURIFIER", "AIR_PURIFIER", "ALWAYS_ON_VARIABLE", "50", "10", "40", "0"), null,
-                        false)
+                        configFor("air-purifier", "AIR_PURIFIER", "AIR_PURIFIER", "ALWAYS_ON_VARIABLE", "50", "10",
+                                "40", "0"), null, false)
         );
     }
 
-    private static ApplianceConfig configFor(String type, String catalogCode, String behaviorProfile,
+    /**
+     * Fixed, deterministic per-scenario UUIDs (derived from the scenario label) instead of
+     * {@code UUID.randomUUID()} — several behavior models hash {@code applianceId()} into
+     * {@code DiurnalCurve}'s per-device jitter (planned session start hour, demand curve phase,
+     * smoothed noise), so a random UUID made any jitter-dependent assertion failure irreproducible
+     * between runs even with the seeded {@link Random} held fixed.
+     */
+    private static ApplianceConfig configFor(String label, String type, String catalogCode, String behaviorProfile,
                                               String safeLimit, String minWatt, String maxWatt, String standbyMax) {
-        return new ApplianceConfig(UUID.randomUUID(), UUID.randomUUID(), type, new BigDecimal(safeLimit),
-                new BigDecimal(minWatt), new BigDecimal(maxWatt), catalogCode, behaviorProfile, null,
-                new BigDecimal(standbyMax));
+        UUID homeId = UUID.nameUUIDFromBytes(("home-" + label).getBytes(StandardCharsets.UTF_8));
+        UUID applianceId = UUID.nameUUIDFromBytes(("appliance-" + label).getBytes(StandardCharsets.UTF_8));
+        return new ApplianceConfig(homeId, applianceId, type, new BigDecimal(safeLimit), new BigDecimal(minWatt),
+                new BigDecimal(maxWatt), catalogCode, behaviorProfile, null, new BigDecimal(standbyMax));
     }
 
     @Test
