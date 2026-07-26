@@ -103,7 +103,7 @@ export function AddHomeWizard({ onClose }: AddHomeWizardProps) {
 
   return (
     <Dialog open onClose={onClose} labelledBy={titleId} maxWidthClassName="max-w-2xl">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4">
         <h2 id={titleId} className="text-lg font-semibold text-text-primary">
           Yeni Ev Ekle
         </h2>
@@ -118,9 +118,9 @@ export function AddHomeWizard({ onClose }: AddHomeWizardProps) {
       </div>
 
       {!registerMutation.isSuccess && (
-        <nav className="flex items-center gap-2 border-b border-border px-5 py-3" aria-label="Kayıt adımları">
+        <nav className="flex shrink-0 items-center gap-2 border-b border-border px-5 py-3 overflow-x-auto max-w-full min-w-0" aria-label="Kayıt adımları">
           {STEP_LABELS.map((label, index) => (
-            <div key={label} className="flex items-center gap-2">
+            <div key={label} className="flex shrink-0 items-center gap-2">
               <span
                 className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
                   index === step
@@ -132,16 +132,16 @@ export function AddHomeWizard({ onClose }: AddHomeWizardProps) {
               >
                 {index + 1}
               </span>
-              <span className={`text-xs font-medium ${index === step ? "text-text-primary" : "text-text-muted"}`}>
+              <span className={`text-xs font-medium whitespace-nowrap ${index === step ? "text-text-primary" : "text-text-muted"}`}>
                 {label}
               </span>
-              {index < STEP_LABELS.length - 1 && <span className="mx-1 h-px w-4 bg-border" aria-hidden="true" />}
+              {index < STEP_LABELS.length - 1 && <span className="mx-1 h-px w-4 bg-border shrink-0" aria-hidden="true" />}
             </div>
           ))}
         </nav>
       )}
 
-      <div className="flex-1 overflow-y-auto px-5 py-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
         {step === 0 && (
           <HomeInfoStep
             values={homeInfo}
@@ -166,7 +166,7 @@ export function AddHomeWizard({ onClose }: AddHomeWizardProps) {
             onUpdateOverride={catalogSelection.updateOverride}
             customAppliances={customAppliances}
             customErrors={showApplianceErrors ? customErrors : {}}
-            onAddCustom={() => setCustomAppliances((current) => [...current, newCustomAppliance()])}
+            onAddCustom={() => setCustomAppliances((current) => [newCustomAppliance(), ...current])}
             onRemoveCustom={(id) => setCustomAppliances((current) => current.filter((a) => a.id !== id))}
             onCustomChange={(id, field, value) =>
               setCustomAppliances((current) =>
@@ -191,7 +191,7 @@ export function AddHomeWizard({ onClose }: AddHomeWizardProps) {
       </div>
 
       {!registerMutation.isSuccess && (
-        <div className="flex items-center justify-between gap-2 border-t border-border px-5 py-3">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-5 py-3 bg-surface z-10">
           <Button variant="ghost" onClick={goBack} disabled={step === 0}>
             Geri
           </Button>

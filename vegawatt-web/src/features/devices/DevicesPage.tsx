@@ -1,7 +1,13 @@
 import { Cpu, Plus, X } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { getApplianceDisplayName, getApplianceIcon, getApplianceTypeLabel } from "../../shared/constants/applianceTypes";
+import {
+  getApplianceDisplayName,
+  getApplianceIcon,
+  getApplianceTypeLabel,
+  getOperatingModeLabel,
+  getOperatingStateLabel,
+} from "../../shared/constants/applianceTypes";
 import { Button } from "../../shared/components/Button";
 import { Dialog } from "../../shared/components/Dialog";
 import { EmptyState } from "../../shared/components/EmptyState";
@@ -210,6 +216,7 @@ export function DevicesPage() {
             <tr className="border-b border-border-strong bg-surface-subtle text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
               <th className="px-4 py-3">Cihaz</th>
               <th className="px-4 py-3">Ev</th>
+              <th className="px-4 py-3">Çalışma Modu</th>
               <th className="px-4 py-3">Güncel güç</th>
               <th className="px-4 py-3">Limit kullanımı</th>
               <th className="px-4 py-3">Pay</th>
@@ -220,6 +227,10 @@ export function DevicesPage() {
             {filtered.map((device: DeviceRow) => {
               const Icon = getApplianceIcon(device.appliance.applianceType, device.appliance.catalogIconKey);
               const tone = limitBarTone(device.limitUsagePercentage);
+              const modeLabel =
+                getOperatingModeLabel(device.appliance.operatingMode) ??
+                getOperatingStateLabel(device.appliance.operatingState) ??
+                "Normal";
               return (
                 <tr
                   key={device.appliance.applianceId}
@@ -251,6 +262,11 @@ export function DevicesPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3.5 text-text-secondary">{device.homeName}</td>
+                  <td className="px-4 py-3.5">
+                    <span className="inline-flex items-center rounded-full bg-primary-soft/60 px-2 py-0.5 text-xs font-medium text-primary">
+                      {modeLabel}
+                    </span>
+                  </td>
                   <td className="tabular-nums px-4 py-3.5 text-text-secondary">
                     {formatPower(device.appliance.currentPowerWatt)}
                   </td>

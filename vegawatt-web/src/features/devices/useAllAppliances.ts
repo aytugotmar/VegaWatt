@@ -54,7 +54,7 @@ export function useAllAppliances(): AllAppliancesResult {
         });
       }
     }
-    return rows;
+    return rows.sort((a, b) => toSafeNumber(b.appliance.currentPowerWatt) - toSafeNumber(a.appliance.currentPowerWatt));
   }, [homes]);
 
   return { isLoading, isError, devices };
