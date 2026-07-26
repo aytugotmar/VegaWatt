@@ -103,5 +103,5 @@ This project is licensed under the MIT License. Feel free to open a Pull Request
 ## By
 
 - [Aytuğ Otmar](https://github.com/aytugotmar)
-- [Bekircan Küçükakın](https://github.com/bekcanckn)
+- [Bekircan Küçükakın](https://github.com/bekucukakin)
 - [Kenan Özçakır](https://github.com/KenanOzcakir)
