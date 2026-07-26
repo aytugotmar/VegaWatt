@@ -53,13 +53,15 @@ class IgniteTelemetryLiveStateAdapter implements TelemetryLiveStatePort {
         try (ClientTransaction transaction = igniteClient.transactions().txStart()) {
             HomeLiveStateCacheValue existingHomeValue = homeCache.get(homeKey);
             HomeLiveState existingHome = existingHomeValue == null ? null : toHomeDomain(homeId, existingHomeValue);
-            HomeLiveState updatedHome = homeMutator.apply(existingHome);
+            HomeLiveState updatedHome = homeMutator.apply(existingHome)
+                    .withStateVersion(nextVersion(existingHome == null ? 0L : existingHome.stateVersion()));
             homeCache.put(homeKey, toHomeCacheValue(updatedHome));
 
             ApplianceLiveStateCacheValue existingApplianceValue = applianceCache.get(applianceKey);
             ApplianceLiveState existingAppliance = existingApplianceValue == null ? null
                     : toApplianceDomain(homeId, applianceId, existingApplianceValue);
-            ApplianceLiveState updatedAppliance = applianceMutator.apply(existingAppliance);
+            ApplianceLiveState updatedAppliance = applianceMutator.apply(existingAppliance)
+                    .withStateVersion(nextVersion(existingAppliance == null ? 0L : existingAppliance.stateVersion()));
             applianceCache.put(applianceKey, toApplianceCacheValue(updatedAppliance));
 
             transaction.commit();
@@ -67,35 +69,41 @@ class IgniteTelemetryLiveStateAdapter implements TelemetryLiveStatePort {
         }
     }
 
+    private static long nextVersion(long existingVersion) {
+        return existingVersion + 1;
+    }
+
     @Override
-    public void restore(UUID homeId, UUID applianceId, UUID eventId, HomeLiveState previousHome,
-                        ApplianceLiveState previousAppliance) {
+    public void restore(UUID homeId, UUID applianceId, UUID eventId, long expectedHomeVersion,
+                        long expectedApplianceVersion, HomeLiveState previousHome, ApplianceLiveState previousAppliance) {
         String homeKey = homeId.toString();
         String applianceKey = homeId + ":" + applianceId;
 
         try (ClientTransaction transaction = igniteClient.transactions().txStart()) {
             HomeLiveStateCacheValue currentHomeValue = homeCache.get(homeKey);
-            if (currentHomeValue == null || eventId.equals(currentHomeValue.getLastEventId())) {
+            if (currentHomeValue == null || currentHomeValue.getStateVersion() == expectedHomeVersion) {
                 if (previousHome != null) {
                     homeCache.put(homeKey, toHomeCacheValue(previousHome));
                 } else {
                     homeCache.remove(homeKey);
                 }
             } else {
-                log.warn("Skipping home Ignite compensation for event {} (home={}) — current state was already "
-                        + "superseded by a later event", eventId, homeId);
+                log.warn("Skipping home Ignite compensation for event {} (home={}) — current state (version {}) was "
+                        + "already superseded by a later write (expected version {})", eventId, homeId,
+                        currentHomeValue.getStateVersion(), expectedHomeVersion);
             }
 
             ApplianceLiveStateCacheValue currentApplianceValue = applianceCache.get(applianceKey);
-            if (currentApplianceValue == null || eventId.equals(currentApplianceValue.getLastEventId())) {
+            if (currentApplianceValue == null || currentApplianceValue.getStateVersion() == expectedApplianceVersion) {
                 if (previousAppliance != null) {
                     applianceCache.put(applianceKey, toApplianceCacheValue(previousAppliance));
                 } else {
                     applianceCache.remove(applianceKey);
                 }
             } else {
-                log.warn("Skipping appliance Ignite compensation for event {} (appliance={}) — current state was "
-                        + "already superseded by a later event", eventId, applianceId);
+                log.warn("Skipping appliance Ignite compensation for event {} (appliance={}) — current state "
+                        + "(version {}) was already superseded by a later write (expected version {})", eventId,
+                        applianceId, currentApplianceValue.getStateVersion(), expectedApplianceVersion);
             }
 
             transaction.commit();
@@ -105,14 +113,15 @@ class IgniteTelemetryLiveStateAdapter implements TelemetryLiveStatePort {
     private static HomeLiveStateCacheValue toHomeCacheValue(HomeLiveState state) {
         return new HomeLiveStateCacheValue(state.homeName(), state.currentEnergyKwh(), state.currentCost().amount(),
                 state.energyQuotaPercentage(), state.budgetQuotaPercentage(), state.tariffState(),
-                state.penaltyActive(), state.billingPeriod(), state.lastUpdatedAt(), state.lastEventId());
+                state.penaltyActive(), state.billingPeriod(), state.lastUpdatedAt(), state.lastEventId(),
+                state.stateVersion());
     }
 
     private static HomeLiveState toHomeDomain(UUID homeId, HomeLiveStateCacheValue value) {
         return new HomeLiveState(homeId, value.getHomeName(), value.getCurrentEnergyKwh(),
                 Money.of(value.getCurrentCost()), value.getEnergyQuotaPercentage(), value.getBudgetQuotaPercentage(),
                 value.getTariffState(), value.isPenaltyActive(), value.getBillingPeriod(), value.getLastUpdatedAt(),
-                value.getLastEventId());
+                value.getLastEventId(), value.getStateVersion());
     }
 
     private static ApplianceLiveStateCacheValue toApplianceCacheValue(ApplianceLiveState state) {
@@ -121,7 +130,7 @@ class IgniteTelemetryLiveStateAdapter implements TelemetryLiveStatePort {
                 state.accumulatedEnergyKwh(), state.consecutiveBreachCount(), state.consecutiveNormalCount(),
                 state.anomalous(), state.standbyBreachCount(), state.standbyRecoveryCount(),
                 state.standbyAnomalyActive(), state.telemetryHealthStatus(), state.lastUpdatedAt(),
-                state.lastEventId(), state.lastProcessedSequence());
+                state.lastEventId(), state.lastProcessedSequence(), state.stateVersion());
     }
 
     private static ApplianceLiveState toApplianceDomain(UUID homeId, UUID applianceId,
@@ -131,6 +140,7 @@ class IgniteTelemetryLiveStateAdapter implements TelemetryLiveStatePort {
                 value.getOperatingMode(), value.getAccumulatedEnergyKwh(), value.getConsecutiveBreachCount(),
                 value.getConsecutiveNormalCount(), value.isAnomalous(), value.getStandbyBreachCount(),
                 value.getStandbyRecoveryCount(), value.isStandbyAnomalyActive(), value.getTelemetryHealthStatus(),
-                value.getLastUpdatedAt(), value.getLastEventId(), value.getLastProcessedSequence());
+                value.getLastUpdatedAt(), value.getLastEventId(), value.getLastProcessedSequence(),
+                value.getStateVersion());
     }
 }

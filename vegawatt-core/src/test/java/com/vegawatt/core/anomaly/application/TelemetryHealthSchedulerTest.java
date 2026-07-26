@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,7 +65,7 @@ class TelemetryHealthSchedulerTest {
                                                  Instant lastUpdatedAt) {
         return new ApplianceLiveState(HOME_ID, applianceId, "TV", "TELEVISION", new BigDecimal("180"),
                 new BigDecimal("1"), null, null, BigDecimal.ZERO.setScale(9), 0, 0, false, 0, 0, false, status,
-                lastUpdatedAt, null, 0L);
+                lastUpdatedAt, null, 0L, 0L);
     }
 
     @SuppressWarnings("unchecked")
@@ -181,5 +182,39 @@ class TelemetryHealthSchedulerTest {
 
         // Second update call restores previous live state
         verify(applianceLiveStatePort, org.mockito.Mockito.times(2)).update(eq(HOME_ID), eq(applianceId), any());
+    }
+
+    @Test
+    void doesNotClobberANewerWriteWhenCompensatingAfterADatabaseFailure() {
+        UUID applianceId = UUID.randomUUID();
+        ApplianceLiveState existing = liveState(applianceId, ApplianceHealthStatus.NORMAL, NOW.minusSeconds(45));
+        when(applianceLiveStatePort.getAll()).thenReturn(List.of(existing));
+        when(operationalEventRepository.save(any())).thenThrow(new RuntimeException("PostgreSQL connection lost"));
+
+        // Simulates the real Ignite adapter's update(): the transition write lands at version 5.
+        // Before the compensation runs, some other mutator (a telemetry event, another sweep) has
+        // legitimately advanced the cache entry to version 6 — that write must survive.
+        ApplianceLiveState supersededAtVersion6 =
+                liveState(applianceId, ApplianceHealthStatus.NORMAL, NOW).withStateVersion(6L);
+        AtomicReference<ApplianceLiveState> compensationResult = new AtomicReference<>();
+
+        when(applianceLiveStatePort.update(eq(HOME_ID), eq(applianceId), any()))
+                .thenAnswer(invocation -> {
+                    UnaryOperator<ApplianceLiveState> mutator = invocation.getArgument(2);
+                    return mutator.apply(existing).withStateVersion(5L);
+                })
+                .thenAnswer(invocation -> {
+                    UnaryOperator<ApplianceLiveState> mutator = invocation.getArgument(2);
+                    ApplianceLiveState result = mutator.apply(supersededAtVersion6);
+                    compensationResult.set(result);
+                    return result;
+                });
+
+        scheduler.sweep();
+
+        verify(applianceLiveStatePort, org.mockito.Mockito.times(2)).update(eq(HOME_ID), eq(applianceId), any());
+        assertThat(compensationResult.get())
+                .as("a legitimately newer write (version 6) must survive a stale rollback targeting version 5")
+                .isSameAs(supersededAtVersion6);
     }
 }

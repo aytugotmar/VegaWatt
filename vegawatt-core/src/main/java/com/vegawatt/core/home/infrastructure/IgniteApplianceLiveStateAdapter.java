@@ -93,11 +93,15 @@ class IgniteApplianceLiveStateAdapter implements ApplianceLiveStatePort {
             ApplianceLiveStateCacheValue existingValue = stateCache.get(key);
             ApplianceLiveState existing = existingValue == null ? null
                     : toDomain(homeId, applianceId, existingValue);
-            ApplianceLiveState updated = mutator.apply(existing);
+            ApplianceLiveState updated = mutator.apply(existing).withStateVersion(nextVersion(existing));
             stateCache.put(key, toCacheValue(updated));
             transaction.commit();
             return updated;
         }
+    }
+
+    private static long nextVersion(ApplianceLiveState existing) {
+        return (existing == null ? 0L : existing.stateVersion()) + 1;
     }
 
     private static String compositeKey(UUID homeId, UUID applianceId) {
@@ -110,7 +114,7 @@ class IgniteApplianceLiveStateAdapter implements ApplianceLiveStatePort {
                 state.accumulatedEnergyKwh(), state.consecutiveBreachCount(), state.consecutiveNormalCount(),
                 state.anomalous(), state.standbyBreachCount(), state.standbyRecoveryCount(),
                 state.standbyAnomalyActive(), state.telemetryHealthStatus(), state.lastUpdatedAt(),
-                state.lastEventId(), state.lastProcessedSequence());
+                state.lastEventId(), state.lastProcessedSequence(), state.stateVersion());
     }
 
     private static ApplianceLiveState toDomain(UUID homeId, UUID applianceId, ApplianceLiveStateCacheValue value) {
@@ -119,6 +123,7 @@ class IgniteApplianceLiveStateAdapter implements ApplianceLiveStatePort {
                 value.getOperatingMode(), value.getAccumulatedEnergyKwh(), value.getConsecutiveBreachCount(),
                 value.getConsecutiveNormalCount(), value.isAnomalous(), value.getStandbyBreachCount(),
                 value.getStandbyRecoveryCount(), value.isStandbyAnomalyActive(), value.getTelemetryHealthStatus(),
-                value.getLastUpdatedAt(), value.getLastEventId(), value.getLastProcessedSequence());
+                value.getLastUpdatedAt(), value.getLastEventId(), value.getLastProcessedSequence(),
+                value.getStateVersion());
     }
 }

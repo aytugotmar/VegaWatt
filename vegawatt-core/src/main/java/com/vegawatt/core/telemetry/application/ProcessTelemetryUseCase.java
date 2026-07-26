@@ -21,6 +21,7 @@ import com.vegawatt.core.home.domain.HomeLiveStatePort;
 import com.vegawatt.core.home.domain.HomeNotFoundException;
 import com.vegawatt.core.home.domain.HomeRepository;
 import com.vegawatt.core.home.domain.TelemetryLiveStatePort;
+import com.vegawatt.core.home.domain.TelemetryLiveStateUpdate;
 import com.vegawatt.core.telemetry.domain.EnergyCalculator;
 import com.vegawatt.core.telemetry.domain.InvalidTelemetryReadingException;
 import com.vegawatt.core.telemetry.domain.ProcessedTelemetryEventRepository;
@@ -131,7 +132,7 @@ public class ProcessTelemetryUseCase {
         AtomicReference<StandbyAnomalyEvaluationResult> standbyResultRef = new AtomicReference<>();
         AtomicReference<Boolean> transitionedToResumedRef = new AtomicReference<>();
 
-        telemetryLiveStatePort.update(home.id(), appliance.id(),
+        TelemetryLiveStateUpdate stateUpdate = telemetryLiveStatePort.update(home.id(), appliance.id(),
                 current -> {
                     previousHomeRef.set(current);
                     HomeBillingEvaluation evaluation = evaluateHomeBillingUseCase.evaluate(home, current,
@@ -169,13 +170,15 @@ public class ProcessTelemetryUseCase {
                     // Math.max, not a plain assignment, so an event that carries no sequence (0) leaves
                     // the appliance's high-water mark where it was rather than resetting it to zero.
                     long newLastProcessedSequence = Math.max(existing.lastProcessedSequence(), reading.sequenceNumber());
+                    // stateVersion is carried through unchanged — the Ignite adapter's update() stamps
+                    // the real next version once it sees this mutator's result.
                     return new ApplianceLiveState(reading.homeId(), reading.applianceId(), existing.applianceName(),
                             existing.applianceType(), existing.safePowerLimitWatt(), reading.powerWatt(),
                             reading.operatingState(), reading.operatingMode(), newAccumulatedEnergyKwh,
                             result.consecutiveBreachCount(), result.consecutiveNormalCount(), result.anomalous(),
                             standbyResult.standbyBreachCount(), standbyResult.standbyRecoveryCount(),
                             standbyResult.standbyAnomalyActive(), ApplianceHealthStatus.NORMAL, occurredAt,
-                            reading.eventId(), newLastProcessedSequence);
+                            reading.eventId(), newLastProcessedSequence, existing.stateVersion());
                 });
 
         HomeUpdateOutcome homeOutcome = homeOutcomeRef.get();
@@ -191,7 +194,7 @@ public class ProcessTelemetryUseCase {
             // Ignite already applied this event's increment before this try block, so any failure
             // here — duplicate or not — leaves it ahead of the permanent ledger and must be
             // compensated regardless of which branch below is taken.
-            compensateLiveState(home.id(), appliance.id(), reading.eventId(), previousHomeRef.get(),
+            compensateLiveState(home.id(), appliance.id(), reading.eventId(), stateUpdate, previousHomeRef.get(),
                     previousApplianceRef.get());
             if (!isProcessedTelemetryEventDuplicate(integrityEx)) {
                 // Anything other than the processed_telemetry_events primary-key collision — a
@@ -214,14 +217,14 @@ public class ProcessTelemetryUseCase {
             log.warn("Optimistic lock conflict persisting billing account for telemetry event {} (home={}); " +
                             "compensating Ignite state, Kafka retry will re-read the current row",
                     reading.eventId(), home.id(), lockConflict);
-            compensateLiveState(home.id(), appliance.id(), reading.eventId(), previousHomeRef.get(),
+            compensateLiveState(home.id(), appliance.id(), reading.eventId(), stateUpdate, previousHomeRef.get(),
                     previousApplianceRef.get());
             throw lockConflict;
         } catch (RuntimeException e) {
             log.error("Failed to persist billing/event log for telemetry event {} (home={}, appliance={}) after " +
                             "Ignite update; compensating both home and appliance Ignite states back to pre-event truth",
                     reading.eventId(), home.id(), appliance.id(), e);
-            compensateLiveState(home.id(), appliance.id(), reading.eventId(), previousHomeRef.get(),
+            compensateLiveState(home.id(), appliance.id(), reading.eventId(), stateUpdate, previousHomeRef.get(),
                     previousApplianceRef.get());
             throw e;
         }
@@ -262,13 +265,16 @@ public class ProcessTelemetryUseCase {
      * energy/cost increment was already applied in Ignite but never durably recorded). Rebuilding
      * both the home's and appliance's live states back to their pre-event values in a single atomic
      * Ignite transaction undoes that drift cleanly — but only for whichever side's current cache
-     * entry is still stamped with this event's ID; see {@link com.vegawatt.core.home.domain.TelemetryLiveStatePort#restore}
-     * for why a plain unconditional restore would be unsafe under concurrent processing.
+     * entry still has the exact {@code stateVersion} this event's own {@code update()} call stamped
+     * ({@code stateUpdate}); see {@link com.vegawatt.core.home.domain.TelemetryLiveStatePort#restore}
+     * for why a plain unconditional (or {@code lastEventId}-keyed) restore would be unsafe under
+     * concurrent processing — including by non-telemetry mutators like {@code TelemetryHealthScheduler}.
      */
-    private void compensateLiveState(UUID homeId, UUID applianceId, UUID eventId, HomeLiveState previousHome,
-                                     ApplianceLiveState previousAppliance) {
+    private void compensateLiveState(UUID homeId, UUID applianceId, UUID eventId, TelemetryLiveStateUpdate stateUpdate,
+                                     HomeLiveState previousHome, ApplianceLiveState previousAppliance) {
         try {
-            telemetryLiveStatePort.restore(homeId, applianceId, eventId, previousHome, previousAppliance);
+            telemetryLiveStatePort.restore(homeId, applianceId, eventId, stateUpdate.homeState().stateVersion(),
+                    stateUpdate.applianceState().stateVersion(), previousHome, previousAppliance);
         } catch (RuntimeException compensationFailure) {
             log.error("Failed to compensate Ignite live state for home {} and appliance {}", homeId, applianceId,
                     compensationFailure);

@@ -66,7 +66,7 @@ public class TelemetryHealthScheduler {
         AtomicReference<ApplianceHealthStatus> transitionedTo = new AtomicReference<>();
         AtomicReference<ApplianceLiveState> previousStateRef = new AtomicReference<>();
 
-        applianceLiveStatePort.update(homeId, applianceId, existing -> {
+        ApplianceLiveState updated = applianceLiveStatePort.update(homeId, applianceId, existing -> {
             if (existing == null) {
                 return null;
             }
@@ -85,8 +85,15 @@ public class TelemetryHealthScheduler {
                 transitionRecorder.record(homeId, applianceId, next, now);
             } catch (RuntimeException e) {
                 log.error("Failed to persist telemetry health transition for appliance {}, compensating live state", applianceId, e);
-                if (previousStateRef.get() != null) {
-                    applianceLiveStatePort.update(homeId, applianceId, ignored -> previousStateRef.get());
+                ApplianceLiveState previous = previousStateRef.get();
+                if (previous != null) {
+                    // CAS on the version this transition itself stamped: if some other mutator
+                    // (a telemetry event, another sweep) has legitimately written a newer state
+                    // since, that write must not be clobbered by this stale rollback.
+                    long writtenVersion = updated.stateVersion();
+                    applianceLiveStatePort.update(homeId, applianceId,
+                            current -> current != null && current.stateVersion() == writtenVersion ? previous
+                                    : current);
                 }
                 throw e;
             }
@@ -111,6 +118,6 @@ public class TelemetryHealthScheduler {
                 state.operatingMode(), state.accumulatedEnergyKwh(), state.consecutiveBreachCount(),
                 state.consecutiveNormalCount(), state.anomalous(), state.standbyBreachCount(),
                 state.standbyRecoveryCount(), state.standbyAnomalyActive(), status, state.lastUpdatedAt(),
-                state.lastEventId(), state.lastProcessedSequence());
+                state.lastEventId(), state.lastProcessedSequence(), state.stateVersion());
     }
 }

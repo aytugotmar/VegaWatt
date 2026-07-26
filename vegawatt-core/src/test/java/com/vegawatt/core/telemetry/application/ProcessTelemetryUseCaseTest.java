@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
@@ -137,7 +138,7 @@ class ProcessTelemetryUseCaseTest {
     private static ApplianceLiveState applianceStateWithSequence(long lastProcessedSequence) {
         return new ApplianceLiveState(HOME_ID, APPLIANCE_ID, "Fridge", "REFRIGERATOR", new BigDecimal("200"),
                 new BigDecimal("0"), null, null, BigDecimal.ZERO.setScale(9), 0, 0, false, 0, 0, false,
-                ApplianceHealthStatus.NORMAL, NOW, null, lastProcessedSequence);
+                ApplianceHealthStatus.NORMAL, NOW, null, lastProcessedSequence, 0L);
     }
 
     @Test
@@ -252,7 +253,7 @@ class ProcessTelemetryUseCaseTest {
     void telemetryResumesAfterStaleStatusResetsHealthAndFlagsRecorderForResumedEvent() {
         applianceLiveStateSlot = new ApplianceLiveState(HOME_ID, APPLIANCE_ID, "Fridge", "REFRIGERATOR",
                 new BigDecimal("200"), new BigDecimal("0"), null, null, BigDecimal.ZERO.setScale(9), 0, 0, false, 0,
-                0, false, ApplianceHealthStatus.STALE, NOW.minusSeconds(60), null, 0L);
+                0, false, ApplianceHealthStatus.STALE, NOW.minusSeconds(60), null, 0L, 0L);
 
         useCase.execute(reading(UUID.randomUUID(), new BigDecimal("1000")));
 
@@ -304,7 +305,33 @@ class ProcessTelemetryUseCaseTest {
         assertThatThrownBy(() -> useCase.execute(reading(eventId, new BigDecimal("1000"))))
                 .isInstanceOf(RuntimeException.class);
 
-        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), any(), any());
+        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), anyLong(), anyLong(), any(), any());
+    }
+
+    @Test
+    void compensatesUsingTheExactVersionsStampedByThisEventsOwnUpdate() {
+        // Distinct from the compare-and-swap correctness proven in IgniteTelemetryLiveStateAdapterTest
+        // (which tests restore() in isolation): this proves ProcessTelemetryUseCase actually threads
+        // the real stateVersion values from its own update() result through to restore(), rather than
+        // some placeholder — the wiring a previous eventId-keyed CAS didn't need at all.
+        homeLiveStateSlot = new HomeLiveState(HOME_ID, "Test Ev", BigDecimal.ZERO.setScale(9), Money.zero(),
+                BigDecimal.ZERO, BigDecimal.ZERO, TariffState.BASE, false, BillingPeriodResolver.currentPeriod(NOW),
+                NOW, null, 7L);
+        applianceLiveStateSlot = applianceStateWithSequence(0L).withStateVersion(9L);
+        doThrow(new RuntimeException("postgres unavailable"))
+                .when(telemetryBillingRecorder).persist(any(), any(), any(), any(), any(), any(), any(), any(),
+                        anyBoolean(), any(), any(), anyInt());
+
+        UUID eventId = UUID.randomUUID();
+        assertThatThrownBy(() -> useCase.execute(reading(eventId, new BigDecimal("1000"))))
+                .isInstanceOf(RuntimeException.class);
+
+        org.mockito.ArgumentCaptor<Long> homeVersion = org.mockito.ArgumentCaptor.forClass(Long.class);
+        org.mockito.ArgumentCaptor<Long> applianceVersion = org.mockito.ArgumentCaptor.forClass(Long.class);
+        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), homeVersion.capture(),
+                applianceVersion.capture(), any(), any());
+        assertThat(homeVersion.getValue()).isEqualTo(7L);
+        assertThat(applianceVersion.getValue()).isEqualTo(9L);
     }
 
     @Test
@@ -317,7 +344,7 @@ class ProcessTelemetryUseCaseTest {
         UUID eventId = UUID.randomUUID();
         useCase.execute(reading(eventId, new BigDecimal("1000")));
 
-        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), any(), any());
+        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), anyLong(), anyLong(), any(), any());
     }
 
     @Test
@@ -340,7 +367,7 @@ class ProcessTelemetryUseCaseTest {
         assertThatThrownBy(() -> useCase.execute(reading(eventId, new BigDecimal("1000"))))
                 .isSameAs(notADuplicate);
 
-        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), any(), any());
+        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), anyLong(), anyLong(), any(), any());
     }
 
     @Test
@@ -399,7 +426,7 @@ class ProcessTelemetryUseCaseTest {
         assertThatThrownBy(() -> useCase.execute(reading(eventId, new BigDecimal("1000"))))
                 .isInstanceOf(org.springframework.orm.ObjectOptimisticLockingFailureException.class);
 
-        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), any(), any());
+        verify(telemetryLiveStatePort).restore(eq(HOME_ID), eq(APPLIANCE_ID), eq(eventId), anyLong(), anyLong(), any(), any());
     }
 
     @Test

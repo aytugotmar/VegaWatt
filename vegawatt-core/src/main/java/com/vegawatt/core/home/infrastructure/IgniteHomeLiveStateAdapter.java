@@ -77,23 +77,28 @@ class IgniteHomeLiveStateAdapter implements HomeLiveStatePort {
         try (ClientTransaction transaction = igniteClient.transactions().txStart()) {
             HomeLiveStateCacheValue existingValue = cache.get(key);
             HomeLiveState existing = existingValue == null ? null : toDomain(homeId, existingValue);
-            HomeLiveState updated = mutator.apply(existing);
+            HomeLiveState updated = mutator.apply(existing).withStateVersion(nextVersion(existing));
             cache.put(key, toCacheValue(updated));
             transaction.commit();
             return updated;
         }
     }
 
+    private static long nextVersion(HomeLiveState existing) {
+        return (existing == null ? 0L : existing.stateVersion()) + 1;
+    }
+
     private static HomeLiveStateCacheValue toCacheValue(HomeLiveState state) {
         return new HomeLiveStateCacheValue(state.homeName(), state.currentEnergyKwh(), state.currentCost().amount(),
                 state.energyQuotaPercentage(), state.budgetQuotaPercentage(), state.tariffState(),
-                state.penaltyActive(), state.billingPeriod(), state.lastUpdatedAt(), state.lastEventId());
+                state.penaltyActive(), state.billingPeriod(), state.lastUpdatedAt(), state.lastEventId(),
+                state.stateVersion());
     }
 
     private static HomeLiveState toDomain(UUID homeId, HomeLiveStateCacheValue value) {
         return new HomeLiveState(homeId, value.getHomeName(), value.getCurrentEnergyKwh(),
                 Money.of(value.getCurrentCost()), value.getEnergyQuotaPercentage(), value.getBudgetQuotaPercentage(),
                 value.getTariffState(), value.isPenaltyActive(), value.getBillingPeriod(), value.getLastUpdatedAt(),
-                value.getLastEventId());
+                value.getLastEventId(), value.getStateVersion());
     }
 }

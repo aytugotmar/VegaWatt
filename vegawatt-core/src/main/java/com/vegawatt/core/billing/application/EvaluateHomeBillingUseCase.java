@@ -60,9 +60,11 @@ public class EvaluateHomeBillingUseCase {
                 ? TariffState.PENALTY
                 : TariffState.BASE;
 
+        // stateVersion is carried through unchanged here — the Ignite adapter's update() is solely
+        // responsible for stamping the real next version once it sees this mutator's result.
         HomeLiveState newState = new HomeLiveState(home.id(), home.name(), newEnergyKwh, newCost,
                 newEnergyPercentage, newBudgetPercentage, newTariffState, newTariffState == TariffState.PENALTY,
-                currentPeriod, now, eventId);
+                currentPeriod, now, eventId, existing.stateVersion());
         HomeUpdateOutcome outcome = new HomeUpdateOutcome(energyIncrementKwh, costIncrement.amount(),
                 energyTransition, budgetTransition);
 
@@ -85,7 +87,7 @@ public class EvaluateHomeBillingUseCase {
                             home.budgetQuotaTry());
                     return new HomeLiveState(home.id(), home.name(), billingAccount.accumulatedEnergyKwh(),
                             billingAccount.accumulatedCost(), energyPercentage, budgetPercentage, tariffState,
-                            billingAccount.penaltyActive(), currentPeriod, now, null);
+                            billingAccount.penaltyActive(), currentPeriod, now, null, 0L);
                 })
                 .orElseGet(() -> HomeLiveState.zero(home.id(), home.name(), currentPeriod, now));
     }

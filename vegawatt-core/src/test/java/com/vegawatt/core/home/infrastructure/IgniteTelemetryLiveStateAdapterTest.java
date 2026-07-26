@@ -24,9 +24,12 @@ import org.apache.ignite.client.IgniteClient;
 
 /**
  * Verifies the compare-and-swap guard in {@link IgniteTelemetryLiveStateAdapter#restore} — the
- * fix for a real bug where an unconditional restore could clobber a concurrently-committed later
- * event's live state. No real Ignite instance is used (none exists anywhere in this module's test
- * suite); {@link IgniteClient}/{@link ClientCache}/{@link ClientTransaction} are all plain
+ * fix for a real bug where an unconditional (or {@code lastEventId}-keyed) restore could clobber a
+ * later write to the same home/appliance, whether that write came from a concurrently-committed
+ * telemetry event or a completely different mutator (e.g. {@code TelemetryHealthScheduler}) that
+ * never touches {@code lastEventId} at all. The CAS is keyed on {@code stateVersion} instead, which
+ * every mutator advances. No real Ignite instance is used (none exists anywhere in this module's
+ * test suite); {@link IgniteClient}/{@link ClientCache}/{@link ClientTransaction} are all plain
  * interfaces and are mocked directly.
  */
 class IgniteTelemetryLiveStateAdapterTest {
@@ -59,46 +62,54 @@ class IgniteTelemetryLiveStateAdapterTest {
 
     private static HomeLiveState previousHome() {
         return new HomeLiveState(HOME_ID, "Test Ev", new BigDecimal("5.00"), Money.of(new BigDecimal("10.00")),
-                new BigDecimal("5.00"), new BigDecimal("2.00"), TariffState.BASE, false, "2026-01", NOW, null);
+                new BigDecimal("5.00"), new BigDecimal("2.00"), TariffState.BASE, false, "2026-01", NOW, null, 0L);
     }
 
     private static ApplianceLiveState previousAppliance() {
         return new ApplianceLiveState(HOME_ID, APPLIANCE_ID, "Fridge", "REFRIGERATOR", new BigDecimal("200"),
                 new BigDecimal("50"), null, null, BigDecimal.ZERO.setScale(9), 0, 0, false, 0, 0, false,
-                com.vegawatt.core.common.ApplianceHealthStatus.NORMAL, NOW, null, 0L);
+                com.vegawatt.core.common.ApplianceHealthStatus.NORMAL, NOW, null, 0L, 0L);
     }
 
-    private static HomeLiveStateCacheValue homeCacheValueStampedWith(UUID eventId) {
+    private static HomeLiveStateCacheValue homeCacheValueAtVersion(long stateVersion) {
         return new HomeLiveStateCacheValue("Test Ev", new BigDecimal("6.00"), new BigDecimal("11.00"),
-                new BigDecimal("6.00"), new BigDecimal("2.20"), TariffState.BASE, false, "2026-01", NOW, eventId);
+                new BigDecimal("6.00"), new BigDecimal("2.20"), TariffState.BASE, false, "2026-01", NOW,
+                UUID.randomUUID(), stateVersion);
     }
 
-    private static ApplianceLiveStateCacheValue applianceCacheValueStampedWith(UUID eventId) {
+    private static ApplianceLiveStateCacheValue applianceCacheValueAtVersion(long stateVersion) {
         return new ApplianceLiveStateCacheValue("Fridge", "REFRIGERATOR", new BigDecimal("200"),
                 new BigDecimal("60"), null, null, BigDecimal.ZERO.setScale(9), 0, 0, false, 0, 0, false,
-                com.vegawatt.core.common.ApplianceHealthStatus.NORMAL, NOW, eventId, 0L);
+                com.vegawatt.core.common.ApplianceHealthStatus.NORMAL, NOW, UUID.randomUUID(), 0L, stateVersion);
     }
 
     @Test
-    void restoresBothStatesWhenCurrentCacheEntriesAreStillStampedWithTheEventBeingCompensated() {
+    void restoresBothStatesWhenCurrentCacheEntriesAreStillAtTheVersionBeingCompensated() {
         UUID eventId = UUID.randomUUID();
-        when(homeCache.get(anyString())).thenReturn(homeCacheValueStampedWith(eventId));
-        when(applianceCache.get(anyString())).thenReturn(applianceCacheValueStampedWith(eventId));
+        long expectedHomeVersion = 3L;
+        long expectedApplianceVersion = 4L;
+        when(homeCache.get(anyString())).thenReturn(homeCacheValueAtVersion(expectedHomeVersion));
+        when(applianceCache.get(anyString())).thenReturn(applianceCacheValueAtVersion(expectedApplianceVersion));
 
-        adapter.restore(HOME_ID, APPLIANCE_ID, eventId, previousHome(), previousAppliance());
+        adapter.restore(HOME_ID, APPLIANCE_ID, eventId, expectedHomeVersion, expectedApplianceVersion, previousHome(),
+                previousAppliance());
 
         verify(homeCache).put(anyString(), any(HomeLiveStateCacheValue.class));
         verify(applianceCache).put(anyString(), any(ApplianceLiveStateCacheValue.class));
     }
 
     @Test
-    void skipsRestoringWhenCurrentCacheEntriesWereAlreadySupersededByALaterEvent() {
-        UUID eventBeingCompensated = UUID.randomUUID();
-        UUID laterEventThatAlreadyWon = UUID.randomUUID();
-        when(homeCache.get(anyString())).thenReturn(homeCacheValueStampedWith(laterEventThatAlreadyWon));
-        when(applianceCache.get(anyString())).thenReturn(applianceCacheValueStampedWith(laterEventThatAlreadyWon));
+    void skipsRestoringWhenCurrentCacheEntriesWereAlreadySupersededByALaterWrite() {
+        UUID eventId = UUID.randomUUID();
+        long expectedHomeVersion = 3L;
+        long expectedApplianceVersion = 4L;
+        // Some other mutator (a concurrent telemetry event, a health-scheduler sweep, ...) already
+        // advanced both sides past the version this compensation is trying to roll back.
+        when(homeCache.get(anyString())).thenReturn(homeCacheValueAtVersion(expectedHomeVersion + 1));
+        when(applianceCache.get(anyString())).thenReturn(applianceCacheValueAtVersion(expectedApplianceVersion + 1));
 
-        adapter.restore(HOME_ID, APPLIANCE_ID, eventBeingCompensated, previousHome(), previousAppliance());
+        adapter.restore(HOME_ID, APPLIANCE_ID, eventId, expectedHomeVersion, expectedApplianceVersion, previousHome(),
+                previousAppliance());
 
         verify(homeCache, never()).put(anyString(), any());
         verify(homeCache, never()).remove(anyString());
@@ -112,7 +123,7 @@ class IgniteTelemetryLiveStateAdapterTest {
         when(homeCache.get(anyString())).thenReturn(null);
         when(applianceCache.get(anyString())).thenReturn(null);
 
-        adapter.restore(HOME_ID, APPLIANCE_ID, eventId, previousHome(), previousAppliance());
+        adapter.restore(HOME_ID, APPLIANCE_ID, eventId, 3L, 4L, previousHome(), previousAppliance());
 
         verify(homeCache).put(anyString(), any(HomeLiveStateCacheValue.class));
         verify(applianceCache).put(anyString(), any(ApplianceLiveStateCacheValue.class));

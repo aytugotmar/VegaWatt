@@ -17,6 +17,7 @@ class HomeLiveStateCacheValue {
     private String billingPeriod;
     private Instant lastUpdatedAt;
     private UUID lastEventId;
+    private long stateVersion;
 
     HomeLiveStateCacheValue() {
     }
@@ -24,7 +25,7 @@ class HomeLiveStateCacheValue {
     HomeLiveStateCacheValue(String homeName, BigDecimal currentEnergyKwh, BigDecimal currentCost,
                              BigDecimal energyQuotaPercentage, BigDecimal budgetQuotaPercentage,
                              TariffState tariffState, boolean penaltyActive, String billingPeriod,
-                             Instant lastUpdatedAt, UUID lastEventId) {
+                             Instant lastUpdatedAt, UUID lastEventId, long stateVersion) {
         this.homeName = homeName;
         this.currentEnergyKwh = currentEnergyKwh;
         this.currentCost = currentCost;
@@ -35,6 +36,7 @@ class HomeLiveStateCacheValue {
         this.billingPeriod = billingPeriod;
         this.lastUpdatedAt = lastUpdatedAt;
         this.lastEventId = lastEventId;
+        this.stateVersion = stateVersion;
     }
 
     String getHomeName() {
@@ -75,5 +77,9 @@ class HomeLiveStateCacheValue {
 
     UUID getLastEventId() {
         return lastEventId;
+    }
+
+    long getStateVersion() {
+        return stateVersion;
     }
 }

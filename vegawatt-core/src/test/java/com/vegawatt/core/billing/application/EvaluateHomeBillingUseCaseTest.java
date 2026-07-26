@@ -42,7 +42,7 @@ class EvaluateHomeBillingUseCaseTest {
     void evaluate_sameBillingPeriod_accumulatesEnergyAndCost() {
         String currentPeriod = BillingPeriodResolver.currentPeriod(now);
         HomeLiveState current = new HomeLiveState(homeId, "Test Home", new BigDecimal("10.00"), Money.of(new BigDecimal("25.00")),
-                new BigDecimal("10.00"), new BigDecimal("5.00"), TariffState.BASE, false, currentPeriod, now, null);
+                new BigDecimal("10.00"), new BigDecimal("5.00"), TariffState.BASE, false, currentPeriod, now, null, 0L);
 
         HomeBillingEvaluation evaluation = evaluateHomeBillingUseCase.evaluate(home, current, new BigDecimal("5.00"), now,
                 UUID.randomUUID());
@@ -60,7 +60,7 @@ class EvaluateHomeBillingUseCaseTest {
 
         // Previous month was in penalty state with high energy and cost
         HomeLiveState oldState = new HomeLiveState(homeId, "Test Home", new BigDecimal("150.00"), Money.of(new BigDecimal("750.00")),
-                new BigDecimal("150.00"), new BigDecimal("150.00"), TariffState.PENALTY, true, oldPeriod, now, null);
+                new BigDecimal("150.00"), new BigDecimal("150.00"), TariffState.PENALTY, true, oldPeriod, now, null, 0L);
 
         when(billingAccountRepository.findByHomeIdAndBillingPeriod(eq(home.id()), eq(newPeriod)))
                 .thenReturn(Optional.empty());
