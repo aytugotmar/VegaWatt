@@ -57,14 +57,20 @@ function applySort(homes: HomeLiveSummary[], sort: SortOption): HomeLiveSummary[
   }
 }
 
+import { ViewModeToggle, type ViewMode } from "../../shared/components/ViewModeToggle";
+
+import { useLanguage } from "../../shared/i18n/LanguageContext";
+
 interface DashboardPageProps {
   mode?: "USER" | "ADMIN";
 }
 
 export function DashboardPage({ mode = "ADMIN" }: DashboardPageProps = {}) {
+  const { t } = useLanguage();
   const { data: homes, isLoading, isError, isFetching, dataUpdatedAt, refetch } = useLiveHomesQuery();
   const [selectedHomeId, setSelectedHomeId] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("ALL");
   const [tariff, setTariff] = useState<TariffFilter>("ALL");
@@ -107,11 +113,14 @@ export function DashboardPage({ mode = "ADMIN" }: DashboardPageProps = {}) {
       <main className={mode === "ADMIN" ? "mx-auto max-w-6xl px-4 sm:px-6 py-4 sm:py-6" : "w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8"}>
         {mode === "USER" && (
           <div className="mb-5 flex items-center justify-between gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Evlerim</h1>
-            <Button variant="primary" onClick={() => setWizardOpen(true)}>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Yeni Ev
-            </Button>
+            <h1 className="text-2xl font-semibold tracking-tight text-text-primary">{t("nav.homes")}</h1>
+            <div className="flex items-center gap-3">
+              <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+              <Button variant="primary" onClick={() => setWizardOpen(true)}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                {t("card.newHome")}
+              </Button>
+            </div>
           </div>
         )}
 
@@ -167,11 +176,15 @@ export function DashboardPage({ mode = "ADMIN" }: DashboardPageProps = {}) {
                 description="Arama veya filtre kriterlerinize uyan bir ev yok."
               />
             ) : mode === "USER" ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {visibleHomes.map((home) => (
-                  <HomeCard key={home.homeId} home={home} onSelect={selectHome} />
-                ))}
-              </div>
+              viewMode === "grid" ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {visibleHomes.map((home) => (
+                    <HomeCard key={home.homeId} home={home} onSelect={selectHome} />
+                  ))}
+                </div>
+              ) : (
+                <HomeTable homes={visibleHomes} onSelect={selectHome} />
+              )
             ) : (
               <>
                 <HomeTable homes={visibleHomes} onSelect={selectHome} />

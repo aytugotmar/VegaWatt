@@ -76,9 +76,12 @@ function HomePickerDialog({
   );
 }
 
+import { ViewModeToggle, type ViewMode } from "../../shared/components/ViewModeToggle";
+
 export function DevicesPage() {
   const { devices, isLoading, isError } = useAllAppliances();
   const { data: liveHomes } = useLiveHomesQuery();
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [homeFilter, setHomeFilter] = useState("ALL");
   const [typeFilter, setTypeFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -163,12 +166,15 @@ export function DevicesPage() {
     <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
       <div className="mb-5 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Cihazlarım</h1>
-        {homes.length > 0 && (
-          <Button variant="primary" onClick={handleAddApplianceClick}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Cihaz Ekle
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+          {homes.length > 0 && (
+            <Button variant="primary" onClick={handleAddApplianceClick}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Cihaz Ekle
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="mb-4 flex flex-col sm:flex-row flex-wrap items-center gap-2">
@@ -210,93 +216,158 @@ export function DevicesPage() {
         </select>
       </div>
 
-      <div className="overflow-x-auto max-w-full rounded-card border border-border bg-surface shadow-sm">
-        <table className="w-full min-w-[820px] border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-border-strong bg-surface-subtle text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
-              <th className="px-4 py-3">Cihaz</th>
-              <th className="px-4 py-3">Ev</th>
-              <th className="px-4 py-3">Çalışma Modu</th>
-              <th className="px-4 py-3">Güncel güç</th>
-              <th className="px-4 py-3">Limit kullanımı</th>
-              <th className="px-4 py-3">Pay</th>
-              <th className="px-4 py-3">Son veri</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((device: DeviceRow) => {
-              const Icon = getApplianceIcon(device.appliance.applianceType, device.appliance.catalogIconKey);
-              const tone = limitBarTone(device.limitUsagePercentage);
-              const modeLabel =
-                getOperatingModeLabel(device.appliance.operatingMode) ??
-                getOperatingStateLabel(device.appliance.operatingState) ??
-                "Normal";
-              return (
-                <tr
-                  key={device.appliance.applianceId}
-                  className={`group border-b border-border bg-surface transition last:border-b-0 hover:bg-surface-subtle ${
-                    device.appliance.anomalous ? "shadow-[inset_3px_0_0_var(--color-danger)]" : "hover:shadow-[inset_3px_0_0_var(--color-primary)]"
-                  }`}
-                >
-                  <td className="px-4 py-3.5">
-                    <Link
-                      to={`/app/devices/${device.appliance.applianceId}`}
-                      className="flex items-center gap-2.5 group-hover:text-primary"
-                    >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-input bg-surface-subtle text-text-secondary">
-                        <Icon className="h-4 w-4" aria-hidden="true" />
+      {viewMode === "grid" ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((device: DeviceRow) => {
+            const Icon = getApplianceIcon(device.appliance.applianceType, device.appliance.catalogIconKey);
+            const modeLabel =
+              getOperatingModeLabel(device.appliance.operatingMode) ??
+              getOperatingStateLabel(device.appliance.operatingState) ??
+              "Normal";
+            return (
+              <Link
+                key={device.appliance.applianceId}
+                to={`/app/devices/${device.appliance.applianceId}`}
+                className={`group flex flex-col justify-between rounded-card border bg-surface p-5 transition hover:shadow-md ${
+                  device.appliance.anomalous ? "border-danger/60 bg-danger-soft/10" : "border-border hover:border-primary/50"
+                }`}
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-input bg-surface-subtle text-primary group-hover:scale-105 transition">
+                        <Icon className="h-5 w-5" aria-hidden="true" />
                       </span>
-                      <div className="flex min-w-0 flex-col">
-                        <span className="flex items-center gap-2 truncate font-medium text-text-primary">
+                      <div>
+                        <h3 className="text-base font-semibold text-text-primary group-hover:text-primary transition truncate">
                           {device.appliance.applianceName}
-                          {device.appliance.anomalous && (
-                            <span className="shrink-0 rounded-full bg-danger-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-danger">
-                              Yüksek tüketim
-                            </span>
-                          )}
-                        </span>
-                        <span className="text-xs text-text-muted">
-                          {getApplianceDisplayName(device.appliance.applianceType, device.appliance.catalogDisplayName)}
-                        </span>
+                        </h3>
+                        <p className="text-xs text-text-muted">{device.homeName}</p>
                       </div>
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3.5 text-text-secondary">{device.homeName}</td>
-                  <td className="px-4 py-3.5">
-                    <span className="inline-flex items-center rounded-full bg-primary-soft/60 px-2 py-0.5 text-xs font-medium text-primary">
+                    </div>
+                    {device.appliance.anomalous ? (
+                      <span className="shrink-0 rounded-full bg-danger-soft px-2 py-0.5 text-xs font-bold text-danger">
+                        Anomali
+                      </span>
+                    ) : (
+                      <span className="shrink-0 rounded-full bg-success-soft px-2 py-0.5 text-xs font-medium text-success">
+                        Normal
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="my-3 flex items-center justify-between border-t border-b border-border/60 py-2.5 text-xs">
+                    <span className="text-text-muted">Çalışma Modu</span>
+                    <span className="font-semibold text-primary rounded-full bg-primary-soft/60 px-2 py-0.5">
                       {modeLabel}
                     </span>
-                  </td>
-                  <td className="tabular-nums px-4 py-3.5 text-text-secondary">
-                    {formatPower(device.appliance.currentPowerWatt)}
-                  </td>
-                  <td className="px-4 py-3.5">
-                    {device.limitUsagePercentage === null ? (
-                      <span className="text-text-muted">—</span>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-20 overflow-hidden rounded-full bg-surface-subtle">
-                          <div
-                            className={`h-full rounded-full ${BAR_TONE_CLASS[tone]}`}
-                            style={{ width: `${Math.min(100, device.limitUsagePercentage)}%` }}
-                          />
-                        </div>
-                        <span className="tabular-nums text-xs text-text-secondary">
-                          {formatPercentage(device.limitUsagePercentage)}
+                  </div>
+
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-xs text-text-muted">Güncel Güç</span>
+                    <span className="text-xl font-bold text-text-primary">
+                      {formatPower(device.appliance.currentPowerWatt)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between text-xs text-text-muted">
+                  <span>Pay: {formatPercentage(device.shareOfTotalPower * 100)}</span>
+                  <span>{formatRelativeTime(device.appliance.lastUpdatedAt)}</span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="overflow-x-auto max-w-full rounded-card border border-border bg-surface shadow-sm">
+          <table className="w-full min-w-[820px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-border-strong bg-surface-subtle text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
+                <th className="px-4 py-3">Cihaz</th>
+                <th className="px-4 py-3">Ev</th>
+                <th className="px-4 py-3">Çalışma Modu</th>
+                <th className="px-4 py-3">Güncel güç</th>
+                <th className="px-4 py-3">Limit kullanımı</th>
+                <th className="px-4 py-3">Pay</th>
+                <th className="px-4 py-3">Son veri</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((device: DeviceRow) => {
+                const Icon = getApplianceIcon(device.appliance.applianceType, device.appliance.catalogIconKey);
+                const tone = limitBarTone(device.limitUsagePercentage);
+                const modeLabel =
+                  getOperatingModeLabel(device.appliance.operatingMode) ??
+                  getOperatingStateLabel(device.appliance.operatingState) ??
+                  "Normal";
+                return (
+                  <tr
+                    key={device.appliance.applianceId}
+                    className={`group border-b border-border bg-surface transition last:border-b-0 hover:bg-surface-subtle ${
+                      device.appliance.anomalous ? "shadow-[inset_3px_0_0_var(--color-danger)]" : "hover:shadow-[inset_3px_0_0_var(--color-primary)]"
+                    }`}
+                  >
+                    <td className="px-4 py-3.5">
+                      <Link
+                        to={`/app/devices/${device.appliance.applianceId}`}
+                        className="flex items-center gap-2.5 group-hover:text-primary"
+                      >
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-input bg-surface-subtle text-text-secondary">
+                          <Icon className="h-4 w-4" aria-hidden="true" />
                         </span>
-                      </div>
-                    )}
-                  </td>
-                  <td className="tabular-nums px-4 py-3.5 text-text-muted">
-                    {formatPercentage(device.shareOfTotalPower * 100)}
-                  </td>
-                  <td className="px-4 py-3.5 text-text-muted">{formatRelativeTime(device.appliance.lastUpdatedAt)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                        <div className="flex min-w-0 flex-col">
+                          <span className="flex items-center gap-2 truncate font-medium text-text-primary">
+                            {device.appliance.applianceName}
+                            {device.appliance.anomalous && (
+                              <span className="shrink-0 rounded-full bg-danger-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-danger">
+                                Yüksek tüketim
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-xs text-text-muted">
+                            {getApplianceDisplayName(device.appliance.applianceType, device.appliance.catalogDisplayName)}
+                          </span>
+                        </div>
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3.5 text-text-secondary">{device.homeName}</td>
+                    <td className="px-4 py-3.5">
+                      <span className="inline-flex items-center rounded-full bg-primary-soft/60 px-2 py-0.5 text-xs font-medium text-primary">
+                        {modeLabel}
+                      </span>
+                    </td>
+                    <td className="tabular-nums px-4 py-3.5 text-text-secondary">
+                      {formatPower(device.appliance.currentPowerWatt)}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      {device.limitUsagePercentage === null ? (
+                        <span className="text-text-muted">—</span>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-surface-subtle">
+                            <div
+                              className={`h-full rounded-full ${BAR_TONE_CLASS[tone]}`}
+                              style={{ width: `${Math.min(100, device.limitUsagePercentage)}%` }}
+                            />
+                          </div>
+                          <span className="tabular-nums text-xs text-text-secondary">
+                            {formatPercentage(device.limitUsagePercentage)}
+                          </span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="tabular-nums px-4 py-3.5 text-text-muted">
+                      {formatPercentage(device.shareOfTotalPower * 100)}
+                    </td>
+                    <td className="px-4 py-3.5 text-text-muted">{formatRelativeTime(device.appliance.lastUpdatedAt)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {homePickerOpen && (
         <HomePickerDialog

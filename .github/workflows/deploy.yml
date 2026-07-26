@@ -12,17 +12,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Execute deployment commands via SSH
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.GCP_HOST }}
           username: ${{ secrets.GCP_USERNAME }}
           key: ${{ secrets.GCP_SSH_KEY }}
+          passphrase: ${{ secrets.GCP_PASSPHRASE }}
+          password: ${{ secrets.GCP_PASSWORD }}
+          port: ${{ secrets.GCP_PORT || 22 }}
+          script_stop: true
           script: |
             set -e
             cd ~/VegaWatt
             git fetch origin main
             git reset --hard origin/main
-            docker compose build --no-cache
+            docker compose build
             docker compose up -d --force-recreate
             docker image prune -f || true
             docker builder prune -f || true

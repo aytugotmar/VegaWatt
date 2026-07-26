@@ -1,5 +1,6 @@
 import { Search } from "lucide-react";
 import type { HomeHealthStatus } from "../../shared/utils/homeStatus";
+import { useLanguage } from "../../shared/i18n/LanguageContext";
 
 export type StatusFilter = "ALL" | HomeHealthStatus;
 export type TariffFilter = "ALL" | "BASE" | "PENALTY";
@@ -16,28 +17,6 @@ interface HomeFiltersProps {
   onSortChange: (value: SortOption) => void;
 }
 
-const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
-  { value: "ALL", label: "Tümü" },
-  { value: "NORMAL", label: "Normal" },
-  { value: "WARNING", label: "Kota yaklaşıyor" },
-  { value: "CRITICAL", label: "Kritik" },
-  { value: "PENALTY", label: "Yüksek tarife" },
-];
-
-const TARIFF_OPTIONS: { value: TariffFilter; label: string }[] = [
-  { value: "ALL", label: "Tüm tarifeler" },
-  { value: "BASE", label: "Normal tarife" },
-  { value: "PENALTY", label: "Ceza tarifesi" },
-];
-
-const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: "CRITICAL", label: "En kritik" },
-  { value: "COST_DESC", label: "En yüksek maliyet" },
-  { value: "ENERGY_DESC", label: "En yüksek enerji" },
-  { value: "RECENT", label: "En son güncellenen" },
-  { value: "NAME", label: "Ev adına göre" },
-];
-
 export function HomeFilters({
   search,
   onSearchChange,
@@ -48,6 +27,30 @@ export function HomeFilters({
   sort,
   onSortChange,
 }: HomeFiltersProps) {
+  const { t } = useLanguage();
+
+  const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
+    { value: "ALL", label: t("filter.all") },
+    { value: "NORMAL", label: t("health.normal") },
+    { value: "WARNING", label: t("health.approachingQuota") },
+    { value: "CRITICAL", label: t("health.quotaExceeded") },
+    { value: "PENALTY", label: t("health.penaltyTariff") },
+  ];
+
+  const TARIFF_OPTIONS: { value: TariffFilter; label: string }[] = [
+    { value: "ALL", label: t("filter.allTariffs") },
+    { value: "BASE", label: t("card.standardTariff") },
+    { value: "PENALTY", label: t("card.penaltyTariff") },
+  ];
+
+  const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+    { value: "CRITICAL", label: t("filter.critical") },
+    { value: "COST_DESC", label: t("filter.costDesc") },
+    { value: "ENERGY_DESC", label: t("filter.energyDesc") },
+    { value: "RECENT", label: t("filter.recent") },
+    { value: "NAME", label: t("filter.name") },
+  ];
+
   return (
     <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
       <div className="relative flex-1 sm:min-w-[220px] sm:max-w-xs">
@@ -59,8 +62,8 @@ export function HomeFilters({
           type="search"
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Ev ara..."
-          aria-label="Ev ara"
+          placeholder={t("filter.searchPlaceholder")}
+          aria-label={t("filter.searchPlaceholder")}
           className="form-input pl-8"
         />
       </div>
