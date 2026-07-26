@@ -75,7 +75,7 @@ class IgniteTelemetryLiveStateAdapter implements TelemetryLiveStatePort {
 
     @Override
     public void restore(UUID homeId, UUID applianceId, UUID eventId, long expectedHomeVersion,
-                        long expectedApplianceVersion, HomeLiveState previousHome, ApplianceLiveState previousAppliance) {
+                        HomeLiveState previousHome, ApplianceLiveState previousAppliance) {
         String homeKey = homeId.toString();
         String applianceKey = homeId + ":" + applianceId;
 
@@ -93,21 +93,59 @@ class IgniteTelemetryLiveStateAdapter implements TelemetryLiveStatePort {
                         currentHomeValue.getStateVersion(), expectedHomeVersion);
             }
 
-            ApplianceLiveStateCacheValue currentApplianceValue = applianceCache.get(applianceKey);
-            if (currentApplianceValue == null || currentApplianceValue.getStateVersion() == expectedApplianceVersion) {
-                if (previousAppliance != null) {
-                    applianceCache.put(applianceKey, toApplianceCacheValue(previousAppliance));
-                } else {
-                    applianceCache.remove(applianceKey);
-                }
-            } else {
-                log.warn("Skipping appliance Ignite compensation for event {} (appliance={}) — current state "
-                        + "(version {}) was already superseded by a later write (expected version {})", eventId,
-                        applianceId, currentApplianceValue.getStateVersion(), expectedApplianceVersion);
-            }
+            restoreAppliance(homeId, applianceId, applianceKey, eventId, previousAppliance);
 
             transaction.commit();
         }
+    }
+
+    /**
+     * Unlike home compensation (whole-object {@code stateVersion} CAS — nothing else ever mutates
+     * home state outside telemetry processing), the appliance side has a second real writer:
+     * {@code TelemetryHealthScheduler} legitimately advances {@code telemetryHealthStatus} without
+     * touching {@code lastEventId}. A whole-object {@code stateVersion} CAS here would either (a)
+     * wrongly skip the entire compensation once the scheduler bumps the version — permanently
+     * stranding this event's energy/sequence in Ignite with no matching PostgreSQL row, and poisoning
+     * the out-of-order guard against every future retry of the same event — or (b), if keyed on the
+     * old {@code lastEventId} alone, wrongly clobber the scheduler's legitimately newer health status.
+     * Gating on {@code lastEventId} (an event-scoped identity, unaffected by the scheduler) and then
+     * reverting only the fields this event itself owns — while carrying the *current* cache entry's
+     * {@code telemetryHealthStatus}/catalog cosmetics forward untouched — gets both right at once.
+     */
+    private void restoreAppliance(UUID homeId, UUID applianceId, String applianceKey, UUID eventId,
+                                   ApplianceLiveState previousAppliance) {
+        ApplianceLiveStateCacheValue currentApplianceValue = applianceCache.get(applianceKey);
+        if (currentApplianceValue == null) {
+            if (previousAppliance != null) {
+                applianceCache.put(applianceKey, toApplianceCacheValue(previousAppliance));
+            }
+            return;
+        }
+
+        if (!eventId.equals(currentApplianceValue.getLastEventId())) {
+            log.warn("Skipping appliance Ignite compensation for event {} (appliance={}) — current state was "
+                    + "already superseded by a different telemetry event", eventId, applianceId);
+            return;
+        }
+
+        if (previousAppliance == null) {
+            applianceCache.remove(applianceKey);
+            return;
+        }
+
+        ApplianceLiveState current = toApplianceDomain(homeId, applianceId, currentApplianceValue);
+        ApplianceLiveState reverted = new ApplianceLiveState(
+                previousAppliance.homeId(), previousAppliance.applianceId(), previousAppliance.applianceName(),
+                previousAppliance.applianceType(), previousAppliance.safePowerLimitWatt(),
+                previousAppliance.currentPowerWatt(), previousAppliance.operatingState(),
+                previousAppliance.operatingMode(), previousAppliance.accumulatedEnergyKwh(),
+                previousAppliance.consecutiveBreachCount(), previousAppliance.consecutiveNormalCount(),
+                previousAppliance.anomalous(), previousAppliance.standbyBreachCount(),
+                previousAppliance.standbyRecoveryCount(), previousAppliance.standbyAnomalyActive(),
+                current.telemetryHealthStatus(), previousAppliance.lastUpdatedAt(), previousAppliance.lastEventId(),
+                previousAppliance.lastProcessedSequence(), nextVersion(current.stateVersion()),
+                current.catalogCode(), current.catalogDisplayName(), current.catalogIconKey());
+        applianceCache.put(applianceKey, toApplianceCacheValue(reverted));
     }
 
     private static HomeLiveStateCacheValue toHomeCacheValue(HomeLiveState state) {
@@ -130,7 +168,8 @@ class IgniteTelemetryLiveStateAdapter implements TelemetryLiveStatePort {
                 state.accumulatedEnergyKwh(), state.consecutiveBreachCount(), state.consecutiveNormalCount(),
                 state.anomalous(), state.standbyBreachCount(), state.standbyRecoveryCount(),
                 state.standbyAnomalyActive(), state.telemetryHealthStatus(), state.lastUpdatedAt(),
-                state.lastEventId(), state.lastProcessedSequence(), state.stateVersion());
+                state.lastEventId(), state.lastProcessedSequence(), state.stateVersion(), state.catalogCode(),
+                state.catalogDisplayName(), state.catalogIconKey());
     }
 
     private static ApplianceLiveState toApplianceDomain(UUID homeId, UUID applianceId,
@@ -141,6 +180,7 @@ class IgniteTelemetryLiveStateAdapter implements TelemetryLiveStatePort {
                 value.getConsecutiveNormalCount(), value.isAnomalous(), value.getStandbyBreachCount(),
                 value.getStandbyRecoveryCount(), value.isStandbyAnomalyActive(), value.getTelemetryHealthStatus(),
                 value.getLastUpdatedAt(), value.getLastEventId(), value.getLastProcessedSequence(),
-                value.getStateVersion());
+                value.getStateVersion(), value.getCatalogCode(), value.getCatalogDisplayName(),
+                value.getCatalogIconKey());
     }
 }

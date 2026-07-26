@@ -26,6 +26,9 @@ class ApplianceLiveStateCacheValue {
     private UUID lastEventId;
     private long lastProcessedSequence;
     private long stateVersion;
+    private String catalogCode;
+    private String catalogDisplayName;
+    private String catalogIconKey;
 
     ApplianceLiveStateCacheValue() {
     }
@@ -36,7 +39,8 @@ class ApplianceLiveStateCacheValue {
                                   int consecutiveNormalCount, boolean anomalous, int standbyBreachCount,
                                   int standbyRecoveryCount, boolean standbyAnomalyActive,
                                   ApplianceHealthStatus telemetryHealthStatus, Instant lastUpdatedAt,
-                                  UUID lastEventId, long lastProcessedSequence, long stateVersion) {
+                                  UUID lastEventId, long lastProcessedSequence, long stateVersion, String catalogCode,
+                                  String catalogDisplayName, String catalogIconKey) {
         this.applianceName = applianceName;
         this.applianceType = applianceType;
         this.safePowerLimitWatt = safePowerLimitWatt;
@@ -55,6 +59,9 @@ class ApplianceLiveStateCacheValue {
         this.lastEventId = lastEventId;
         this.lastProcessedSequence = lastProcessedSequence;
         this.stateVersion = stateVersion;
+        this.catalogCode = catalogCode;
+        this.catalogDisplayName = catalogDisplayName;
+        this.catalogIconKey = catalogIconKey;
     }
 
     String getApplianceName() {
@@ -127,5 +134,17 @@ class ApplianceLiveStateCacheValue {
 
     long getStateVersion() {
         return stateVersion;
+    }
+
+    String getCatalogCode() {
+        return catalogCode;
+    }
+
+    String getCatalogDisplayName() {
+        return catalogDisplayName;
+    }
+
+    String getCatalogIconKey() {
+        return catalogIconKey;
     }
 }

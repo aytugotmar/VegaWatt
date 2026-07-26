@@ -11,6 +11,7 @@ import com.vegawatt.core.home.domain.HomeLiveStatePort;
 import com.vegawatt.core.home.domain.HomeRepository;
 import com.vegawatt.core.common.time.ClockProvider;
 import java.time.Instant;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -36,18 +37,20 @@ public class StartupReconciliationService implements ApplicationRunner {
     private final EvaluateHomeBillingUseCase evaluateHomeBillingUseCase;
     private final AssetRegistrationPublisher assetRegistrationPublisher;
     private final ClockProvider clockProvider;
+    private final ApplianceFactory applianceFactory;
 
     public StartupReconciliationService(HomeRepository homeRepository, HomeLiveStatePort homeLiveStatePort,
                                          ApplianceLiveStatePort applianceLiveStatePort,
                                          EvaluateHomeBillingUseCase evaluateHomeBillingUseCase,
                                          AssetRegistrationPublisher assetRegistrationPublisher,
-                                         ClockProvider clockProvider) {
+                                         ClockProvider clockProvider, ApplianceFactory applianceFactory) {
         this.homeRepository = homeRepository;
         this.homeLiveStatePort = homeLiveStatePort;
         this.applianceLiveStatePort = applianceLiveStatePort;
         this.evaluateHomeBillingUseCase = evaluateHomeBillingUseCase;
         this.assetRegistrationPublisher = assetRegistrationPublisher;
         this.clockProvider = clockProvider;
+        this.applianceFactory = applianceFactory;
     }
 
     @Override
@@ -76,11 +79,35 @@ public class StartupReconciliationService implements ApplicationRunner {
 
         for (Appliance appliance : home.appliances()) {
             if (applianceLiveStatePort.get(home.id(), appliance.id()).isEmpty()) {
+                ApplianceCatalogView catalogView = applianceFactory.resolveCatalogView(appliance);
                 applianceLiveStatePort.initialize(ApplianceLiveState.zero(home.id(), appliance.id(),
-                        appliance.name(), appliance.type(), appliance.safePowerLimitWatt(), now));
+                        appliance.name(), appliance.type(), appliance.safePowerLimitWatt(), now,
+                        catalogView.catalogCode(), catalogView.catalogDisplayName(), catalogView.catalogIconKey()));
+            } else {
+                refreshCatalogMetadata(home.id(), appliance);
             }
         }
 
         assetRegistrationPublisher.publish(home);
+    }
+
+    /**
+     * An appliance whose Ignite entry survived a restart never runs through {@code initialize()}
+     * above, so a catalog link added/changed since that entry was written would otherwise never
+     * reach live state until the appliance's next telemetry event. Reconstructs the full state with
+     * every telemetry-owned field carried through unchanged and only the catalog cosmetics
+     * refreshed; the adapter's own no-op guard skips the write/version-bump if nothing changed.
+     */
+    private void refreshCatalogMetadata(UUID homeId, Appliance appliance) {
+        ApplianceCatalogView catalogView = applianceFactory.resolveCatalogView(appliance);
+        applianceLiveStatePort.update(homeId, appliance.id(), current -> new ApplianceLiveState(current.homeId(),
+                current.applianceId(), current.applianceName(), current.applianceType(),
+                current.safePowerLimitWatt(), current.currentPowerWatt(), current.operatingState(),
+                current.operatingMode(), current.accumulatedEnergyKwh(), current.consecutiveBreachCount(),
+                current.consecutiveNormalCount(), current.anomalous(), current.standbyBreachCount(),
+                current.standbyRecoveryCount(), current.standbyAnomalyActive(), current.telemetryHealthStatus(),
+                current.lastUpdatedAt(), current.lastEventId(), current.lastProcessedSequence(),
+                current.stateVersion(), catalogView.catalogCode(), catalogView.catalogDisplayName(),
+                catalogView.catalogIconKey()));
     }
 }

@@ -5,9 +5,11 @@ import com.vegawatt.core.home.domain.ApplianceLiveStatePort;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.function.UnaryOperator;
 import org.apache.ignite.cache.CacheAtomicityMode;
 import org.apache.ignite.cache.query.ScanQuery;
@@ -63,12 +65,15 @@ class IgniteApplianceLiveStateAdapter implements ApplianceLiveStatePort {
         if (applianceIds == null || applianceIds.isEmpty()) {
             return List.of();
         }
+        Set<String> keys = applianceIds.stream()
+                .map(applianceIdText -> compositeKey(homeId, UUID.fromString(applianceIdText)))
+                .collect(Collectors.toSet());
+        Map<String, ApplianceLiveStateCacheValue> values = stateCache.getAll(keys);
         List<ApplianceLiveState> result = new ArrayList<>();
         for (String applianceIdText : applianceIds) {
-            UUID applianceId = UUID.fromString(applianceIdText);
-            ApplianceLiveStateCacheValue value = stateCache.get(compositeKey(homeId, applianceId));
+            ApplianceLiveStateCacheValue value = values.get(compositeKey(homeId, UUID.fromString(applianceIdText)));
             if (value != null) {
-                result.add(toDomain(homeId, applianceId, value));
+                result.add(toDomain(homeId, UUID.fromString(applianceIdText), value));
             }
         }
         return result;
@@ -93,7 +98,19 @@ class IgniteApplianceLiveStateAdapter implements ApplianceLiveStatePort {
             ApplianceLiveStateCacheValue existingValue = stateCache.get(key);
             ApplianceLiveState existing = existingValue == null ? null
                     : toDomain(homeId, applianceId, existingValue);
-            ApplianceLiveState updated = mutator.apply(existing).withStateVersion(nextVersion(existing));
+            ApplianceLiveState candidate = mutator.apply(existing);
+            // A true no-op (e.g. TelemetryHealthScheduler's sweep finding no transition needed,
+            // which echoes `existing` straight back) must not still bump stateVersion — doing so
+            // would invalidate a concurrent telemetry compensation's CAS for no real reason, since
+            // nothing about this appliance's state actually changed. A mutator is also allowed to
+            // return null (e.g. "existing was absent, nothing to do") — without this check that
+            // would reach candidate.withStateVersion() below and NPE; not reachable today (nothing
+            // deletes appliances yet) but a real port-contract gap otherwise.
+            if (candidate == null || (existing != null && existing.equals(candidate))) {
+                transaction.commit();
+                return existing;
+            }
+            ApplianceLiveState updated = candidate.withStateVersion(nextVersion(existing));
             stateCache.put(key, toCacheValue(updated));
             transaction.commit();
             return updated;
@@ -114,7 +131,8 @@ class IgniteApplianceLiveStateAdapter implements ApplianceLiveStatePort {
                 state.accumulatedEnergyKwh(), state.consecutiveBreachCount(), state.consecutiveNormalCount(),
                 state.anomalous(), state.standbyBreachCount(), state.standbyRecoveryCount(),
                 state.standbyAnomalyActive(), state.telemetryHealthStatus(), state.lastUpdatedAt(),
-                state.lastEventId(), state.lastProcessedSequence(), state.stateVersion());
+                state.lastEventId(), state.lastProcessedSequence(), state.stateVersion(), state.catalogCode(),
+                state.catalogDisplayName(), state.catalogIconKey());
     }
 
     private static ApplianceLiveState toDomain(UUID homeId, UUID applianceId, ApplianceLiveStateCacheValue value) {
@@ -124,6 +142,7 @@ class IgniteApplianceLiveStateAdapter implements ApplianceLiveStatePort {
                 value.getConsecutiveNormalCount(), value.isAnomalous(), value.getStandbyBreachCount(),
                 value.getStandbyRecoveryCount(), value.isStandbyAnomalyActive(), value.getTelemetryHealthStatus(),
                 value.getLastUpdatedAt(), value.getLastEventId(), value.getLastProcessedSequence(),
-                value.getStateVersion());
+                value.getStateVersion(), value.getCatalogCode(), value.getCatalogDisplayName(),
+                value.getCatalogIconKey());
     }
 }

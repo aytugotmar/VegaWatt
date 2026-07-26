@@ -88,7 +88,7 @@ class AskInsightUseCaseTest {
         ApplianceLiveState ownHomeAppliance = new ApplianceLiveState(HOME_ID, applianceId, "Buzdolabı",
                 "REFRIGERATOR", new BigDecimal("250"), new BigDecimal("180"), null, null,
                 BigDecimal.ZERO.setScale(9), 0, 0, false, 0, 0, false, ApplianceHealthStatus.NORMAL, NOW, null, 0L,
-                0L);
+                0L, null, null, null);
         when(homeRepository.findById(HOME_ID)).thenReturn(Optional.of(home()));
         when(homeLiveStatePort.get(HOME_ID)).thenReturn(Optional.of(HomeLiveState.zero(HOME_ID, "Ev", NOW)));
         when(applianceLiveStatePort.getByHomeId(HOME_ID)).thenReturn(List.of(ownHomeAppliance));

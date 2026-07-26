@@ -45,4 +45,16 @@ class ApplianceFactory {
         return Appliance.createFromCatalog(homeId, name, catalogItem, resolvedSafePowerLimitWatt,
                 resolvedSimulationMinWatt, resolvedSimulationMaxWatt);
     }
+
+    /** Resolves the display cosmetics to stamp onto a fresh {@code ApplianceLiveState} so the live
+     * status endpoint can read them straight from Ignite instead of hitting Postgres per request. */
+    ApplianceCatalogView resolveCatalogView(Appliance appliance) {
+        String catalogCode = appliance.catalogCodeSnapshot() == null ? null : appliance.catalogCodeSnapshot().value();
+        if (appliance.catalogItemId() == null) {
+            return new ApplianceCatalogView(catalogCode, null, null);
+        }
+        return applianceCatalogRepository.findEnabledById(appliance.catalogItemId())
+                .map(item -> new ApplianceCatalogView(catalogCode, item.displayName(), item.iconKey()))
+                .orElse(new ApplianceCatalogView(catalogCode, null, null));
+    }
 }

@@ -14,16 +14,26 @@ public interface TelemetryLiveStatePort {
 
     /**
      * Restores a home's and appliance's live state to a pre-event snapshot after a failed
-     * downstream persist — but only for whichever side's current cache entry still has the exact
-     * {@code stateVersion} that {@code update()} stamped when this event's write happened (i.e.
-     * nobody else — a concurrent telemetry event, health-scheduler sweep, or any other mutator —
-     * has legitimately overwritten it since). This compare-and-swap guard prevents a delayed
-     * compensation from clobbering a different, later mutation to the same home/appliance;
-     * {@code eventId} is carried through purely for log correlation, not for the CAS itself (a
-     * plain {@code lastEventId} match is insufficient — a later mutation by something other than
-     * telemetry, e.g. {@code TelemetryHealthScheduler}, can leave {@code lastEventId} unchanged
-     * while still being a newer state that must not be clobbered).
+     * downstream persist. The two sides use different compare-and-swap strategies because only one
+     * of them has a second real writer:
+     * <ul>
+     *   <li><b>Home</b> — nothing outside telemetry processing ever mutates home state, so a
+     *       whole-object {@code stateVersion} CAS against {@code expectedHomeVersion} (the version
+     *       this event's own {@code update()} call stamped) is sufficient: if the current entry's
+     *       version doesn't match, something legitimately newer has already committed and the
+     *       restore is skipped entirely.</li>
+     *   <li><b>Appliance</b> — {@code TelemetryHealthScheduler} is a second, independent writer that
+     *       legitimately advances {@code telemetryHealthStatus} without touching {@code lastEventId}.
+     *       A whole-object version CAS here would either wrongly skip the whole compensation (once
+     *       the scheduler bumps the version) or, if keyed on {@code lastEventId} alone, wrongly
+     *       clobber the scheduler's newer health status. So the appliance side gates on
+     *       {@code lastEventId} matching this event, then reverts only the fields telemetry itself
+     *       owns (energy, power, anomaly counters, sequence, event id) while carrying the
+     *       <em>current</em> cache entry's {@code telemetryHealthStatus}/catalog cosmetics forward
+     *       untouched — see {@code IgniteTelemetryLiveStateAdapter.restoreAppliance} for the exact
+     *       field-level merge.</li>
+     * </ul>
      */
-    void restore(UUID homeId, UUID applianceId, UUID eventId, long expectedHomeVersion, long expectedApplianceVersion,
-                 HomeLiveState previousHome, ApplianceLiveState previousAppliance);
+    void restore(UUID homeId, UUID applianceId, UUID eventId, long expectedHomeVersion, HomeLiveState previousHome,
+                 ApplianceLiveState previousAppliance);
 }

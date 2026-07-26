@@ -45,8 +45,10 @@ public class AddApplianceUseCase {
         homeRepository.save(home);
 
         Instant now = clockProvider.now();
+        ApplianceCatalogView catalogView = applianceFactory.resolveCatalogView(appliance);
         applianceLiveStatePort.initialize(ApplianceLiveState.zero(home.id(), appliance.id(), appliance.name(),
-                appliance.type(), appliance.safePowerLimitWatt(), now));
+                appliance.type(), appliance.safePowerLimitWatt(), now, catalogView.catalogCode(),
+                catalogView.catalogDisplayName(), catalogView.catalogIconKey()));
 
         // Republishes the full home (existing appliances included) rather than a single-appliance
         // event — the sensors' registration consumer treats upsert/ensureScheduled as idempotent
