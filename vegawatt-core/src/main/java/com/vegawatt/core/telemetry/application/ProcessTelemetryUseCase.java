@@ -12,6 +12,7 @@ import com.vegawatt.core.common.ApplianceHealthStatus;
 import com.vegawatt.core.common.time.ClockProvider;
 import com.vegawatt.core.home.domain.Appliance;
 import com.vegawatt.core.home.domain.ApplianceLiveState;
+import com.vegawatt.core.home.domain.ApplianceLiveStatePort;
 import com.vegawatt.core.home.domain.ApplianceNotFoundException;
 import com.vegawatt.core.home.domain.ApplianceRepository;
 import com.vegawatt.core.home.domain.Home;
@@ -44,6 +45,7 @@ public class ProcessTelemetryUseCase {
     private final ApplianceRepository applianceRepository;
     @SuppressWarnings("unused")
     private final HomeLiveStatePort homeLiveStatePort;
+    private final ApplianceLiveStatePort applianceLiveStatePort;
     private final TelemetryLiveStatePort telemetryLiveStatePort;
     private final EvaluateHomeBillingUseCase evaluateHomeBillingUseCase;
     private final EvaluateApplianceAnomalyUseCase evaluateApplianceAnomalyUseCase;
@@ -53,7 +55,8 @@ public class ProcessTelemetryUseCase {
     private final ClockProvider clockProvider;
 
     public ProcessTelemetryUseCase(HomeRepository homeRepository, ApplianceRepository applianceRepository,
-                                    HomeLiveStatePort homeLiveStatePort, TelemetryLiveStatePort telemetryLiveStatePort,
+                                    HomeLiveStatePort homeLiveStatePort, ApplianceLiveStatePort applianceLiveStatePort,
+                                    TelemetryLiveStatePort telemetryLiveStatePort,
                                     EvaluateHomeBillingUseCase evaluateHomeBillingUseCase,
                                     EvaluateApplianceAnomalyUseCase evaluateApplianceAnomalyUseCase,
                                     EvaluateStandbyConsumptionUseCase evaluateStandbyConsumptionUseCase,
@@ -62,6 +65,7 @@ public class ProcessTelemetryUseCase {
         this.homeRepository = homeRepository;
         this.applianceRepository = applianceRepository;
         this.homeLiveStatePort = homeLiveStatePort;
+        this.applianceLiveStatePort = applianceLiveStatePort;
         this.telemetryLiveStatePort = telemetryLiveStatePort;
         this.evaluateHomeBillingUseCase = evaluateHomeBillingUseCase;
         this.evaluateApplianceAnomalyUseCase = evaluateApplianceAnomalyUseCase;
@@ -88,6 +92,25 @@ public class ProcessTelemetryUseCase {
         }
         if (!appliance.active()) {
             log.warn("Discarding telemetry event {} for inactive appliance {}", reading.eventId(), appliance.id());
+            return;
+        }
+
+        // Out-of-order guard. A telemetry event delayed in Kafka must not rewind live state, the
+        // billing period, or the anomaly counters to an earlier moment, so I drop any event whose
+        // sequence is not strictly newer than the last one already applied to this appliance. Reading
+        // the current state here (rather than inside the atomic update) is safe because telemetry is
+        // keyed by homeId, so one home's events are consumed in order on a single partition and no
+        // other event for this appliance can interleave between this check and the update below. A
+        // failed persist compensates the appliance state back, sequence included, so a retry is not
+        // mistaken for a stale event. Sequence 0 means the field was absent (a pre-sequence producer),
+        // and I let those through unguarded rather than silently dropping every reading after the first.
+        long lastProcessedSequence = applianceLiveStatePort.get(reading.homeId(), reading.applianceId())
+                .map(ApplianceLiveState::lastProcessedSequence)
+                .orElse(0L);
+        if (reading.sequenceNumber() > 0 && reading.sequenceNumber() <= lastProcessedSequence) {
+            log.warn("Dropping out-of-order telemetry event {} for appliance {}: sequence {} is not newer than the "
+                            + "last processed sequence {}", reading.eventId(), appliance.id(),
+                    reading.sequenceNumber(), lastProcessedSequence);
             return;
         }
 
@@ -143,13 +166,16 @@ public class ProcessTelemetryUseCase {
                     transitionedToResumedRef.set(transitionedToResumed);
 
                     BigDecimal newAccumulatedEnergyKwh = existing.accumulatedEnergyKwh().add(energyIncrementKwh);
+                    // Math.max, not a plain assignment, so an event that carries no sequence (0) leaves
+                    // the appliance's high-water mark where it was rather than resetting it to zero.
+                    long newLastProcessedSequence = Math.max(existing.lastProcessedSequence(), reading.sequenceNumber());
                     return new ApplianceLiveState(reading.homeId(), reading.applianceId(), existing.applianceName(),
                             existing.applianceType(), existing.safePowerLimitWatt(), reading.powerWatt(),
                             reading.operatingState(), reading.operatingMode(), newAccumulatedEnergyKwh,
                             result.consecutiveBreachCount(), result.consecutiveNormalCount(), result.anomalous(),
                             standbyResult.standbyBreachCount(), standbyResult.standbyRecoveryCount(),
                             standbyResult.standbyAnomalyActive(), ApplianceHealthStatus.NORMAL, occurredAt,
-                            reading.eventId());
+                            reading.eventId(), newLastProcessedSequence);
                 });
 
         HomeUpdateOutcome homeOutcome = homeOutcomeRef.get();

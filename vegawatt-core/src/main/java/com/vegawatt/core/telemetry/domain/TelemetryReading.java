@@ -9,6 +9,7 @@ public record TelemetryReading(
         UUID eventId,
         UUID homeId,
         UUID applianceId,
+        long sequenceNumber,
         BigDecimal powerWatt,
         ApplianceOperatingState operatingState,
         String operatingMode,

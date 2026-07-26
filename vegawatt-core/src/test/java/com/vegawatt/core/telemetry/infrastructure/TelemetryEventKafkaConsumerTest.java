@@ -38,7 +38,7 @@ class TelemetryEventKafkaConsumerTest {
         UUID homeId = UUID.randomUUID();
         UUID applianceId = UUID.randomUUID();
         TelemetryEventPayload payload = new TelemetryEventPayload(UUID.randomUUID(), 2, Instant.now(), homeId,
-                applianceId, new BigDecimal("120.50"), ApplianceOperatingState.STANDBY, "STANDBY", 5);
+                applianceId, 15297L, new BigDecimal("120.50"), ApplianceOperatingState.STANDBY, "STANDBY", 5);
 
         consumer.onMessage(new ConsumerRecord<>("vegawatt.telemetry.v1", 0, 0L, homeId.toString(),
                 objectMapper.writeValueAsString(payload)));
@@ -47,6 +47,7 @@ class TelemetryEventKafkaConsumerTest {
         verify(processTelemetryUseCase).execute(captor.capture());
         assertThat(captor.getValue().operatingState()).isEqualTo(ApplianceOperatingState.STANDBY);
         assertThat(captor.getValue().operatingMode()).isEqualTo("STANDBY");
+        assertThat(captor.getValue().sequenceNumber()).isEqualTo(15297L);
     }
 
     @Test
@@ -64,5 +65,7 @@ class TelemetryEventKafkaConsumerTest {
         verify(processTelemetryUseCase).execute(captor.capture());
         assertThat(captor.getValue().operatingState()).isNull();
         assertThat(captor.getValue().operatingMode()).isNull();
+        // A payload without the field deserializes to sequence 0, which the guard treats as unguarded.
+        assertThat(captor.getValue().sequenceNumber()).isZero();
     }
 }

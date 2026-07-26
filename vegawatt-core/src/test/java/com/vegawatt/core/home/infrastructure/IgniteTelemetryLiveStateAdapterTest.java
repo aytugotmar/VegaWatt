@@ -65,7 +65,7 @@ class IgniteTelemetryLiveStateAdapterTest {
     private static ApplianceLiveState previousAppliance() {
         return new ApplianceLiveState(HOME_ID, APPLIANCE_ID, "Fridge", "REFRIGERATOR", new BigDecimal("200"),
                 new BigDecimal("50"), null, null, BigDecimal.ZERO.setScale(9), 0, 0, false, 0, 0, false,
-                com.vegawatt.core.common.ApplianceHealthStatus.NORMAL, NOW, null);
+                com.vegawatt.core.common.ApplianceHealthStatus.NORMAL, NOW, null, 0L);
     }
 
     private static HomeLiveStateCacheValue homeCacheValueStampedWith(UUID eventId) {
@@ -76,7 +76,7 @@ class IgniteTelemetryLiveStateAdapterTest {
     private static ApplianceLiveStateCacheValue applianceCacheValueStampedWith(UUID eventId) {
         return new ApplianceLiveStateCacheValue("Fridge", "REFRIGERATOR", new BigDecimal("200"),
                 new BigDecimal("60"), null, null, BigDecimal.ZERO.setScale(9), 0, 0, false, 0, 0, false,
-                com.vegawatt.core.common.ApplianceHealthStatus.NORMAL, NOW, eventId);
+                com.vegawatt.core.common.ApplianceHealthStatus.NORMAL, NOW, eventId, 0L);
     }
 
     @Test
